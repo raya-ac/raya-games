@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of Raya Games collection
-- 20 browser-based games and simulations
+- 21 browser-based games and simulations
 - Self-contained HTML files with inline CSS/JS
 - Featured: Life Simulator with career system, relationships, crime
 - Cellular Automata: Life 2D, Game of Life 3D, Game of Life 4D
 - Simulations: Ecosystem, Fluid Dynamics, Boids, Particles, Ant Colony
 - Tycoon: Prison Empire, Stock Market, City Builder, Space Colony
-- Strategy: Medieval Kingdom Wars, Battle Royale, Disease Simulator
+- Strategy: Medieval Kingdom Wars, Battle Royale, Disease Simulator, Zombie Outbreak
 - AI/ML: Neural Network Visualizer, AI Office
 - Utility: Traffic Simulator
 - Automated release workflow via GitHub Actions
@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `medieval-wars.html` - Hex-based strategy game
 - `battleroyale.html` - 100 AI battle royale
 - `disease-sim.html` - Disease outbreak simulator
+- `zombie-sim.html` - Zombie outbreak simulator
 - `neural-net.html` - Neural network visualizer
 - `ai-office.html` - AI agent office simulator
 - `traffic.html` - Traffic simulation
