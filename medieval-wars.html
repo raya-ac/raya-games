@@ -2,10 +2,9 @@
         // ==================== EPIC MEDIEVAL AUDIO SYSTEM ====================
         class MedievalAudioSystem {
             constructor() {
-                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                this.masterGain = this.ctx.createGain();
-                this.masterGain.connect(this.ctx.destination);
-                this.masterGain.gain.value = 0.2;
+                this.ctx = null;   // created lazily on first user interaction
+                this.masterGain = null;
+                this._volume = 0.2;
                 this.isPlaying = false;
                 this.currentSection = 0;
                 this.nextNoteTime = 0;
@@ -33,8 +32,19 @@
                 this.currentProgression = 0;
                 this.beatCount = 0;
                 
-                // Sound effect generators
-                this.swordSwingBuffer = this.createNoiseBuffer(0.1, 'white');
+                // Buffers created lazily after ctx exists
+                this.swordSwingBuffer = null;
+                this.arrowWhooshBuffer = null;
+            }
+
+            _ensureCtx() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = this._volume;
+                // Build buffers now that ctx exists
+                this.swordSwingBuffer  = this.createNoiseBuffer(0.1, 'white');
                 this.arrowWhooshBuffer = this.createNoiseBuffer(0.15, 'pink');
             }
             
@@ -192,6 +202,7 @@
             
             // Battle sound effects
             playBattleHorn() {
+                this._ensureCtx();
                 const now = this.ctx.currentTime;
                 [220, 329.63, 440].forEach((freq, i) => {
                     this.playBrass(freq, 1.5, 0.4, i * 0.15);
@@ -199,6 +210,7 @@
             }
             
             playSwordClash() {
+                this._ensureCtx();
                 const now = this.ctx.currentTime;
                 
                 // Metallic clang
@@ -335,6 +347,7 @@
             }
             
             start() {
+                this._ensureCtx();
                 if (this.ctx.state === 'suspended') {
                     this.ctx.resume();
                 }
@@ -352,7 +365,8 @@
             }
             
             setVolume(val) {
-                this.masterGain.gain.value = val / 100;
+                this._volume = val / 100;
+                if (this.masterGain) this.masterGain.gain.value = this._volume;
             }
         }
         
@@ -1072,5 +1086,19 @@
         // Handle window resize
         window.addEventListener('resize', drawMap);
     </script>
+
+    <!-- Battle flash overlay (referenced by JS) -->
+    <div id="battleFlash" style="
+        position:fixed;top:0;left:0;width:100%;height:100%;
+        background:rgba(255,50,50,0.18);pointer-events:none;
+        z-index:9999;display:none;transition:opacity .15s;
+    "></div>
+    <style>
+        #battleFlash.active { display:block; animation:flashAnim .3s ease forwards; }
+        @keyframes flashAnim {
+            0%   { opacity:1; }
+            100% { opacity:0; }
+        }
+    </style>
 </body>
 </html>

@@ -1611,16 +1611,14 @@
         }
 
         // ============================================
-        // ENHANCED ANIMATION LOOP WITH TRAIL BLUR
+        // ENHANCED ANIMATION LOOP WITH MOTION BLUR
         // ============================================
         function animate() {
             if (!isPaused) {
-                // Fade effect for motion blur on trails
-                trailCtx.fillStyle = 'rgba(10, 26, 20, 0.15)';
-                trailCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Clear main canvas with semi-transparent fill for trail effect
-                ctx.fillStyle = 'rgba(5, 26, 20, 0.25)';
+                // Semi-transparent fill creates motion-blur trail effect
+                ctx.fillStyle = visualMode === 'fireflies'
+                    ? 'rgba(4, 12, 8, 0.18)'   // slower fade for firefly glow
+                    : 'rgba(5, 20, 12, 0.28)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 // Draw obstacles
@@ -1629,18 +1627,13 @@
                 // Draw food
                 foods.forEach(food => food.draw());
 
-                // Update and draw boids
+                // Update and draw all boids
                 const allBoids = [...boids, ...predators];
                 allBoids.forEach(boid => {
                     boid.flock(allBoids, predators, foods, obstacles);
                     boid.update();
                     boid.draw();
                 });
-
-                // Draw trail overlay
-                ctx.globalCompositeOperation = 'screen';
-                ctx.drawImage(trailCanvas, 0, 0);
-                ctx.globalCompositeOperation = 'source-over';
             }
 
             // Update stats

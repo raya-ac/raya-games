@@ -73,7 +73,20 @@
             padding: 10px;
             border-radius: 12px;
             border: 2px solid var(--border);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(34,197,94,0.05);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .board.eating {
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 60px rgba(34,197,94,0.4);
+        }
+
+        .stat-card .stat-value {
+            transition: color 0.2s ease, transform 0.15s ease;
+        }
+        .stat-card .stat-value.pop {
+            color: #4ade80;
+            transform: scale(1.2);
         }
         
         .cell {
@@ -96,18 +109,44 @@
         }
         
         .cell.food { 
-            background: linear-gradient(135deg, #ef4444, #dc2626);
+            background: radial-gradient(circle at 35% 35%, #ff6b6b, #dc2626);
             border-radius: 50%;
-            animation: pulse 1s infinite;
+            animation: food-pulse 0.8s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(239,68,68,0.7), 0 0 16px rgba(239,68,68,0.3);
         }
         
         .cell.path {
-            background: rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.25);
+            box-shadow: inset 0 0 4px rgba(99,102,241,0.5);
+        }
+
+        .cell.particle {
+            animation: particle-burst 0.4s ease-out forwards;
         }
         
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(0.9); }
+        @keyframes food-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(239,68,68,0.7); }
+            50% { transform: scale(0.85); box-shadow: 0 0 16px rgba(239,68,68,1), 0 0 30px rgba(239,68,68,0.4); }
+        }
+
+        @keyframes particle-burst {
+            0% { transform: scale(1.5); opacity: 1; background: #fbbf24; border-radius: 50%; }
+            100% { transform: scale(0); opacity: 0; background: #ef4444; border-radius: 50%; }
+        }
+
+        @keyframes snake-glow {
+            0%, 100% { box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+            50% { box-shadow: 0 0 14px rgba(34,197,94,0.9), 0 0 28px rgba(34,197,94,0.4); }
+        }
+
+        .cell.snake-head {
+            animation: snake-glow 0.5s ease infinite;
+        }
+        
+        .cell.snake { 
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+            transition: background 0.1s;
         }
         
         .sidebar {
@@ -349,6 +388,13 @@
                 </div>
             </div>
             
+            <div class="control-group">
+                <label>Audio</label>
+                <div class="action-btns">
+                    <button class="action-btn secondary" id="music-btn" onclick="toggleSnakeMusic()">🎵 Music: OFF</button>
+                </div>
+            </div>
+
             <div class="algorithm-info" id="algo-info">
                 <strong>Breadth-First Search (BFS)</strong>
                 Explores all possible paths level by level to find the shortest route to food. Guarantees shortest path but can trap itself in tight spaces.
@@ -613,15 +659,27 @@
             // Check food
             if (nextMove.x === food.x && nextMove.y === food.y) {
                 score++;
-                document.getElementById('score').textContent = score;
+                const scoreEl = document.getElementById('score');
+                scoreEl.textContent = score;
+                scoreEl.classList.add('pop');
+                setTimeout(() => scoreEl.classList.remove('pop'), 200);
+                const boardEl = document.getElementById('board');
+                boardEl.classList.add('eating');
+                setTimeout(() => boardEl.classList.remove('eating'), 300);
+                SnakeAudio.init();
+                SnakeAudio.playEat();
+                spawnFoodParticles(food.x, food.y);
                 placeFood();
                 
                 // Check win condition
                 if (snake.length === GRID_SIZE * GRID_SIZE) {
+                    SnakeAudio.playWin();
                     gameOver(true);
                 }
             } else {
                 snake.pop();
+                // Occasional move tick
+                if (snakeAudioOn && Math.random() < 0.15) SnakeAudio.playMove();
             }
             
             render();
@@ -631,13 +689,17 @@
             isRunning = false;
             clearInterval(gameLoop);
             
+            SnakeAudio.init();
+            if (!win) SnakeAudio.playDie();
+            // Win sound already called before gameOver(true)
+            
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem('snake-high-score', highScore);
                 document.getElementById('high-score').textContent = highScore;
             }
             
-            const msg = win ? '🎉 PERFECT GAME!' : `💀 Game Over! Score: ${score}`;
+            const msg = win ? '🎉 PERFECT GAME! The AI conquered every cell!' : `💀 Game Over!\nScore: ${score} | Best: ${highScore}`;
             setTimeout(() => alert(msg), 100);
         }
         
@@ -713,6 +775,218 @@
             }
         });
         
+        // ===================== RETRO ARCADE AUDIO SYSTEM =====================
+        const SnakeAudio = {
+            ctx: null, masterGain: null, compressor: null,
+            isPlaying: false, volume: 0.18,
+            beatRAF: null, basslineInterval: null,
+            chordIdx: 0,
+
+            // Classic arcade progression
+            bassNotes:  [110, 110, 138.59, 110, 98.00, 110, 123.47, 110],
+            leadNotes:  [440, 523.25, 659.25, 523.25, 392, 440, 493.88, 440,
+                         329.63, 392, 440, 392, 293.66, 329.63, 392, 329.63],
+            leadIdx: 0,
+
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.compressor = this.ctx.createDynamicsCompressor();
+                this.compressor.threshold.value = -18; this.compressor.ratio.value = 5;
+                this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = this.volume;
+                this.compressor.connect(this.masterGain); this.masterGain.connect(this.ctx.destination);
+            },
+
+            playKick(time) {
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.frequency.setValueAtTime(120, time); o.frequency.exponentialRampToValueAtTime(0.01, time + 0.3);
+                g.gain.setValueAtTime(0.06, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+                o.connect(g); g.connect(this.compressor); o.start(time); o.stop(time + 0.3);
+            },
+
+            playSnare(time) {
+                const sz = Math.floor(this.ctx.sampleRate * 0.1);
+                const buf = this.ctx.createBuffer(1, sz, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < sz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / sz);
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2000;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(0.05, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                src.connect(f); f.connect(g); g.connect(this.compressor);
+                src.start(time); src.stop(time + 0.1);
+            },
+
+            playHihat(time, vol) {
+                const sz = Math.floor(this.ctx.sampleRate * 0.025);
+                const buf = this.ctx.createBuffer(1, sz, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < sz; i++) d[i] = Math.random() * 2 - 1;
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 8000;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
+                src.connect(f); f.connect(g); g.connect(this.compressor);
+                src.start(time); src.stop(time + 0.03);
+            },
+
+            playBass(freq, time) {
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400;
+                o.type = 'square'; o.frequency.value = freq;
+                g.gain.setValueAtTime(0.05, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+                o.connect(f); f.connect(g); g.connect(this.compressor); o.start(time); o.stop(time + 0.4);
+            },
+
+            playLead(freq, time) {
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2000; f.Q.value = 2;
+                o.type = 'square'; o.frequency.value = freq * 2;
+                g.gain.setValueAtTime(0.022, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+                o.connect(f); f.connect(g); g.connect(this.compressor); o.start(time); o.stop(time + 0.25);
+            },
+
+            startBeat() {
+                const bpm = 140;
+                const beat = 60 / bpm;
+                let next = this.ctx.currentTime;
+                let cnt = 0;
+
+                const sched = () => {
+                    while (next < this.ctx.currentTime + 0.15) {
+                        const b = cnt % 4;
+                        // Drums
+                        if (b === 0) this.playKick(next);
+                        if (b === 2) this.playKick(next);
+                        if (b === 1 || b === 3) this.playSnare(next);
+                        this.playHihat(next, 0.02);
+                        if (cnt % 2 === 1) this.playHihat(next - beat * 0.25, 0.01);
+                        // Bass on beats 1 & 3
+                        if (b === 0 || b === 2) this.playBass(this.bassNotes[Math.floor(cnt / 2) % this.bassNotes.length], next);
+                        // Lead melody every 2 beats
+                        if (cnt % 2 === 0) {
+                            this.playLead(this.leadNotes[this.leadIdx % this.leadNotes.length], next);
+                            this.leadIdx++;
+                        }
+                        next += beat; cnt++;
+                    }
+                    if (this.isPlaying) this.beatRAF = requestAnimationFrame(sched);
+                };
+                sched();
+            },
+
+            play() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                this.isPlaying = true;
+                this.leadIdx = 0;
+                this.startBeat();
+            },
+
+            stop() {
+                this.isPlaying = false;
+                if (this.beatRAF) { cancelAnimationFrame(this.beatRAF); this.beatRAF = null; }
+                if (this.masterGain) {
+                    const now = this.ctx.currentTime;
+                    this.masterGain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    setTimeout(() => { if (this.masterGain) this.masterGain.gain.value = this.volume; }, 400);
+                }
+            },
+
+            // Sound effects
+            playEat() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [880, 1108, 1320].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'square'; o.frequency.value = f;
+                    const t = now + i * 0.04;
+                    g.gain.setValueAtTime(0.07, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                    const flt = this.ctx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 2000;
+                    o.connect(flt); flt.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(t); o.stop(t + 0.15);
+                });
+            },
+
+            playMove() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'square'; o.frequency.value = 220;
+                g.gain.setValueAtTime(0.012, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                o.start(now); o.stop(now + 0.05);
+            },
+
+            playDie() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [440, 349.23, 277.18, 220, 174.61, 138.59, 110].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'sawtooth'; o.frequency.value = f;
+                    const t = now + i * 0.06;
+                    g.gain.setValueAtTime(0.07, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                    const flt = this.ctx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 800;
+                    o.connect(flt); flt.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(t); o.stop(t + 0.2);
+                });
+            },
+
+            playWin() {
+                if (!this.ctx) return;
+                [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568].forEach((f, i) => {
+                    const now = this.ctx.currentTime + i * 0.08;
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'square'; o.frequency.value = f;
+                    g.gain.setValueAtTime(0.07, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    const flt = this.ctx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 2500;
+                    o.connect(flt); flt.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(now); o.stop(now + 0.4);
+                });
+            }
+        };
+
+        let snakeAudioOn = false;
+        function toggleSnakeMusic() {
+            snakeAudioOn = !snakeAudioOn;
+            const btn = document.getElementById('music-btn');
+            if (snakeAudioOn) {
+                SnakeAudio.play();
+                btn.textContent = '🎵 Music: ON';
+                btn.style.background = 'var(--primary)';
+                btn.style.borderColor = 'var(--primary)';
+                btn.style.color = 'white';
+            } else {
+                SnakeAudio.stop();
+                btn.textContent = '🎵 Music: OFF';
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+            }
+        }
+
+        // Particle effect for food eating
+        function spawnFoodParticles(x, y) {
+            const neighbors = [{x:x-1,y},{x:x+1,y},{x,y:y-1},{x,y:y+1},{x:x-1,y:y-1},{x:x+1,y:y-1},{x:x-1,y:y+1},{x:x+1,y:y+1}];
+            neighbors.forEach(({x: nx, y: ny}) => {
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && !isSnake(nx, ny)) {
+                    const idx = getIndex(nx, ny);
+                    cells[idx].classList.add('particle');
+                    setTimeout(() => cells[idx].classList.remove('particle'), 400);
+                }
+            });
+        }
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', e => {
+            switch(e.key) {
+                case ' ': e.preventDefault();
+                    SnakeAudio.init();
+                    if (isRunning) stop(); else start();
+                    break;
+                case 'r': case 'R': stop(); reset(); break;
+                case 'm': case 'M': toggleSnakeMusic(); break;
+            }
+        });
+
         // Initialize
         reset();
     </script>

@@ -1284,7 +1284,320 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-        
+
+        // ================================================================
+        // SPACE AMBIENT MUSIC & SOUND FX SYSTEM
+        // ================================================================
+        const SpaceAudio = {
+            ctx: null,
+            masterGain: null,
+            ambientGain: null,
+            sfxGain: null,
+            isPlaying: false,
+            isMuted: false,
+            volume: 0.20,
+            nodes: [],
+            reactionCooldown: 0,
+
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const comp = this.ctx.createDynamicsCompressor();
+                comp.threshold.value = -20; comp.ratio.value = 4;
+                comp.attack.value = 0.005; comp.release.value = 0.3;
+
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.volume;
+                this.ambientGain = this.ctx.createGain();
+                this.ambientGain.gain.value = 0.65;
+                this.sfxGain = this.ctx.createGain();
+                this.sfxGain.gain.value = 0.35;
+
+                this.ambientGain.connect(comp);
+                this.sfxGain.connect(comp);
+                comp.connect(this.masterGain);
+                this.masterGain.connect(this.ctx.destination);
+            },
+
+            _makeNoise(sr, seconds, type='pink') {
+                const buf = this.ctx.createBuffer(1, Math.floor(sr * seconds), sr);
+                const d = buf.getChannelData(0);
+                let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+                for (let i = 0; i < d.length; i++) {
+                    const w = Math.random() * 2 - 1;
+                    if (type === 'pink') {
+                        b0 = 0.99886*b0 + w*0.0555179; b1 = 0.99332*b1 + w*0.0750759;
+                        b2 = 0.96900*b2 + w*0.1538520; b3 = 0.86650*b3 + w*0.3104856;
+                        b4 = 0.55000*b4 + w*0.5329522; b5 = -0.7616*b5 - w*0.0168980;
+                        d[i] = (b0+b1+b2+b3+b4+b5+b6+w*0.5362) * 0.11;
+                        b6 = w * 0.115926;
+                    } else {
+                        d[i] = w;
+                    }
+                }
+                return buf;
+            },
+
+            startAmbient() {
+                if (!this.ctx) return;
+                const sr = this.ctx.sampleRate;
+
+                // Deep space drone - ultra-low frequencies
+                const cosmicFreqs = [27.5, 36.7, 41.2, 55.0]; // A0, D1, E1, A1
+                cosmicFreqs.forEach((f, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = (i % 2 === 0) ? 'sine' : 'triangle';
+                    osc.frequency.value = f;
+                    osc.detune.value = (Math.random() - 0.5) * 12;
+                    g.gain.setValueAtTime(0, this.ctx.currentTime);
+                    g.gain.linearRampToValueAtTime(0.012, this.ctx.currentTime + 5);
+                    // Slow pulse
+                    const lfo = this.ctx.createOscillator();
+                    lfo.type = 'sine'; lfo.frequency.value = 0.02 + i * 0.008;
+                    const lfoG = this.ctx.createGain(); lfoG.gain.value = 0.005;
+                    lfo.connect(lfoG); lfoG.connect(g.gain);
+                    lfo.start(); osc.connect(g); g.connect(this.ambientGain); osc.start();
+                    this.nodes.push(osc, lfo);
+                });
+
+                // Cosmic shimmer - mid-high ethereal tones
+                [220, 330, 440, 660].forEach((f, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = f * (1 + (Math.random() - 0.5) * 0.01);
+                    // Slow attack
+                    g.gain.setValueAtTime(0, this.ctx.currentTime);
+                    g.gain.linearRampToValueAtTime(0.006, this.ctx.currentTime + 8);
+                    // Tremolo
+                    const lfo = this.ctx.createOscillator();
+                    lfo.type = 'sine'; lfo.frequency.value = 0.08 + i * 0.03;
+                    const lfoG = this.ctx.createGain(); lfoG.gain.value = 0.003;
+                    lfo.connect(lfoG); lfoG.connect(g.gain);
+                    lfo.start(); osc.connect(g); g.connect(this.ambientGain); osc.start();
+                    this.nodes.push(osc, lfo);
+                });
+
+                // Space hiss - pink noise filtered to high frequencies
+                const noiseBuf = this._makeNoise(sr, 5, 'pink');
+                const noiseSrc = this.ctx.createBufferSource();
+                noiseSrc.buffer = noiseBuf; noiseSrc.loop = true;
+                const hpf = this.ctx.createBiquadFilter();
+                hpf.type = 'highpass'; hpf.frequency.value = 8000; hpf.Q.value = 0.5;
+                const noiseG = this.ctx.createGain();
+                noiseG.gain.setValueAtTime(0, this.ctx.currentTime);
+                noiseG.gain.linearRampToValueAtTime(0.018, this.ctx.currentTime + 3);
+                noiseSrc.connect(hpf); hpf.connect(noiseG); noiseG.connect(this.ambientGain);
+                noiseSrc.start();
+                this.nodes.push(noiseSrc);
+
+                // Evolving chord sequence - pentatonic space
+                this._scheduleSpaceChords();
+            },
+
+            _scheduleSpaceChords() {
+                if (!this.isPlaying) return;
+                const spaceChords = [
+                    [55.0, 82.4, 110.0, 164.8],   // A1 chord
+                    [65.4, 98.0, 130.8, 196.0],   // C2 chord
+                    [49.0, 73.4, 98.0, 146.8],    // G1 chord
+                    [43.7, 65.4, 87.3, 130.8]     // F1 chord
+                ];
+                let idx = 0;
+                const playNextChord = () => {
+                    if (!this.isPlaying || this.isMuted) { setTimeout(playNextChord, 8000); return; }
+                    const chord = spaceChords[idx % spaceChords.length];
+                    idx++;
+                    chord.forEach((f, i) => {
+                        const osc = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = f;
+                        osc.detune.value = (Math.random() - 0.5) * 5;
+                        const t = this.ctx.currentTime;
+                        g.gain.setValueAtTime(0, t);
+                        g.gain.linearRampToValueAtTime(0.018, t + 2);
+                        g.gain.setValueAtTime(0.018, t + 5);
+                        g.gain.linearRampToValueAtTime(0, t + 7.5);
+                        osc.connect(g); g.connect(this.ambientGain);
+                        osc.start(t); osc.stop(t + 8);
+                    });
+                    setTimeout(playNextChord, 7800);
+                };
+                setTimeout(playNextChord, 1000);
+            },
+
+            // --- Sound Effects ---
+            playAnnihilation(x, y) {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                // Explosive crack
+                const sr = this.ctx.sampleRate;
+                const buf = this.ctx.createBuffer(1, Math.floor(sr * 0.4), sr);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.3));
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const lpf = this.ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 1000;
+                const g = this.ctx.createGain(); g.gain.value = 0.06;
+                src.connect(lpf); lpf.connect(g); g.connect(this.sfxGain);
+                src.start(t);
+                // High whine
+                const osc = this.ctx.createOscillator(); const og = this.ctx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(800, t);
+                osc.frequency.exponentialRampToValueAtTime(50, t + 0.4);
+                og.gain.setValueAtTime(0.04, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                osc.connect(og); og.connect(this.sfxGain); osc.start(t); osc.stop(t + 0.5);
+            },
+
+            playFission() {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                // Low boom
+                const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(120, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
+                g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+                osc.connect(g); g.connect(this.sfxGain); osc.start(t); osc.stop(t + 0.4);
+                // Crackle
+                const sr = this.ctx.sampleRate;
+                const buf = this.ctx.createBuffer(1, Math.floor(sr * 0.2), sr);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const hpf = this.ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 2000;
+                const g2 = this.ctx.createGain(); g2.gain.value = 0.035;
+                src.connect(hpf); hpf.connect(g2); g2.connect(this.sfxGain); src.start(t);
+            },
+
+            playFusion() {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, t); osc.frequency.linearRampToValueAtTime(600, t + 0.2);
+                osc.frequency.exponentialRampToValueAtTime(100, t + 0.6);
+                g.gain.setValueAtTime(0.04, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+                osc.connect(g); g.connect(this.sfxGain); osc.start(t); osc.stop(t + 0.75);
+            },
+
+            playBirth() {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                [0, 0.06, 0.12].forEach((dt, i) => {
+                    const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.value = 600 + i * 200;
+                    g.gain.setValueAtTime(0.022, t + dt); g.gain.exponentialRampToValueAtTime(0.001, t + dt + 0.14);
+                    osc.connect(g); g.connect(this.sfxGain); osc.start(t + dt); osc.stop(t + dt + 0.15);
+                });
+            },
+
+            onReaction(type) {
+                this.reactionCooldown--;
+                if (this.reactionCooldown > 0) return;
+                if (!this.isPlaying || this.isMuted) return;
+                switch(type) {
+                    case 'annihilation': this.playAnnihilation(); this.reactionCooldown = 30; break;
+                    case 'fission':      this.playFission();      this.reactionCooldown = 20; break;
+                    case 'fusion':       this.playFusion();        this.reactionCooldown = 20; break;
+                    case 'birth':        this.playBirth();         this.reactionCooldown = 15; break;
+                }
+            },
+
+            toggle() {
+                if (!this.ctx) { this.start(); return; }
+                this.isMuted = !this.isMuted;
+                const t = this.ctx.currentTime;
+                if (this.isMuted) {
+                    this.masterGain.gain.linearRampToValueAtTime(0, t + 0.5);
+                } else {
+                    this.masterGain.gain.linearRampToValueAtTime(this.volume, t + 0.5);
+                }
+                const btn = document.getElementById('musicToggleBtn');
+                if (btn) btn.style.borderColor = this.isMuted ? '#666' : '#b829dd';
+                btn.textContent = this.isMuted ? '🔇 Muted' : '🎵 Music';
+            },
+
+            start() {
+                if (this.isPlaying) { this.toggle(); return; }
+                this.init();
+                this.isPlaying = true;
+                this.isMuted = false;
+                this.startAmbient();
+                const btn = document.getElementById('musicToggleBtn');
+                if (btn) { btn.textContent = '🎵 On'; btn.style.borderColor = '#00ff88'; }
+            },
+
+            setVolume(val) {
+                this.volume = val / 100;
+                if (this.masterGain) this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+            }
+        };
+
+        function toggleSpaceMusic() { SpaceAudio.start(); }
+        function setSpaceMusicVolume(v) { SpaceAudio.setVolume(parseInt(v)); }
+
+        // Patch handleCollision to emit sounds
+        const _origHandleCollision = handleCollision;
+        window.handleCollision = function(p1, p2, i, j, toRemove, toAdd) {
+            const prevLen = toRemove.length;
+            _origHandleCollision(p1, p2, i, j, toRemove, toAdd);
+            if (toRemove.length > prevLen) {
+                // A reaction happened
+                if (p1.type === 'antimatter' || p2.type === 'antimatter') {
+                    SpaceAudio.onReaction('annihilation');
+                } else if (p1.type === 'uranium' || p2.type === 'uranium') {
+                    SpaceAudio.onReaction('fission');
+                } else if (p1.type === 'plasma' && p2.type === 'plasma') {
+                    SpaceAudio.onReaction('fusion');
+                } else if (p1.type === 'life' || p2.type === 'life') {
+                    SpaceAudio.onReaction('birth');
+                }
+            }
+        };
+
+        // Keyboard controls
+        let keyHelpVisible = false;
+        document.addEventListener('keydown', (e) => {
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT') return;
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    document.getElementById('play-btn').click();
+                    break;
+                case 'r': case 'R':
+                    reset();
+                    break;
+                case 'c': case 'C':
+                    clearAll();
+                    break;
+                case 'm': case 'M':
+                    toggleSpaceMusic();
+                    break;
+                case '1': loadPreset('bigbang'); break;
+                case '2': loadPreset('solarsystem'); break;
+                case '3': loadPreset('chemistry'); break;
+                case '4': loadPreset('life'); break;
+                case '5': loadPreset('plasma'); break;
+                case '6': loadPreset('crystal'); break;
+                case '7': loadPreset('magnetic'); break;
+                case '8': loadPreset('reactor'); break;
+                case '9': loadPreset('fusion'); break;
+                case 'h': case 'H': spawnBatch('hydrogen', 30); break;
+                case 'o': case 'O': spawnBatch('oxygen', 20); break;
+                case 'n': case 'N': spawnBatch('neutron', 20); break;
+                case 'f': case 'F': spawnBatch('photon', 20); break;
+                case '?':
+                case 'Escape':
+                    keyHelpVisible = !keyHelpVisible;
+                    document.getElementById('keyHelp').style.display = keyHelpVisible ? 'block' : 'none';
+                    break;
+            }
+        });
+
         // Start
         init();
     </script>

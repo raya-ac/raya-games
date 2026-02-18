@@ -330,10 +330,29 @@
         .event-choices { display: flex; gap: 10px; justify-content: center; }
         
         /* Notification */
-        .notification { position: fixed; top: 80px; right: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 12px; animation: slideIn 0.3s ease; z-index: 2000; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .notification.success { border-color: var(--success); }
-        .notification.error { border-color: var(--danger); }
+        .notification { position: fixed; top: 80px; right: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 12px; animation: slideIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 2000; max-width: 380px; backdrop-filter: blur(8px); }
+        @keyframes slideIn { from { transform: translateX(120%) scale(0.8); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
+        .notification.success { border-color: var(--success); box-shadow: 0 4px 20px rgba(34,197,94,0.2), var(--shadow-lg); }
+        .notification.error { border-color: var(--danger); box-shadow: 0 4px 20px rgba(239,68,68,0.2), var(--shadow-lg); }
+        .notification span:first-child { font-size: 16px; font-weight: 700; }
+
+        /* Enhanced Person Token hover glow */
+        .person-token:hover { transform: scale(1.2); filter: brightness(1.3) drop-shadow(0 0 8px currentColor); }
+        .person-token.selected { animation: selectedPulse 1.5s ease-in-out infinite; }
+        @keyframes selectedPulse { 0%,100% { box-shadow: 0 0 0 4px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 0 8px rgba(99,102,241,0.5), 0 0 20px rgba(99,102,241,0.2); } }
+
+        /* Location card hover enhancement */
+        .location-card:hover { box-shadow: 0 0 30px rgba(99,102,241,0.15), var(--shadow-lg); }
+
+        /* Quick stat card value number animation */
+        .quick-stat-card .value { transition: color 0.3s, transform 0.2s; }
+
+        /* Action button glow on hover */
+        .action-btn:hover { box-shadow: 0 0 15px rgba(99,102,241,0.3); }
+
+        /* Header gradient animation */
+        .header h1 { background: linear-gradient(135deg, var(--primary), var(--purple), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradientShift 4s ease infinite; background-size: 200%; }
+        @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         
         .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
         .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
@@ -929,6 +948,109 @@ function testSound() {
     
     showNotification('🔔 Sound test', 'success');
 }
+
+// ---- Extended Sound Effects for Life Simulator ----
+
+// Achievement fanfare — ascending arpeggio
+MusicSystem.playAchievement = function() {
+    if (!this.ctx || !this.isPlaying || this.isMuted) return;
+    const ctx = this.ctx;
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = 'triangle'; osc.frequency.value = freq;
+        const delay = i * 0.08, now = ctx.currentTime;
+        g.gain.setValueAtTime(0, now + delay);
+        g.gain.linearRampToValueAtTime(0.12, now + delay + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
+        osc.connect(g); g.connect(this.masterGain);
+        osc.start(now + delay); osc.stop(now + delay + 0.35);
+    });
+};
+
+// Coin sound — for money gains
+MusicSystem.playCoin = function() {
+    if (!this.ctx || !this.isPlaying || this.isMuted) return;
+    const ctx = this.ctx;
+    [1046.50, 1318.51].forEach((freq, i) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        const now = ctx.currentTime + i * 0.05;
+        g.gain.setValueAtTime(0.08, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(g); g.connect(this.masterGain);
+        osc.start(now); osc.stop(now + 0.16);
+    });
+};
+
+// Alert/death sound — descending minor 3rd
+MusicSystem.playAlert = function() {
+    if (!this.ctx || !this.isPlaying || this.isMuted) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(440, now); osc.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+    g.gain.setValueAtTime(0.07, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(g); g.connect(this.masterGain);
+    osc.start(now); osc.stop(now + 0.26);
+};
+
+// Level up jingle
+MusicSystem.playLevelUp = function() {
+    if (!this.ctx || !this.isPlaying || this.isMuted) return;
+    const ctx = this.ctx;
+    const melody = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    melody.forEach((freq, i) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = i < 3 ? 'triangle' : 'sine'; osc.frequency.value = freq;
+        const delay = i * 0.1, dur = i === melody.length - 1 ? 0.5 : 0.12;
+        const now = ctx.currentTime;
+        g.gain.setValueAtTime(0, now + delay);
+        g.gain.linearRampToValueAtTime(0.1, now + delay + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, now + delay + dur);
+        osc.connect(g); g.connect(this.masterGain);
+        osc.start(now + delay); osc.stop(now + delay + dur + 0.05);
+    });
+};
+
+// Visual sparkle effect for notifications
+function spawnNotifSparkle(element, color = '#6366f1') {
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const numParticles = 8;
+    for (let i = 0; i < numParticles; i++) {
+        const dot = document.createElement('div');
+        const angle = (i / numParticles) * Math.PI * 2;
+        const dist = 30 + Math.random() * 30;
+        dot.style.cssText = `
+            position: fixed;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: ${color};
+            box-shadow: 0 0 8px ${color};
+            pointer-events: none;
+            z-index: 9999;
+            left: ${rect.left + rect.width / 2}px;
+            top: ${rect.top + rect.height / 2}px;
+            transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            opacity: 1;
+        `;
+        document.body.appendChild(dot);
+        requestAnimationFrame(() => {
+            dot.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px) scale(0)`;
+            dot.style.opacity = '0';
+        });
+        setTimeout(() => dot.remove(), 650);
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+    if (e.key === 'm' || e.key === 'M') toggleMusic();
+    if (e.key === 'Escape') { closeSettings(); closeShop(); closeCrimes(); }
+    if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); forceSave(); }
+    if (e.key === 'n' && !e.target.matches('input,select,textarea')) createNewLife();
+});
 
 // MEGA COMPREHENSIVE LIFE SIMULATOR
 const API_BASE = '/api/life';
@@ -2534,6 +2656,23 @@ function showNotification(message, type = 'success') {
     notif.className = `notification ${type}`;
     notif.innerHTML = `<span>${type === 'success' ? '✓' : '✗'}</span><span>${message}</span>`;
     document.body.appendChild(notif);
+
+    // Trigger appropriate sound and sparkle
+    const isMoney = message.includes('$') || message.includes('💰') || message.includes('💸') || message.includes('earned');
+    const isAchievement = message.includes('🎓') || message.includes('🎉') || message.includes('🏆') || message.includes('⭐') || message.includes('promoted') || message.includes('lottery') || message.includes('born') || message.includes('YES');
+    const isDeath = message.includes('💀') || message.includes('died') || message.includes('prison') || message.includes('accident') || message.includes('robbed');
+    const isLevelUp = message.includes('promoted') || message.includes('Unlocked') || message.includes('Degree') || message.includes('CEO') || message.includes('President');
+
+    if (type === 'success') {
+        if (isLevelUp) { MusicSystem.playLevelUp?.(); spawnNotifSparkle(notif, '#fbbf24'); }
+        else if (isAchievement) { MusicSystem.playAchievement?.(); spawnNotifSparkle(notif, '#a855f7'); }
+        else if (isMoney) { MusicSystem.playCoin?.(); spawnNotifSparkle(notif, '#22c55e'); }
+        else { spawnNotifSparkle(notif, '#6366f1'); }
+    } else if (type === 'error') {
+        MusicSystem.playAlert?.();
+        spawnNotifSparkle(notif, '#ef4444');
+    }
+
     setTimeout(() => notif.remove(), 3000);
 }
 

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Apocalypse Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0a0a;color:#e0e0e0;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column;}
+.header{background:linear-gradient(90deg,#1a0000,#2d0a0a,#1a0000);padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #8b0000;box-shadow:0 2px 20px rgba(139,0,0,0.5);}
+.header h1{font-size:22px;color:#ff4444;text-transform:uppercase;letter-spacing:3px;text-shadow:0 0 20px rgba(255,68,68,0.8);animation:bloodPulse 2s ease-in-out infinite;}
+@keyframes bloodPulse{0%,100%{text-shadow:0 0 10px rgba(255,68,68,0.5);}50%{text-shadow:0 0 30px rgba(255,68,68,1),0 0 60px rgba(255,0,0,0.5);}}
+.back-btn{background:linear-gradient(135deg,#3d0000,#6b0000);color:#ff6666;border:1px solid #8b0000;padding:8px 16px;border-radius:8px;cursor:pointer;text-decoration:none;transition:all 0.3s;}
+.back-btn:hover{background:linear-gradient(135deg,#6b0000,#8b0000);box-shadow:0 0 15px rgba(139,0,0,0.6);}
+.game-wrap{flex:1;display:flex;gap:0;overflow:hidden;}
+#canvas{display:block;cursor:crosshair;}
+.sidebar{width:240px;background:linear-gradient(180deg,#0d0000,#1a0505);border-left:2px solid #8b0000;padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.panel{background:rgba(20,0,0,0.7);border:1px solid #5a0000;border-radius:8px;padding:10px;}
+.panel h3{color:#ff4444;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;border-bottom:1px solid #5a0000;padding-bottom:5px;}
+.stat-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid rgba(90,0,0,0.3);}
+.stat-val{font-weight:bold;}
+.stat-val.human{color:#44ff88;}
+.stat-val.zombie{color:#ff4444;animation:zPulse 1.5s ease-in-out infinite;}
+.stat-val.dead{color:#888;}
+.stat-val.infected{color:#ff8800;}
+@keyframes zPulse{0%,100%{text-shadow:0 0 5px rgba(255,68,68,0.5);}50%{text-shadow:0 0 15px rgba(255,68,68,1);}}
+.btn{width:100%;padding:8px;background:linear-gradient(135deg,#3d0000,#5a0000);color:#ff6666;border:1px solid #8b0000;border-radius:6px;cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:2px 0;transition:all 0.3s;}
+.btn:hover{background:linear-gradient(135deg,#6b0000,#8b0000);box-shadow:0 0 15px rgba(139,0,0,0.5);transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn.active{background:linear-gradient(135deg,#8b0000,#cc0000);border-color:#ff4444;}
+.btn-safe{background:linear-gradient(135deg,#003d00,#005a00);color:#66ff88;border-color:#008800;}
+.btn-safe:hover{background:linear-gradient(135deg,#006b00,#008b00);box-shadow:0 0 15px rgba(0,139,0,0.5);}
+.progress{height:8px;background:#1a0000;border-radius:4px;overflow:hidden;margin:4px 0;border:1px solid #3a0000;}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.3s;}
+.progress-fill.zombie{background:linear-gradient(90deg,#8b0000,#ff0000);}
+.progress-fill.human{background:linear-gradient(90deg,#004400,#00cc00);}
+.progress-fill.day{background:linear-gradient(90deg,#cc8800,#ffdd44);}
+.event-log{max-height:180px;overflow-y:auto;font-size:11px;}
+.event-item{padding:3px 6px;margin:2px 0;border-left:3px solid #5a0000;background:rgba(20,0,0,0.5);border-radius:0 4px 4px 0;animation:logSlide 0.3s ease;}
+@keyframes logSlide{from{transform:translateX(10px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.event-item.danger{border-left-color:#ff0000;background:rgba(40,0,0,0.6);}
+.event-item.good{border-left-color:#00aa44;background:rgba(0,30,0,0.6);}
+.event-item.info{border-left-color:#884400;background:rgba(30,20,0,0.6);}
+.kbd-hint{font-size:10px;color:#555;line-height:2;}
+kbd{background:#1a0000;padding:1px 5px;border-radius:3px;border:1px solid #5a0000;color:#ff6666;font-size:10px;}
+.music-row{display:flex;align-items:center;gap:8px;margin-top:4px;}
+.vol-slider{flex:1;height:6px;-webkit-appearance:none;appearance:none;background:#3a0000;border-radius:3px;outline:none;}
+.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#ff4444;cursor:pointer;box-shadow:0 0 8px rgba(255,68,68,0.5);}
+/* Overlay for game end */
+#overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:1000;flex-direction:column;gap:20px;}
+#overlay.show{display:flex;}
+#overlay h2{font-size:48px;color:#ff0000;text-transform:uppercase;letter-spacing:6px;animation:bloodPulse 1s ease-in-out infinite;}
+#overlay.survive h2{color:#00ff66;}
+#overlay p{font-size:18px;color:#aaa;text-align:center;}
+#overlay .btn{width:200px;font-size:14px;padding:12px;}
+.night-overlay{position:absolute;top:0;left:0;pointer-events:none;border-radius:0;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>☣️ Zombie Apocalypse</h1>
+  <a href="/games" class="back-btn">🎮 Games</a>
+</div>
+
+<div class="game-wrap">
+  <canvas id="canvas"></canvas>
+
+  <div class="sidebar">
+    <div class="panel">
+      <h3>📊 World Status</h3>
+      <div class="stat-row"><span>🧍 Humans</span><span class="stat-val human" id="s-humans">0</span></div>
+      <div class="stat-row"><span>🧟 Zombies</span><span class="stat-val zombie" id="s-zombies">0</span></div>
+      <div class="stat-row"><span>😷 Infected</span><span class="stat-val infected" id="s-infected">0</span></div>
+      <div class="stat-row"><span>💀 Dead</span><span class="stat-val dead" id="s-dead">0</span></div>
+      <div class="stat-row"><span>🌅 Day</span><span class="stat-val" id="s-day">1</span></div>
+      <div style="margin-top:6px;font-size:10px;color:#888;">Zombie %</div>
+      <div class="progress"><div class="progress-fill zombie" id="z-bar" style="width:0%"></div></div>
+      <div style="font-size:10px;color:#888;">Survivor %</div>
+      <div class="progress"><div class="progress-fill human" id="h-bar" style="width:100%"></div></div>
+      <div style="font-size:10px;color:#888;">Day/Night</div>
+      <div class="progress"><div class="progress-fill day" id="dn-bar" style="width:50%"></div></div>
+    </div>
+
+    <div class="panel">
+      <h3>🎮 Controls</h3>
+      <button class="btn" id="btn-start" onclick="sim.toggle()">▶ Start</button>
+      <button class="btn" id="btn-reset" onclick="sim.reset()">🔄 Reset</button>
+      <div style="display:flex;gap:4px;margin:4px 0;">
+        <button class="btn" style="font-size:10px" onclick="sim.setSpeed(1)" id="sp1">1x</button>
+        <button class="btn active" style="font-size:10px" onclick="sim.setSpeed(2)" id="sp2">2x</button>
+        <button class="btn" style="font-size:10px" onclick="sim.setSpeed(5)" id="sp5">5x</button>
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:6px;margin-bottom:3px;">🎵 Horror Ambient</div>
+      <div class="music-row">
+        <button class="btn" id="btn-music" onclick="sim.toggleMusic()" style="width:auto;padding:6px 10px;font-size:11px;">🔇 Off</button>
+        <input type="range" class="vol-slider" id="vol" min="0" max="100" value="20" oninput="sim.setVolume(this.value)">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🛡️ Interventions</h3>
+      <button class="btn btn-safe" onclick="sim.action('quarantine')">🏥 Quarantine Zone</button>
+      <button class="btn btn-safe" onclick="sim.action('airdrop')">📦 Airdrop Supplies</button>
+      <button class="btn" onclick="sim.action('nuke')">☢️ Nuke Zone</button>
+      <button class="btn" onclick="sim.action('wall')">🧱 Build Wall</button>
+      <div style="font-size:10px;color:#555;margin-top:6px;">Click map to place</div>
+    </div>
+
+    <div class="panel">
+      <h3>📜 Event Log</h3>
+      <div class="event-log" id="event-log">
+        <div class="event-item info">Simulation ready. Press Start.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>⌨️ Keyboard</h3>
+      <div class="kbd-hint">
+        <kbd>Space</kbd> Pause/Play<br>
+        <kbd>M</kbd> Toggle Music<br>
+        <kbd>Q</kbd> Quarantine<br>
+        <kbd>N</kbd> Nuke Zone<br>
+        <kbd>R</kbd> Reset<br>
+        <kbd>1/2/5</kbd> Speed
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <h2 id="overlay-title">YOU DIED</h2>
+  <p id="overlay-msg">The world has fallen to the undead.</p>
+  <button class="btn" onclick="sim.reset()" style="width:200px;font-size:14px;padding:12px;">🔄 Try Again</button>
+</div>
+
+<script>
+// ===================== HORROR AUDIO SYSTEM =====================
+class HorrorAudio {
+    constructor() {
+        this.ctx = null;
+        this.master = null;
+        this.isPlaying = false;
+        this.droneNodes = [];
+        this.heartbeatInt = null;
+        this.ambienceInt = null;
+        this.phase = 0;
+    }
+    init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const comp = this.ctx.createDynamicsCompressor();
+        comp.threshold.value = -15; comp.ratio.value = 8;
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.2;
+        this.master.connect(comp);
+        comp.connect(this.ctx.destination);
+    }
+    noise(dur, vol=0.3, f1=200, f2=800, t=0) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime + t;
+        const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * dur, this.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        let last = 0;
+        for (let i=0; i<d.length; i++) { last = (last + 0.01*(Math.random()*2-1))/1.01; d[i] = last*8; }
+        const src = this.ctx.createBufferSource(); src.buffer = buf;
+        const filt = this.ctx.createBiquadFilter(); filt.type='bandpass'; filt.frequency.value=(f1+f2)/2; filt.Q.value=1;
+        const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now+dur);
+        src.connect(filt); filt.connect(g); g.connect(this.master); src.start(now);
+    }
+    tone(freq, dur, vol=0.15, type='sine', t=0) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime + t;
+        const o = this.ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(vol, now + Math.min(0.5, dur*0.3));
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        o.connect(g); g.connect(this.master); o.start(now); o.stop(now+dur);
+    }
+    // Zombie groan
+    groan() {
+        if (!this.ctx || !this.isPlaying) return;
+        const now = this.ctx.currentTime;
+        const base = 60 + Math.random()*30;
+        const o = this.ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=base;
+        const lfo = this.ctx.createOscillator(); lfo.frequency.value = 2+Math.random()*3;
+        const lfoG = this.ctx.createGain(); lfoG.gain.value = base*0.15;
+        lfo.connect(lfoG); lfoG.connect(o.frequency);
+        const f = this.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=300; f.Q.value=8;
+        const g = this.ctx.createGain(); const dur = 0.8+Math.random()*1.2;
+        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.2, now+0.1);
+        g.gain.setValueAtTime(0.2, now+dur*0.7); g.gain.exponentialRampToValueAtTime(0.001, now+dur);
+        o.connect(f); f.connect(g); g.connect(this.master);
+        o.start(now); o.stop(now+dur); lfo.start(now); lfo.stop(now+dur);
+    }
+    // Bite/attack sound
+    bite() {
+        if (!this.ctx) return;
+        this.noise(0.1, 0.4, 800, 2000);
+        this.tone(120, 0.15, 0.2, 'sawtooth');
+    }
+    // Scream (human dying)
+    scream() {
+        if (!this.ctx || !this.isPlaying) return;
+        const now = this.ctx.currentTime;
+        const start = 400 + Math.random()*200;
+        const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(start, now);
+        o.frequency.linearRampToValueAtTime(start*1.5, now+0.3);
+        o.frequency.exponentialRampToValueAtTime(100, now+1.2);
+        const f = this.ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=800; f.Q.value=3;
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.18, now+0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, now+1.2);
+        o.connect(f); f.connect(g); g.connect(this.master);
+        o.start(now); o.stop(now+1.2);
+    }
+    // Explosion (nuke)
+    explosion() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        this.noise(2, 0.8, 50, 500);
+        const o = this.ctx.createOscillator(); o.type='sine';
+        o.frequency.setValueAtTime(80, now); o.frequency.exponentialRampToValueAtTime(10, now+2);
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.7, now); g.gain.exponentialRampToValueAtTime(0.001, now+2);
+        o.connect(g); g.connect(this.master); o.start(now); o.stop(now+2);
+    }
+    // Heartbeat
+    heartbeat() {
+        if (!this.ctx || !this.isPlaying) return;
+        const now = this.ctx.currentTime;
+        [0, 0.2].forEach(d => {
+            const o = this.ctx.createOscillator(); o.type='sine'; o.frequency.value=50;
+            const g = this.ctx.createGain();
+            g.gain.setValueAtTime(0, now+d); g.gain.linearRampToValueAtTime(0.4, now+d+0.05);
+            g.gain.exponentialRampToValueAtTime(0.001, now+d+0.25);
+            o.connect(g); g.connect(this.master); o.start(now+d); o.stop(now+d+0.25);
+        });
+    }
+    // Ominous drone
+    startDrone() {
+        const freqs = [
+            {f:27.5, v:0.12}, {f:41.2, v:0.1}, {f:55, v:0.08}, {f:65.4, v:0.07}
+        ];
+        this.droneNodes = freqs.map(({f,v}) => {
+            const o = this.ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+            o.detune.value=(Math.random()-0.5)*20;
+            const lfo = this.ctx.createOscillator(); lfo.frequency.value=0.1+Math.random()*0.2;
+            const lg = this.ctx.createGain(); lg.gain.value=v*0.3;
+            lfo.connect(lg); lg.connect(o.frequency);
+            const filt = this.ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=200; filt.Q.value=5;
+            const g = this.ctx.createGain(); g.gain.value=v;
+            o.connect(filt); filt.connect(g); g.connect(this.master);
+            o.start(); lfo.start();
+            return {o, lfo};
+        });
+        // Slow ambient stabs
+        this.ambienceInt = setInterval(() => {
+            if (!this.isPlaying) return;
+            this.phase++;
+            const minorChords = [
+                [55,65.4,82.4], [49,58.3,73.4], [41.2,49,61.7], [36.7,43.7,55]
+            ];
+            const ch = minorChords[this.phase % minorChords.length];
+            ch.forEach((f,i) => this.tone(f*2, 5, 0.06-i*0.01, 'triangle', i*0.4));
+        }, 7000);
+    }
+    stopDrones() {
+        this.droneNodes.forEach(({o,lfo}) => { try{o.stop();lfo.stop();}catch(e){} });
+        this.droneNodes = [];
+    }
+    start() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.isPlaying = true;
+        this.startDrone();
+        this.heartbeat();
+        this.heartbeatInt = setInterval(() => { if(this.isPlaying) this.heartbeat(); }, 1200);
+    }
+    stop() {
+        this.isPlaying = false;
+        this.stopDrones();
+        if (this.heartbeatInt) { clearInterval(this.heartbeatInt); this.heartbeatInt=null; }
+        if (this.ambienceInt) { clearInterval(this.ambienceInt); this.ambienceInt=null; }
+    }
+    setVolume(v) { if (this.master) this.master.gain.value = v/100; }
+}
+
+// ===================== SIMULATION =====================
+class ZombieSim {
+    constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.audio = new HorrorAudio();
+        this.musicOn = false;
+        this.running = false;
+        this.speed = 2;
+        this.tick = 0;
+        this.day = 1;
+        this.dayPhase = 0; // 0..1 day cycle
+        this.gameOver = false;
+        this.pendingAction = null;
+        
+        // Grid
+        this.CELL = 12;
+        this.COLS = 0; this.ROWS = 0;
+        this.grid = []; // 0=empty,1=human,2=zombie,3=infected,4=dead,5=wall,6=safe
+        this.particles = [];
+        
+        this.stats = {humans:0,zombies:0,infected:0,dead:0};
+        
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleHover(e));
+        this.setupKeyboard();
+        this.reset();
+    }
+
+    resize() {
+        const wrap = this.canvas.parentElement;
+        this.canvas.width = wrap.clientWidth - 240;
+        this.canvas.height = wrap.clientHeight;
+        this.COLS = Math.floor(this.canvas.width / this.CELL);
+        this.ROWS = Math.floor(this.canvas.height / this.CELL);
+    }
+
+    reset() {
+        this.running = false;
+        this.gameOver = false;
+        this.tick = 0; this.day = 1; this.dayPhase = 0;
+        this.particles = [];
+        document.getElementById('btn-start').textContent = '▶ Start';
+        document.getElementById('overlay').classList.remove('show');
+        
+        this.grid = Array(this.ROWS).fill(null).map(() => Array(this.COLS).fill(0));
+        
+        // Populate with humans (~30% density)
+        let humanCount = 0;
+        for (let r=0; r<this.ROWS; r++) {
+            for (let c=0; c<this.COLS; c++) {
+                if (Math.random() < 0.28) { this.grid[r][c] = 1; humanCount++; }
+            }
+        }
+        
+        // Start infection: 3 zombie clusters
+        for (let z=0; z<3; z++) {
+            const cr = Math.floor(this.ROWS*0.3 + Math.random()*this.ROWS*0.4);
+            const cc = Math.floor(this.COLS*0.3 + Math.random()*this.COLS*0.4);
+            for (let dr=-2; dr<=2; dr++) {
+                for (let dc=-2; dc<=2; dc++) {
+                    const r=cr+dr, c=cc+dc;
+                    if (r>=0&&r<this.ROWS&&c>=0&&c<this.COLS) this.grid[r][c] = 2;
+                }
+            }
+        }
+        
+        this.updateStats();
+        this.render();
+        this.log('Outbreak detected! Zombie clusters spreading...', 'danger');
+        this.log(`${humanCount.toLocaleString()} survivors at risk.`, 'info');
+    }
+
+    toggle() {
+        if (this.gameOver) { this.reset(); return; }
+        this.running = !this.running;
+        document.getElementById('btn-start').textContent = this.running ? '⏸ Pause' : '▶ Start';
+        if (this.running) this.loop();
+    }
+
+    setSpeed(s) {
+        this.speed = s;
+        ['1','2','5'].forEach(x => document.getElementById('sp'+x).classList.remove('active'));
+        document.getElementById('sp'+s).classList.add('active');
+    }
+
+    toggleMusic() {
+        this.musicOn = !this.musicOn;
+        const btn = document.getElementById('btn-music');
+        if (this.musicOn) { this.audio.start(); btn.textContent='🔊 On'; btn.classList.add('active'); }
+        else { this.audio.stop(); btn.textContent='🔇 Off'; btn.classList.remove('active'); }
+    }
+
+    setVolume(v) { this.audio.setVolume(v); }
+
+    setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space': e.preventDefault(); this.toggle(); break;
+                case 'KeyM': e.preventDefault(); this.toggleMusic(); break;
+                case 'KeyR': e.preventDefault(); this.reset(); break;
+                case 'KeyQ': e.preventDefault(); this.pendingAction='quarantine'; this.log('Click map to place Quarantine Zone','info'); break;
+                case 'KeyN': e.preventDefault(); this.pendingAction='nuke'; this.log('Click map to Nuke Zone','danger'); break;
+                case 'Digit1': this.setSpeed(1); break;
+                case 'Digit2': this.setSpeed(2); break;
+                case 'Digit5': this.setSpeed(5); break;
+            }
+        });
+    }
+
+    action(type) {
+        this.pendingAction = type;
+        const msgs = {quarantine:'Click map to place Quarantine Zone',airdrop:'Click map to Airdrop Supplies',nuke:'Click map to Nuke Zone',wall:'Click map to Build Wall'};
+        this.log(msgs[type] || 'Click to place', 'info');
+    }
+
+    handleClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        const c = Math.floor(mx / this.CELL), r = Math.floor(my / this.CELL);
+        if (!this.pendingAction) return;
+        const rad = 8;
+        if (this.pendingAction === 'quarantine') {
+            for (let dr=-rad; dr<=rad; dr++) for (let dc=-rad; dc<=rad; dc++) {
+                if (dr*dr+dc*dc>rad*rad) continue;
+                const rr=r+dr, cc=c+dc;
+                if (rr>=0&&rr<this.ROWS&&cc>=0&&cc<this.COLS&&this.grid[rr][cc]===2) this.grid[rr][cc]=4;
+            }
+            this.log('Quarantine zone established. Zombies terminated.','good');
+        } else if (this.pendingAction === 'airdrop') {
+            for (let dr=-rad; dr<=rad; dr++) for (let dc=-rad; dc<=rad; dc++) {
+                if (dr*dr+dc*dc>rad*rad) continue;
+                const rr=r+dr, cc=c+dc;
+                if (rr>=0&&rr<this.ROWS&&cc>=0&&cc<this.COLS&&this.grid[rr][cc]===3) this.grid[rr][cc]=1;
+            }
+            this.log('Airdrop! Infected survivors treated.','good');
+        } else if (this.pendingAction === 'nuke') {
+            const bigR = rad * 2;
+            for (let dr=-bigR; dr<=bigR; dr++) for (let dc=-bigR; dc<=bigR; dc++) {
+                if (dr*dr+dc*dc>bigR*bigR) continue;
+                const rr=r+dr, cc=c+dc;
+                if (rr>=0&&rr<this.ROWS&&cc>=0&&cc<this.COLS) this.grid[rr][cc]=4;
+            }
+            // Boom particles
+            for (let i=0; i<80; i++) this.particles.push({x:c*this.CELL,y:r*this.CELL,vx:(Math.random()-0.5)*12,vy:(Math.random()-0.5)*12,life:60,color:`hsl(${20+Math.random()*40},100%,${50+Math.random()*30}%)`});
+            if (this.musicOn) this.audio.explosion();
+            this.log('NUCLEAR STRIKE! Zone obliterated.','danger');
+        } else if (this.pendingAction === 'wall') {
+            for (let dc=-rad; dc<=rad; dc++) {
+                const cc=c+dc;
+                if (r>=0&&r<this.ROWS&&cc>=0&&cc<this.COLS) this.grid[r][cc]=5;
+            }
+            this.log('Wall constructed.','info');
+        }
+        this.pendingAction = null;
+    }
+
+    handleHover(e) { /* Could show tooltip */ }
+
+    step() {
+        const newGrid = this.grid.map(row => [...row]);
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+        
+        let newBites = 0, newScreens = 0;
+        // Night modifier: zombies faster at night
+        const isNight = this.dayPhase > 0.5;
+        const zombieSpeed = isNight ? 0.7 : 0.4; // probability to convert neighbor
+        
+        for (let r=0; r<this.ROWS; r++) {
+            for (let c=0; c<this.COLS; c++) {
+                const cell = this.grid[r][c];
+                if (cell === 2) { // Zombie
+                    // Try to infect neighbors
+                    for (const [dr,dc] of dirs) {
+                        const nr=r+dr, nc=c+dc;
+                        if (nr<0||nr>=this.ROWS||nc<0||nc>=this.COLS) continue;
+                        const neighbor = this.grid[nr][nc];
+                        if (neighbor === 1 && Math.random() < zombieSpeed) {
+                            newGrid[nr][nc] = 3; // infected
+                            newBites++;
+                        } else if (neighbor === 3 && Math.random() < 0.3) {
+                            newGrid[nr][nc] = 2; // turn zombie
+                            newScreens++;
+                        }
+                    }
+                    // Random walk
+                    const [dr,dc] = dirs[Math.floor(Math.random()*dirs.length)];
+                    const nr=r+dr, nc=c+dc;
+                    if (nr>=0&&nr<this.ROWS&&nc>=0&&nc<this.COLS&&this.grid[nr][nc]===0&&Math.random()<0.3) {
+                        newGrid[nr][nc]=2; newGrid[r][c]=0;
+                    }
+                } else if (cell === 1) { // Human - flee from zombies
+                    let nearZombie = false;
+                    for (const [dr,dc] of dirs) {
+                        const nr=r+dr, nc=c+dc;
+                        if (nr>=0&&nr<this.ROWS&&nc>=0&&nc<this.COLS&&this.grid[nr][nc]===2) { nearZombie=true; break; }
+                    }
+                    if (nearZombie && Math.random() < 0.4) {
+                        // Try to flee to empty cell
+                        const shuffled = [...dirs].sort(()=>Math.random()-0.5);
+                        for (const [dr,dc] of shuffled) {
+                            const nr=r+dr, nc=c+dc;
+                            if (nr>=0&&nr<this.ROWS&&nc>=0&&nc<this.COLS&&newGrid[nr][nc]===0) {
+                                newGrid[nr][nc]=1; newGrid[r][c]=0; break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        this.grid = newGrid;
+        
+        // Sounds
+        if (this.musicOn) {
+            if (newBites > 50 && Math.random() < 0.05) this.audio.groan();
+            if (newScreens > 20 && Math.random() < 0.08) this.audio.scream();
+        }
+        
+        // Day/night cycle
+        this.dayPhase += 0.001 * this.speed;
+        if (this.dayPhase >= 1) { this.dayPhase = 0; this.day++; }
+    }
+
+    updateStats() {
+        let h=0,z=0,inf=0,dead=0;
+        for (const row of this.grid) for (const cell of row) {
+            if (cell===1) h++;
+            else if (cell===2) z++;
+            else if (cell===3) inf++;
+            else if (cell===4) dead++;
+        }
+        this.stats = {humans:h,zombies:z,infected:inf,dead};
+        document.getElementById('s-humans').textContent = h.toLocaleString();
+        document.getElementById('s-zombies').textContent = z.toLocaleString();
+        document.getElementById('s-infected').textContent = inf.toLocaleString();
+        document.getElementById('s-dead').textContent = dead.toLocaleString();
+        document.getElementById('s-day').textContent = this.day;
+        const total = h+z+inf+1;
+        document.getElementById('z-bar').style.width = Math.min(100,(z+inf)/total*100)+'%';
+        document.getElementById('h-bar').style.width = Math.min(100,h/total*100)+'%';
+        document.getElementById('dn-bar').style.width = (this.dayPhase*100)+'%';
+    }
+
+    checkEndConditions() {
+        const {humans,zombies,infected} = this.stats;
+        if (humans + infected === 0 && zombies > 0) {
+            this.gameOver = true; this.running = false;
+            document.getElementById('overlay-title').textContent = '☠️ EXTINCTION';
+            document.getElementById('overlay-msg').textContent = `All ${this.stats.dead.toLocaleString()} humans perished. Day ${this.day}.`;
+            document.getElementById('overlay').classList.add('show');
+            document.getElementById('overlay').classList.remove('survive');
+        } else if (zombies + infected === 0 && humans > 0) {
+            this.gameOver = true; this.running = false;
+            document.getElementById('overlay').classList.add('show','survive');
+            document.getElementById('overlay-title').textContent = '🛡️ SURVIVED!';
+            document.getElementById('overlay-msg').textContent = `${humans.toLocaleString()} survivors remain on day ${this.day}.`;
+        }
+    }
+
+    log(msg, type='info') {
+        const el = document.getElementById('event-log');
+        const item = document.createElement('div');
+        item.className = 'event-item ' + type;
+        item.textContent = `Day ${this.day}: ${msg}`;
+        el.insertBefore(item, el.firstChild);
+        while (el.children.length > 30) el.removeChild(el.lastChild);
+    }
+
+    render() {
+        const ctx = this.ctx;
+        const C = this.CELL;
+        
+        // Day/night background
+        const nightAlpha = this.dayPhase > 0.5 ? (this.dayPhase - 0.5) * 2 : 0;
+        const dayColor = `rgb(${20+10*(1-nightAlpha)},${20*(1-nightAlpha)+5},${20*(1-nightAlpha)+5})`;
+        ctx.fillStyle = dayColor;
+        ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+        
+        // Draw grid
+        for (let r=0; r<this.ROWS; r++) {
+            for (let c=0; c<this.COLS; c++) {
+                const cell = this.grid[r][c];
+                if (cell === 0) continue;
+                const x = c * C, y = r * C;
+                
+                if (cell === 1) { // Human
+                    ctx.fillStyle = '#44ff88';
+                    ctx.fillRect(x+1, y+1, C-2, C-2);
+                    // Inner dot
+                    ctx.fillStyle = '#88ffaa';
+                    ctx.fillRect(x+3, y+3, C-6, C-6);
+                } else if (cell === 2) { // Zombie
+                    ctx.fillStyle = '#cc0000';
+                    ctx.fillRect(x, y, C, C);
+                    ctx.fillStyle = '#ff2222';
+                    ctx.fillRect(x+2, y+2, C-4, C-4);
+                    // Glow at night
+                    if (nightAlpha > 0.3) {
+                        ctx.fillStyle = `rgba(255,0,0,${nightAlpha*0.3})`;
+                        ctx.fillRect(x-2, y-2, C+4, C+4);
+                    }
+                } else if (cell === 3) { // Infected
+                    ctx.fillStyle = '#aa4400';
+                    ctx.fillRect(x+1, y+1, C-2, C-2);
+                    ctx.fillStyle = '#ff6600';
+                    ctx.fillRect(x+3, y+3, C-6, C-6);
+                } else if (cell === 4) { // Dead
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(x+2, y+2, C-4, C-4);
+                } else if (cell === 5) { // Wall
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(x, y, C, C);
+                    ctx.fillStyle = '#777';
+                    ctx.fillRect(x+1, y+1, C-2, C-2);
+                }
+            }
+        }
+        
+        // Grid lines (subtle)
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 0.5;
+        for (let r=0; r<this.ROWS; r+=5) { ctx.beginPath(); ctx.moveTo(0,r*C); ctx.lineTo(this.canvas.width,r*C); ctx.stroke(); }
+        for (let c=0; c<this.COLS; c+=5) { ctx.beginPath(); ctx.moveTo(c*C,0); ctx.lineTo(c*C,this.canvas.height); ctx.stroke(); }
+        
+        // Particles
+        for (let i=this.particles.length-1; i>=0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.life--;
+            ctx.globalAlpha = p.life / 60;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x-2, p.y-2, 4, 4);
+            if (p.life <= 0) this.particles.splice(i,1);
+        }
+        ctx.globalAlpha = 1;
+        
+        // Night vignette
+        if (nightAlpha > 0) {
+            const vg = ctx.createRadialGradient(this.canvas.width/2,this.canvas.height/2,this.canvas.width*0.3,this.canvas.width/2,this.canvas.height/2,this.canvas.width*0.8);
+            vg.addColorStop(0,'transparent');
+            vg.addColorStop(1,`rgba(0,0,0,${nightAlpha*0.6})`);
+            ctx.fillStyle = vg;
+            ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+        }
+        
+        // HUD: day/night indicator
+        ctx.fillStyle = nightAlpha > 0.3 ? 'rgba(30,0,50,0.7)' : 'rgba(0,0,0,0.5)';
+        ctx.fillRect(10, 10, 150, 30);
+        ctx.fillStyle = nightAlpha > 0.3 ? '#8866ff' : '#ffcc44';
+        ctx.font = 'bold 14px Segoe UI';
+        ctx.fillText(nightAlpha > 0.3 ? '🌙 Night - Zombies Faster' : '☀️ Day '+this.day, 18, 28);
+        
+        // Pending action hint
+        if (this.pendingAction) {
+            ctx.fillStyle = 'rgba(255,0,0,0.8)';
+            ctx.font = 'bold 16px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Click to place: ${this.pendingAction.toUpperCase()}`, this.canvas.width/2, this.canvas.height-20);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    loop() {
+        if (!this.running) return;
+        for (let i=0; i<this.speed; i++) this.step();
+        this.tick++;
+        if (this.tick % 10 === 0) {
+            this.updateStats();
+            this.checkEndConditions();
+            // Periodic events
+            if (this.tick % 200 === 0 && this.running) {
+                const msgs = ['Screams heard in the distance...','Military loses contact with sector 7.','Survivors radio for help.','Power grid fails in the east.','Hospital overwhelmed.'];
+                this.log(msgs[Math.floor(Math.random()*msgs.length)], 'danger');
+                if (this.musicOn) this.audio.groan();
+            }
+        }
+        this.render();
+        if (this.running) requestAnimationFrame(() => this.loop());
+    }
+}
+
+const sim = new ZombieSim();
+</script>
+</body>
+</html>

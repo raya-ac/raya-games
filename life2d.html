@@ -1235,40 +1235,31 @@
             }
         }
 
-        // Hook FX into the main loop
-        const _origLoop = loop;
-        let _birthAccum = 0, _deathAccum = 0;
-        function loop(timestamp) {
-            const prevBirths = births, prevDeaths = deaths;
-            const deltaTime = timestamp - lastTime;
-            lastTime = timestamp;
-            fps = Math.round(1000 / deltaTime);
-            document.getElementById('fps').textContent = fps;
-
+        // Standalone FX loop running alongside the main simulation loop
+        let _prevBirths = 0, _prevDeaths = 0;
+        function fxLoop() {
             if (isPlaying) {
-                const newBirths = births - prevBirths;
-                const newDeaths = deaths - prevDeaths;
-                for (let i = 0; i < CONFIG.speed; i++) { update(); }
-
-                // Spawn FX for births/deaths
-                if (births > prevBirths && particles.length > 0) {
+                if (births > _prevBirths && particles.length > 0) {
                     const sample = particles[Math.floor(Math.random() * particles.length)];
                     const col = SPECIES[sample.type]?.color || '#00ff88';
-                    spawnFXParticle(sample.x, sample.y, col, 'birth');
-                    if (births % 5 === 0) ElectroAudio.playBirth();
+                    for (let k = 0; k < Math.min(3, births - _prevBirths); k++) {
+                        spawnFXParticle(sample.x + (Math.random()-0.5)*20, sample.y + (Math.random()-0.5)*20, col, 'birth');
+                    }
+                    if (births % 8 === 0) ElectroAudio.playBirth();
                 }
-                if (deaths > prevDeaths && Math.random() < 0.3) {
-                    spawnFXParticle(Math.random() * width, Math.random() * height, '#ff3333', 'death');
-                    if (deaths % 10 === 0) ElectroAudio.playDeath();
+                if (deaths > _prevDeaths) {
+                    if (Math.random() < 0.25 && particles.length > 0) {
+                        const p = particles[Math.floor(Math.random() * particles.length)];
+                        spawnFXParticle(p.x, p.y, '#ff3333', 'death');
+                    }
+                    if (deaths % 15 === 0) ElectroAudio.playDeath();
                 }
             }
-
-            draw();
+            _prevBirths = births; _prevDeaths = deaths;
             drawFX();
-
-            if (generation % 10 === 0) updateStats();
-            requestAnimationFrame(loop);
+            requestAnimationFrame(fxLoop);
         }
+        requestAnimationFrame(fxLoop);
 
         // Keyboard shortcuts
         document.addEventListener('keydown', e => {
