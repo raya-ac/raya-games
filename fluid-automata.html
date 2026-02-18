@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fluid Automata — Water Pressure Sim</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #05080f; color: #ddd; font-family: 'Courier New', monospace; display: flex; height: 100vh; overflow: hidden; }
+#main { flex: 1; display: flex; flex-direction: column; position: relative; }
+canvas { flex: 1; display: block; cursor: crosshair; }
+#ui {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(5,8,20,0.9); border: 1px solid #1a2a4a;
+  padding: 12px; border-radius: 8px; width: 190px; font-size: 12px;
+}
+#ui h2 { color: #4af; margin-bottom: 8px; font-size: 14px; }
+.section { margin-bottom: 10px; }
+.section h3 { color: #6af; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+.tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+button { background: #0a1020; border: 1px solid #1a3a5a; color: #aac; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+button:hover { background: #0f1a30; border-color: #4af; }
+button.active { background: #0a2040; border-color: #4af; color: #4af; }
+.slider-row { margin: 4px 0; }
+.slider-row label { display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-bottom: 1px; }
+.slider-row input[type=range] { width: 100%; accent-color: #4af; }
+#stats { position: absolute; bottom: 8px; left: 10px; font-size: 10px; color: #446; }
+#musicBtn { position: absolute; bottom: 8px; right: 10px; background: #0a1020; border: 1px solid #4af; color: #4af; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="main">
+<canvas id="c"></canvas>
+<div id="ui">
+  <h2>💧 Fluid Automata</h2>
+  <div class="section">
+    <h3>Material</h3>
+    <div class="tool-grid">
+      <button class="tool active" data-t="water">💧 Water</button>
+      <button class="tool" data-t="wall">🧱 Wall</button>
+      <button class="tool" data-t="sand">🟡 Sand</button>
+      <button class="tool" data-t="pipe">🔩 Pipe</button>
+      <button class="tool" data-t="pump">⬆️ Pump</button>
+      <button class="tool" data-t="drain">🌀 Drain</button>
+      <button class="tool" data-t="oil">🛢 Oil</button>
+      <button class="tool" data-t="erase">✖ Erase</button>
+    </div>
+  </div>
+  <div class="section">
+    <div class="slider-row">
+      <label><span>Brush Size</span><span id="bsVal">3</span></label>
+      <input type="range" id="brushSize" min="1" max="10" value="3">
+    </div>
+    <div class="slider-row">
+      <label><span>Gravity</span><span id="gravVal">1.0</span></label>
+      <input type="range" id="gravity" min="0" max="2" step="0.1" value="1">
+    </div>
+  </div>
+  <div class="section">
+    <div style="display:flex;gap:4px;">
+      <button id="btnClear">Clear</button>
+      <button id="btnPause">Pause</button>
+      <button id="btnFill">Fill Bottom</button>
+    </div>
+  </div>
+  <div style="font-size:9px;color:#446;margin-top:4px;">
+    Drag to draw · []/- brush · M=music · Space=pause<br>
+    Pipes channel water · Pump pushes up · Drain removes
+  </div>
+</div>
+<div id="stats"></div>
+<button id="musicBtn">🎵 Music</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const SCALE = 4;
+let CW, CH, W, H;
+
+function resize() {
+  CW = canvas.offsetWidth; CH = canvas.offsetHeight;
+  canvas.width = CW; canvas.height = CH;
+  W = Math.floor(CW/SCALE); H = Math.floor(CH/SCALE);
+  initGrid();
+}
+
+// Cell types
+const AIR=0, WATER=1, WALL=2, SAND=3, PIPE=4, PUMP=5, DRAIN=6, OIL=7;
+// Water level: 0-8 per cell (8=full)
+let cells, water, next, nextWater;
+let paused=false, brushSize=3, currentTool='water';
+let gravity=1.0;
+
+function initGrid() {
+  cells = new Uint8Array(W*H);
+  water = new Float32Array(W*H);
+  next = new Uint8Array(W*H);
+  nextWater = new Float32Array(W*H);
+}
+
+const idx = (x,y) => y*W+x;
+const valid = (x,y) => x>=0&&x<W&&y>=0&&y<H;
+
+const COLORS = {
+  [AIR]: null,
+  [WALL]: '#3a2a1a',
+  [SAND]: '#c8a040',
+  [PIPE]: '#445566',
+  [PUMP]: '#226644',
+  [DRAIN]: '#441122',
+};
+
+// Water color based on depth/pressure
+function waterColor(amt, pressure=0) {
+  const t = Math.min(1, amt/8);
+  const p = Math.min(1, pressure/20);
+  const r = Math.floor(20 + p*30);
+  const g = Math.floor(80 + t*60 - p*20);
+  const b = Math.floor(180 + t*40 + p*30);
+  return `rgb(${r},${g},${b})`;
+}
+function oilColor(amt) {
+  const t = Math.min(1, amt/8);
+  return `rgb(${Math.floor(80+t*40)},${Math.floor(60+t*20)},${Math.floor(20)})`;
+}
+
+let pressure;
+function computePressure() {
+  if(!pressure) pressure = new Float32Array(W*H);
+  pressure.fill(0);
+  for(let y=H-2;y>=0;y--) {
+    for(let x=0;x<W;x++) {
+      const i=idx(x,y);
+      if(cells[i]===WATER&&water[i]>0) {
+        pressure[i]=water[i]+(valid(x,y+1)?pressure[idx(x,y+1)]:0)*0.9;
+      }
+    }
+  }
+}
+
+let pumpTimer=0;
+function step() {
+  next.set(cells);
+  nextWater.set(water);
+  pumpTimer++;
+
+  for(let y=H-1;y>=0;y--) {
+    for(let x=0;x<W;x++) {
+      const i=idx(x,y);
+      const t=cells[i];
+      const w=water[i];
+      if(t===DRAIN){nextWater[i]=0;continue;}
+      if(t===PUMP&&pumpTimer%3===0&&w>0.5){
+        // Move water up
+        if(valid(x,y-1)&&(cells[idx(x,y-1)]===AIR||cells[idx(x,y-1)]===WATER)){
+          const amt=Math.min(w,1);
+          nextWater[i]-=amt;
+          nextWater[idx(x,y-1)]+=amt;
+        }
+        continue;
+      }
+      if(t!==WATER&&t!==OIL) continue;
+      if(w<0.01){next[i]=AIR;nextWater[i]=0;continue;}
+      const isOil=(t===OIL);
+      const maxW=8;
+      // Fall down
+      if(valid(x,y+1)) {
+        const bi=idx(x,y+1);
+        const bt=cells[bi];
+        const canFall=(bt===AIR||bt===t||bt===DRAIN||(bt===PIPE));
+        if(canFall&&nextWater[bi]<maxW) {
+          const space=maxW-nextWater[bi];
+          const flow=Math.min(w,space,gravity*4);
+          nextWater[i]-=flow;
+          nextWater[bi]+=flow;
+          if(nextWater[i]<=0.01){next[i]=AIR;nextWater[i]=0;}
+          else if(next[bi]===AIR)next[bi]=t;
+          if(bt===DRAIN)nextWater[bi]=0;
+          continue;
+        }
+      }
+      // Spread sideways
+      const dirs = x%2===0?[-1,1]:[1,-1];
+      for(const dx of dirs) {
+        if(!valid(x+dx,y)) continue;
+        const si=idx(x+dx,y);
+        const st=cells[si];
+        const canSpread=(st===AIR||st===t||(st===PIPE));
+        if(!canSpread||nextWater[si]>=nextWater[i]) continue;
+        const diff=nextWater[i]-nextWater[si];
+        const flow=diff*0.4;
+        if(flow<0.01) continue;
+        nextWater[i]-=flow;
+        nextWater[si]+=flow;
+        if(next[si]===AIR)next[si]=t;
+        if(nextWater[i]<=0.01){next[i]=AIR;nextWater[i]=0;break;}
+      }
+      // Pressurized: flow up if pressure gradient
+      if(w>=maxW*0.98&&valid(x,y-1)) {
+        const ui=idx(x,y-1);
+        if((cells[ui]===AIR||cells[ui]===t)&&pressure&&pressure[i]>6) {
+          const flow=Math.min(0.5,(pressure[i]-5)*0.1);
+          if(flow>0.01){nextWater[i]-=flow;nextWater[ui]+=flow;if(next[ui]===AIR)next[ui]=t;}
+        }
+      }
+    }
+  }
+  // Sand gravity
+  for(let y=H-2;y>=0;y--) {
+    for(let x=0;x<W;x++) {
+      const i=idx(x,y);
+      if(cells[i]!==SAND) continue;
+      const bi=idx(x,y+1);
+      if(cells[bi]===AIR||(cells[bi]===WATER&&water[bi]>0)){
+        next[i]=cells[bi]===WATER?WATER:AIR; nextWater[i]=cells[bi]===WATER?water[bi]:0;
+        next[bi]=SAND; nextWater[bi]=0;
+      } else {
+        const d=x%2===0?-1:1;
+        for(const dd of [d,-d]) {
+          if(!valid(x+dd,y+1)) continue;
+          const di=idx(x+dd,y+1);
+          if(next[di]===AIR){next[i]=AIR;next[di]=SAND;break;}
+        }
+      }
+    }
+  }
+  [cells,next]=[next,cells]; [water,nextWater]=[nextWater,water];
+  computePressure();
+  const total=water.reduce((a,v)=>a+v,0);
+  document.getElementById('stats').textContent=`Cells: ${W}×${H} | Water: ${total.toFixed(0)} units`;
+}
+
+// Offscreen canvas for rendering
+const off = document.createElement('canvas');
+const offCtx = off.getContext('2d');
+
+function draw() {
+  off.width=W; off.height=H;
+  const img=offCtx.createImageData(W,H);
+  const d=img.data;
+  for(let y=0;y<H;y++) {
+    for(let x=0;x<W;x++) {
+      const i=idx(x,y);
+      const t=cells[i];
+      const w=water[i];
+      let r=5,g=8,b=15,a=255;
+      if(t===WALL){r=58;g=42;b=26;}
+      else if(t===WATER){
+        const pr=pressure?pressure[i]:0;
+        const depth=Math.min(1,w/8);
+        const press=Math.min(1,pr/20);
+        r=20+press*30; g=80+depth*60-press*20; b=180+depth*40+press*30;
+      }
+      else if(t===OIL){const depth=Math.min(1,w/8);r=80+depth*40;g=60+depth*20;b=20;}
+      else if(t===SAND){r=200;g=160;b=64;}
+      else if(t===PIPE){r=68;g=85;b=102;}
+      else if(t===PUMP){r=34;g=102;b=68;}
+      else if(t===DRAIN){r=68;g=17;b=34;}
+      else continue;
+      const pi=(y*W+x)*4;
+      d[pi]=r;d[pi+1]=g;d[pi+2]=b;d[pi+3]=a;
+    }
+  }
+  offCtx.putImageData(img,0,0);
+  ctx.drawImage(off,0,0,W,H,0,0,CW,CH);
+}
+
+// Drawing
+let mouseDown=false, lastX=-1, lastY=-1;
+function paint(cx,cy) {
+  const gx=Math.floor(cx/SCALE), gy=Math.floor(cy/SCALE);
+  const b=brushSize;
+  for(let dy=-b;dy<=b;dy++) for(let dx=-b;dx<=b;dx++) {
+    if(dx*dx+dy*dy>b*b) continue;
+    const px=gx+dx,py=gy+dy;
+    if(!valid(px,py)) continue;
+    const i=idx(px,py);
+    switch(currentTool){
+      case 'water': cells[i]=WATER; water[i]=8; break;
+      case 'oil': cells[i]=OIL; water[i]=8; break;
+      case 'wall': cells[i]=WALL; water[i]=0; break;
+      case 'sand': cells[i]=SAND; water[i]=0; break;
+      case 'pipe': cells[i]=PIPE; water[i]=0; break;
+      case 'pump': cells[i]=PUMP; water[i]=0; break;
+      case 'drain': cells[i]=DRAIN; water[i]=0; break;
+      case 'erase': cells[i]=AIR; water[i]=0; break;
+    }
+  }
+}
+
+canvas.addEventListener('mousedown',e=>{mouseDown=true;const r=canvas.getBoundingClientRect();paint(e.clientX-r.left,e.clientY-r.top);playDraw();});
+canvas.addEventListener('mousemove',e=>{if(mouseDown){const r=canvas.getBoundingClientRect();paint(e.clientX-r.left,e.clientY-r.top);}});
+canvas.addEventListener('mouseup',()=>mouseDown=false);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();mouseDown=true;const r=canvas.getBoundingClientRect();paint(e.touches[0].clientX-r.left,e.touches[0].clientY-r.top);},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();paint(e.touches[0].clientX-r.left,e.touches[0].clientY-r.top);},{passive:false});
+canvas.addEventListener('touchend',()=>mouseDown=false);
+
+document.querySelectorAll('.tool').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTool=btn.dataset.t;
+  });
+});
+document.getElementById('brushSize').addEventListener('input',e=>{brushSize=parseInt(e.target.value);document.getElementById('bsVal').textContent=brushSize;});
+document.getElementById('gravity').addEventListener('input',e=>{gravity=parseFloat(e.target.value);document.getElementById('gravVal').textContent=gravity.toFixed(1);});
+document.getElementById('btnClear').addEventListener('click',initGrid);
+document.getElementById('btnPause').addEventListener('click',()=>{paused=!paused;document.getElementById('btnPause').classList.toggle('active',paused);document.getElementById('btnPause').textContent=paused?'Resume':'Pause';});
+document.getElementById('btnFill').addEventListener('click',()=>{for(let x=0;x<W;x++){const i=idx(x,H-1);cells[i]=WATER;water[i]=8;}});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='['||e.key==='-') {brushSize=Math.max(1,brushSize-1);document.getElementById('brushSize').value=brushSize;document.getElementById('bsVal').textContent=brushSize;}
+  if(e.key===']'||e.key==='=') {brushSize=Math.min(10,brushSize+1);document.getElementById('brushSize').value=brushSize;document.getElementById('bsVal').textContent=brushSize;}
+  if(e.key===' '){e.preventDefault();document.getElementById('btnPause').click();}
+  if(e.key==='c'||e.key==='C') initGrid();
+  if(e.key==='m'||e.key==='M') document.getElementById('musicBtn').click();
+  const tools=['water','wall','sand','pipe','pump','drain','oil','erase'];
+  if(e.key>='1'&&e.key<='8'){
+    currentTool=tools[parseInt(e.key)-1];
+    document.querySelectorAll('.tool').forEach((b,i)=>b.classList.toggle('active',i===parseInt(e.key)-1));
+  }
+});
+
+// Main loop
+function loop() {
+  if(!paused){for(let s=0;s<3;s++)step();}
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Audio
+let audioCtx=null,musicOn=false,musicNodes=[];
+function initA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+let lastDraw=0;
+function playDraw(){
+  const now=Date.now();if(now-lastDraw<80)return;lastDraw=now;
+  if(currentTool!=='water'&&currentTool!=='oil')return;
+  initA();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain(),f=audioCtx.createBiquadFilter();
+  o.type='sine';o.frequency.value=currentTool==='water'?800+Math.random()*400:400+Math.random()*200;
+  f.type='bandpass';f.frequency.value=600;
+  g.gain.value=0.04;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);
+  o.connect(f);f.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.12);
+}
+function startMusic(){
+  initA();stopMusic();
+  const m=audioCtx.createGain();m.gain.value=0.2;m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  // Flowing water ambient
+  const bufSize=audioCtx.sampleRate*2;
+  const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++)d[i]=(Math.random()*2-1);
+  const src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;
+  const f1=audioCtx.createBiquadFilter();f1.type='bandpass';f1.frequency.value=600;f1.Q.value=0.5;
+  const f2=audioCtx.createBiquadFilter();f2.type='lowpass';f2.frequency.value=1200;
+  const g1=audioCtx.createGain();g1.gain.value=0.15;
+  // Volume LFO for gurgle
+  const lfo=audioCtx.createOscillator();const lg=audioCtx.createGain();
+  lfo.frequency.value=0.8;lg.gain.value=0.08;
+  lfo.connect(lg);lg.connect(g1.gain);lfo.start();
+  src.connect(f1);f1.connect(f2);f2.connect(g1);g1.connect(m);src.start();
+  // Deep rumble
+  const o=audioCtx.createOscillator(),og=audioCtx.createGain(),of=audioCtx.createBiquadFilter();
+  o.type='sine';o.frequency.value=40;of.type='lowpass';of.frequency.value=80;og.gain.value=0.08;
+  o.connect(of);of.connect(og);og.connect(m);o.start();
+  musicNodes.push(src,f1,f2,g1,lfo,lg,o,og,of);
+}
+function stopMusic(){musicNodes.forEach(n=>{try{n.stop?.();n.disconnect?.();}catch(e){}});musicNodes=[];}
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicBtn').textContent=musicOn?'🎵 Music ON':'🎵 Music';
+  if(musicOn)startMusic();else stopMusic();
+});
+
+window.addEventListener('resize',()=>{resize();});
+resize();
+// Add some walls as demo
+for(let x=0;x<W;x++){cells[idx(x,H-1)]=WALL;}
+for(let y=0;y<H;y++){cells[idx(0,y)]=WALL;cells[idx(W-1,y)]=WALL;}
+loop();
+</script>
+</body>
+</html>

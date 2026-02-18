@@ -897,6 +897,48 @@
         let drawingData = new Array(64).fill(0);
         let isDrawing = false;
 
+        // Signal particles for animated propagation visualization
+        let signalParticles = [];
+        class SignalParticle {
+            constructor(x1, y1, x2, y2, color) {
+                this.x1 = x1; this.y1 = y1;
+                this.x2 = x2; this.y2 = y2;
+                this.t = 0; // 0→1 progress
+                this.speed = 0.025 + Math.random() * 0.02;
+                this.color = color;
+                this.size = 3 + Math.random() * 2;
+                this.trail = [];
+            }
+            update() {
+                this.t += this.speed;
+                const x = this.x1 + (this.x2 - this.x1) * this.t;
+                const y = this.y1 + (this.y2 - this.y1) * this.t;
+                this.trail.push({x, y});
+                if (this.trail.length > 6) this.trail.shift();
+                return this.t < 1;
+            }
+            draw(ctx) {
+                // Draw trail (fading)
+                this.trail.forEach((pt, i) => {
+                    const alpha = (i / this.trail.length) * 0.6;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, this.size * (i / this.trail.length), 0, Math.PI * 2);
+                    ctx.fillStyle = this.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+                    ctx.fill();
+                });
+                // Draw head
+                const cx = this.x1 + (this.x2 - this.x1) * this.t;
+                const cy = this.y1 + (this.y2 - this.y1) * this.t;
+                ctx.beginPath();
+                ctx.arc(cx, cy, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 8;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
         // ==================== DOM Elements ====================
         const networkCanvas = document.getElementById('networkCanvas');
         const lossCanvas = document.getElementById('lossCanvas');
@@ -1015,6 +1057,8 @@
                 }
                 // Training tick sound (occasional)
                 if (Math.random() < 0.05) MusicSystem.playTrainingBeep();
+                // Spawn signal particles for propagation visualization
+                if (Math.random() < 0.3 && nn) spawnSignalParticles();
             }, 16);
         }
 
@@ -1295,8 +1339,42 @@
             });
         }
 
+        function spawnSignalParticles() {
+            if (!nn) return;
+            const w = networkCanvas.width, h = networkCanvas.height;
+            const layerGap = w / 4;
+            const nr = Math.min(20, Math.max(nn.inputSize, nn.hiddenSize, nn.outputSize));
+            const neuronR = Math.min(20, h / (nr + 2) / 2);
+            const inputX = layerGap, hiddenX = layerGap * 2, outputX = layerGap * 3;
+            const inputY  = i => h/2 + (i - (nn.inputSize-1)/2)  * neuronR * 2.5;
+            const hiddenY = j => h/2 + (j - (nn.hiddenSize-1)/2) * neuronR * 2.5;
+            const outputY = k => h/2 + (k - (nn.outputSize-1)/2) * neuronR * 2.5;
+
+            // Input→Hidden particles
+            if (Math.random() < 0.5) {
+                const i = Math.floor(Math.random() * Math.min(nn.inputSize, 20));
+                const j = Math.floor(Math.random() * Math.min(nn.hiddenSize, 20));
+                const w = nn.W1[i]?.[j] || 0;
+                const color = w > 0 ? 'rgb(0, 212, 255)' : 'rgb(255, 80, 120)';
+                signalParticles.push(new SignalParticle(inputX, inputY(i), hiddenX, hiddenY(j), color));
+            }
+            // Hidden→Output particles
+            if (Math.random() < 0.5) {
+                const j = Math.floor(Math.random() * Math.min(nn.hiddenSize, 20));
+                const k = Math.floor(Math.random() * nn.outputSize);
+                const w = nn.W2[j]?.[k] || 0;
+                const color = w > 0 ? 'rgb(0, 255, 136)' : 'rgb(255, 140, 0)';
+                signalParticles.push(new SignalParticle(hiddenX, hiddenY(j), outputX, outputY(k), color));
+            }
+            // Cap particle count
+            if (signalParticles.length > 60) signalParticles.splice(0, 20);
+        }
+
         function animate() {
             drawNetwork();
+            // Update & draw signal particles on top of network
+            signalParticles = signalParticles.filter(p => p.update());
+            signalParticles.forEach(p => p.draw(networkCtx));
             drawLossGraph();
             requestAnimationFrame(animate);
         }

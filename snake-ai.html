@@ -326,6 +326,16 @@
 </head>
 <body>
     <header>
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:700px;margin-bottom:8px;">
+            <a href="/games" style="color:var(--text-muted);text-decoration:none;font-size:13px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">← All Games</a>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);">
+                <span>🔈</span>
+                <input type="range" id="snakeVolume" min="0" max="100" value="18"
+                    style="width:70px;height:4px;-webkit-appearance:none;background:var(--bg-hover);border-radius:2px;outline:none;cursor:pointer;"
+                    oninput="SnakeAudio.setVolume && SnakeAudio.setVolume(this.value/100)">
+                <span>🔊</span>
+            </div>
+        </div>
         <h1>🐍 Snake AI</h1>
         <p>Watch AI algorithms solve Snake perfectly</p>
     </header>
@@ -359,6 +369,11 @@
             <div class="stat-card">
                 <div class="stat-value" id="high-score">0</div>
                 <div class="stat-label">High Score</div>
+            </div>
+
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,163,74,0.05)); border: 1px solid rgba(34,197,94,0.3);">
+                <div class="stat-value" id="level-display" style="font-size: 22px; color: #4ade80;">Lv 1</div>
+                <div class="stat-label">Difficulty · <span id="speed-label" style="color: var(--primary);">100ms</span></div>
             </div>
             
             <div class="controls">
@@ -670,6 +685,7 @@
                 SnakeAudio.playEat();
                 spawnFoodParticles(food.x, food.y);
                 placeFood();
+                adaptSpeed(); // Speed up every 5 points
                 
                 // Check win condition
                 if (snake.length === GRID_SIZE * GRID_SIZE) {
@@ -707,16 +723,40 @@
             snake = [{x: 10, y: 10}];
             direction = {x: 1, y: 0};
             score = 0;
-            document.getElementById('score').textContent = score;
+            document.getElementById('score').textContent = 0;
+            const lvlEl = document.getElementById('level-display');
+            const lblEl = document.getElementById('speed-label');
+            if (lvlEl) lvlEl.textContent = 'Lv 1';
+            if (lblEl) lblEl.textContent = `${gameSpeed}ms`;
             placeFood();
             render();
         }
         
+        // Difficulty: speed increases every 5 points (min 30ms)
+        function getAdaptiveSpeed() {
+            const base = gameSpeed;
+            const boost = Math.floor(score / 5) * 8;
+            return Math.max(30, base - boost);
+        }
+
+        function adaptSpeed() {
+            if (!isRunning) return;
+            const newDelay = getAdaptiveSpeed();
+            clearInterval(gameLoop);
+            gameLoop = setInterval(update, newDelay);
+            const lvl = Math.floor(score / 5) + 1;
+            document.getElementById('speed-display').textContent = `${newDelay}ms`;
+            const lvlEl = document.getElementById('level-display');
+            const lblEl = document.getElementById('speed-label');
+            if (lvlEl) { lvlEl.textContent = `Lv ${lvl}`; lvlEl.classList.add('pop'); setTimeout(() => lvlEl.classList.remove('pop'), 300); }
+            if (lblEl) lblEl.textContent = `${newDelay}ms`;
+        }
+
         function start() {
             if (isRunning) return;
             isRunning = true;
             document.getElementById('start').textContent = '⏸ Pause';
-            gameLoop = setInterval(update, gameSpeed);
+            gameLoop = setInterval(update, getAdaptiveSpeed());
         }
         
         function stop() {
@@ -767,11 +807,11 @@
         
         document.getElementById('speed').addEventListener('input', (e) => {
             gameSpeed = 210 - parseInt(e.target.value); // Invert so higher = faster
-            document.getElementById('speed-display').textContent = `${gameSpeed}ms`;
-            
+            const adaptive = getAdaptiveSpeed();
+            document.getElementById('speed-display').textContent = `${adaptive}ms`;
             if (isRunning) {
                 clearInterval(gameLoop);
-                gameLoop = setInterval(update, gameSpeed);
+                gameLoop = setInterval(update, adaptive);
             }
         });
         
@@ -928,6 +968,11 @@
                     o.connect(flt); flt.connect(g); g.connect(this.masterGain || this.ctx.destination);
                     o.start(t); o.stop(t + 0.2);
                 });
+            },
+
+            setVolume(v) {
+                this.volume = v;
+                if (this.masterGain) this.masterGain.gain.value = v;
             },
 
             playWin() {

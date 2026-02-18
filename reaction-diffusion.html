@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction Diffusion — Turing Patterns</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; }
+#ui {
+  position: fixed; top: 10px; right: 10px;
+  background: rgba(0,0,0,0.85); border: 1px solid #333;
+  padding: 12px; border-radius: 8px; width: 200px; font-size: 12px;
+}
+#ui h2 { color: #adf; margin-bottom: 10px; font-size: 14px; }
+.slider-row { margin: 6px 0; }
+.slider-row label { display: flex; justify-content: space-between; margin-bottom: 2px; color: #ccc; }
+.slider-row input[type=range] { width: 100%; accent-color: #5af; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+button {
+  background: #1a1a2e; border: 1px solid #444; color: #ccc;
+  padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;
+}
+button:hover { background: #2a2a4e; border-color: #5af; color: #fff; }
+button.active { background: #1a3a5e; border-color: #5af; color: #5af; }
+#presets { margin-top: 8px; }
+#presets h3 { color: #adf; margin-bottom: 4px; font-size: 12px; }
+#info { position: fixed; bottom: 10px; left: 10px; font-size: 11px; color: #666; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #1a1a2e; border: 1px solid #5af; color: #5af; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h2>⚗️ Reaction Diffusion</h2>
+  <div class="slider-row">
+    <label><span>Feed Rate (f)</span><span id="fVal">0.055</span></label>
+    <input type="range" id="feed" min="0.01" max="0.1" step="0.001" value="0.055">
+  </div>
+  <div class="slider-row">
+    <label><span>Kill Rate (k)</span><span id="kVal">0.062</span></label>
+    <input type="range" id="kill" min="0.04" max="0.08" step="0.001" value="0.062">
+  </div>
+  <div class="slider-row">
+    <label><span>Diffuse A</span><span id="daVal">1.00</span></label>
+    <input type="range" id="da" min="0.5" max="2.0" step="0.05" value="1.0">
+  </div>
+  <div class="slider-row">
+    <label><span>Diffuse B</span><span id="dbVal">0.50</span></label>
+    <input type="range" id="db" min="0.1" max="1.0" step="0.05" value="0.5">
+  </div>
+  <div class="slider-row">
+    <label><span>Speed</span><span id="spVal">8</span></label>
+    <input type="range" id="speed" min="1" max="20" step="1" value="8">
+  </div>
+  <div class="btn-row">
+    <button id="btnReset">Reset</button>
+    <button id="btnSeed">Seed</button>
+    <button id="btnPause">Pause</button>
+    <button id="btnInvert">Invert</button>
+  </div>
+  <div id="presets">
+    <h3>Presets</h3>
+    <div class="btn-row">
+      <button class="preset active" data-f="0.055" data-k="0.062">Spots</button>
+      <button class="preset" data-f="0.037" data-k="0.060">Stripes</button>
+      <button class="preset" data-f="0.025" data-k="0.055">Maze</button>
+      <button class="preset" data-f="0.078" data-k="0.061">Coral</button>
+      <button class="preset" data-f="0.014" data-k="0.054">Worms</button>
+      <button class="preset" data-f="0.062" data-k="0.063">Holes</button>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:#555;font-size:10px;">Click/drag to seed • M=music</div>
+</div>
+<div id="info">Gray-Scott Model — Turing Patterns</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, N;
+let A, B, nA, nB;
+let f = 0.055, k = 0.062, dA = 1.0, dB = 0.5;
+let speed = 8, paused = false, invert = false;
+let animId;
+let mouseDown = false;
+
+function resize() {
+  W = Math.floor(window.innerWidth / 2);
+  H = Math.floor(window.innerHeight / 2);
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  N = W * H;
+  A = new Float32Array(N);
+  B = new Float32Array(N);
+  nA = new Float32Array(N);
+  nB = new Float32Array(N);
+  for (let i = 0; i < N; i++) { A[i] = 1; B[i] = 0; }
+  seed();
+}
+
+function seed() {
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
+  for (let dy = -5; dy <= 5; dy++) {
+    for (let dx = -5; dx <= 5; dx++) {
+      const i = (cy + dy) * W + (cx + dx);
+      if (i >= 0 && i < N) { A[i] = 0.5; B[i] = 0.25; }
+    }
+  }
+  for (let n = 0; n < 8; n++) {
+    const sx = Math.floor(Math.random() * W);
+    const sy = Math.floor(Math.random() * H);
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        const i = (sy + dy) * W + (sx + dx);
+        if (i >= 0 && i < N) { A[i] = 0.5; B[i] = 0.25; }
+      }
+    }
+  }
+}
+
+function reset() {
+  for (let i = 0; i < N; i++) { A[i] = 1; B[i] = 0; }
+  seed();
+}
+
+function step() {
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      const a = A[i], b = B[i];
+      const lapA = A[i-1] + A[i+1] + A[i-W] + A[i+W] - 4*a;
+      const lapB = B[i-1] + B[i+1] + B[i-W] + B[i+W] - 4*b;
+      const abb = a * b * b;
+      nA[i] = a + dA * lapA - abb + f * (1 - a);
+      nB[i] = b + dB * lapB + abb - (k + f) * b;
+      if (nA[i] < 0) nA[i] = 0;
+      if (nA[i] > 1) nA[i] = 1;
+      if (nB[i] < 0) nB[i] = 0;
+      if (nB[i] > 1) nB[i] = 1;
+    }
+  }
+  [A, B, nA, nB] = [nA, nB, A, B];
+}
+
+const imgData = ctx.createImageData(window.innerWidth, window.innerHeight);
+const pixels = imgData.data;
+
+// Color palettes
+const palettes = [
+  (t) => { const r=Math.floor((1-t)*20), g=Math.floor(t*200+20), b=Math.floor(t*180+50); return [r,g,b]; },
+  (t) => { const r=Math.floor(t*255), g=Math.floor(t*100), b=Math.floor((1-t)*200+50); return [r,g,b]; },
+];
+let pal = 0;
+
+function draw() {
+  const scale = 2;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      let t = invert ? A[i] : B[i];
+      t = Math.max(0, Math.min(1, t));
+      // Map to color
+      let r, g, b;
+      const t2 = t * t;
+      r = Math.floor(t2 * 30 + (1-t) * 0 + t * 50);
+      g = Math.floor((1-t) * 180 * t + t2 * 220);
+      b = Math.floor(t * 255 * (1 - t*0.5) + t2 * 100);
+      if (invert) { r = 255-r; g = 255-g; b = 255-b; }
+      for (let dy = 0; dy < scale; dy++) {
+        for (let dx = 0; dx < scale; dx++) {
+          const pi = ((y*scale+dy) * window.innerWidth + (x*scale+dx)) * 4;
+          pixels[pi] = r; pixels[pi+1] = g; pixels[pi+2] = b; pixels[pi+3] = 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function loop() {
+  if (!paused) {
+    for (let s = 0; s < speed; s++) step();
+    draw();
+  }
+  animId = requestAnimationFrame(loop);
+}
+
+// Controls
+document.getElementById('feed').addEventListener('input', e => {
+  f = parseFloat(e.target.value);
+  document.getElementById('fVal').textContent = f.toFixed(3);
+});
+document.getElementById('kill').addEventListener('input', e => {
+  k = parseFloat(e.target.value);
+  document.getElementById('kVal').textContent = k.toFixed(3);
+});
+document.getElementById('da').addEventListener('input', e => {
+  dA = parseFloat(e.target.value);
+  document.getElementById('daVal').textContent = dA.toFixed(2);
+});
+document.getElementById('db').addEventListener('input', e => {
+  dB = parseFloat(e.target.value);
+  document.getElementById('dbVal').textContent = dB.toFixed(2);
+});
+document.getElementById('speed').addEventListener('input', e => {
+  speed = parseInt(e.target.value);
+  document.getElementById('spVal').textContent = speed;
+});
+document.getElementById('btnReset').addEventListener('click', reset);
+document.getElementById('btnSeed').addEventListener('click', seed);
+document.getElementById('btnPause').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('btnPause').textContent = paused ? 'Resume' : 'Pause';
+  document.getElementById('btnPause').classList.toggle('active', paused);
+});
+document.getElementById('btnInvert').addEventListener('click', () => {
+  invert = !invert;
+  document.getElementById('btnInvert').classList.toggle('active', invert);
+});
+
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    f = parseFloat(btn.dataset.f);
+    k = parseFloat(btn.dataset.k);
+    document.getElementById('feed').value = f;
+    document.getElementById('kill').value = k;
+    document.getElementById('fVal').textContent = f.toFixed(3);
+    document.getElementById('kVal').textContent = k.toFixed(3);
+    reset();
+  });
+});
+
+// Mouse seeding
+function seedAt(cx, cy) {
+  const gx = Math.floor(cx / 2), gy = Math.floor(cy / 2);
+  for (let dy = -4; dy <= 4; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      const i = (gy+dy)*W + (gx+dx);
+      if (i >= 0 && i < N) { A[i] = 0.5 + Math.random()*0.1; B[i] = 0.25 + Math.random()*0.1; }
+    }
+  }
+}
+canvas.addEventListener('mousedown', e => { mouseDown = true; seedAt(e.clientX, e.clientY); });
+canvas.addEventListener('mouseup', () => mouseDown = false);
+canvas.addEventListener('mousemove', e => { if (mouseDown) seedAt(e.clientX, e.clientY); });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); seedAt(e.touches[0].clientX, e.touches[0].clientY); });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); seedAt(e.touches[0].clientX, e.touches[0].clientY); });
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === ' ') { e.preventDefault(); document.getElementById('btnPause').click(); }
+  if (e.key === 'r' || e.key === 'R') reset();
+  if (e.key === 's' || e.key === 'S') seed();
+  if (e.key === 'i' || e.key === 'I') document.getElementById('btnInvert').click();
+  if (e.key === 'm' || e.key === 'M') document.getElementById('musicBtn').click();
+});
+
+// Web Audio
+let audioCtx = null, musicOn = false, musicNodes = [];
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function startMusic() {
+  initAudio();
+  stopMusic();
+  const master = audioCtx.createGain();
+  master.gain.value = 0.18;
+  master.connect(audioCtx.destination);
+  musicNodes.push(master);
+  // Ambient drone - evolving pad
+  const notes = [55, 82.5, 110, 165, 220, 330];
+  notes.forEach((freq, idx) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filt = audioCtx.createBiquadFilter();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    filt.type = 'lowpass';
+    filt.frequency.value = 400 + idx * 80;
+    gain.gain.value = 0.06 / (idx + 1);
+    // Slow LFO
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.frequency.value = 0.05 + idx * 0.03;
+    lfoGain.gain.value = gain.gain.value * 0.3;
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    lfo.start();
+    osc.connect(filt); filt.connect(gain); gain.connect(master);
+    osc.start();
+    musicNodes.push(osc, gain, filt, lfo, lfoGain);
+  });
+  // Shimmer high frequencies
+  for (let i = 0; i < 3; i++) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 880 * (i + 1);
+    gain.gain.value = 0.008;
+    const lfo = audioCtx.createOscillator();
+    const lg = audioCtx.createGain();
+    lfo.frequency.value = 0.1 + i * 0.07;
+    lg.gain.value = 0.006;
+    lfo.connect(lg); lg.connect(gain.gain);
+    lfo.start(); osc.start();
+    osc.connect(gain); gain.connect(master);
+    musicNodes.push(osc, gain, lfo, lg);
+  }
+}
+function stopMusic() {
+  musicNodes.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch(e){} });
+  musicNodes = [];
+}
+document.getElementById('musicBtn').addEventListener('click', () => {
+  musicOn = !musicOn;
+  document.getElementById('musicBtn').textContent = musicOn ? '🎵 Music ON' : '🎵 Music';
+  document.getElementById('musicBtn').style.color = musicOn ? '#5af' : '#5af';
+  if (musicOn) startMusic(); else stopMusic();
+});
+
+window.addEventListener('resize', () => { cancelAnimationFrame(animId); resize(); loop(); });
+resize();
+loop();
+</script>
+</body>
+</html>

@@ -604,6 +604,16 @@
             }
         }
         
+        /* Stat-box flash on major changes */
+        .stat-box.stat-flash {
+            animation: statFlash4d 0.45s ease;
+        }
+        @keyframes statFlash4d {
+            0% { transform: scale(1); border-color: var(--panel-border); }
+            35% { transform: scale(1.1); border-color: var(--neon-blue); box-shadow: 0 0 25px rgba(0,245,255,0.5); }
+            100% { transform: scale(1); border-color: var(--panel-border); }
+        }
+
         /* Animations */
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -1285,6 +1295,33 @@
             
             // Create boundary
             createBoundaryBox();
+
+            // Hyperdimensional nebula backdrop — large translucent sphere
+            (function createNebula() {
+                const nebulaGeo = new THREE.SphereGeometry(CONFIG.gridSize * 4, 32, 32);
+                const nebulaMat = new THREE.MeshBasicMaterial({
+                    color: 0xb829dd,
+                    transparent: true,
+                    opacity: 0.03,
+                    side: THREE.BackSide,
+                    depthWrite: false
+                });
+                const nebula = new THREE.Mesh(nebulaGeo, nebulaMat);
+                nebula.position.set(CONFIG.gridSize/2, CONFIG.gridSize/2, CONFIG.gridSize/2);
+                scene.add(nebula);
+                // Inner cyan nebula
+                const nebula2Mat = new THREE.MeshBasicMaterial({ color: 0x00f5ff, transparent: true, opacity: 0.015, side: THREE.BackSide, depthWrite: false });
+                const nebula2 = new THREE.Mesh(new THREE.SphereGeometry(CONFIG.gridSize * 3, 24, 24), nebula2Mat);
+                nebula2.position.copy(nebula.position);
+                scene.add(nebula2);
+                // Slowly rotate nebulas
+                let nAngle = 0;
+                setInterval(() => {
+                    nAngle += 0.0003;
+                    nebula.rotation.y = nAngle; nebula.rotation.x = nAngle * 0.4;
+                    nebula2.rotation.y = -nAngle * 1.3; nebula2.rotation.z = nAngle * 0.2;
+                }, 16);
+            })();
             
             // Raycaster
             raycaster = new THREE.Raycaster();
@@ -2198,6 +2235,17 @@
             }
         }
         
+        let _prev4dStats = { alive: 0, born: 0, died: 0 };
+        function _flashStat4d(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const box = el.closest('.stat-box') || el.parentElement;
+            box.classList.remove('stat-flash');
+            void box.offsetWidth;
+            box.classList.add('stat-flash');
+            setTimeout(() => box.classList.remove('stat-flash'), 500);
+        }
+
         function updateStats() {
             stats.alive = cellMeshes.length;
             if (stats.alive > stats.maxPopulation) stats.maxPopulation = stats.alive;
@@ -2207,6 +2255,12 @@
             document.getElementById('born-count').textContent = stats.born;
             document.getElementById('died-count').textContent = stats.died;
             document.getElementById('total-pop').textContent = CONFIG.gridSize ** 3;
+
+            // Flash stat boxes on significant changes
+            if (Math.abs(stats.alive - _prev4dStats.alive) > 30) _flashStat4d('alive-count');
+            if (stats.born - _prev4dStats.born > 15) _flashStat4d('born-count');
+            if (stats.died - _prev4dStats.died > 15) _flashStat4d('died-count');
+            _prev4dStats = { alive: stats.alive, born: stats.born, died: stats.died };
             
             const totalCells = CONFIG.gridSize ** 3;
             const stability = Math.floor((stats.alive / totalCells) * 100);
@@ -2562,7 +2616,33 @@
             logEvent(`Spawned ${pattern} pattern`, 'normal');
         }
         
+        // Dimension-shift flash overlay
+        const _flashOverlay = document.createElement('div');
+        _flashOverlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(184,41,221,0.8) 0%, rgba(0,245,255,0.4) 40%, transparent 70%);
+            opacity: 0; transition: opacity 0.15s ease;
+        `;
+        document.body.appendChild(_flashOverlay);
+
+        function triggerDimensionFlash(color = 'rgba(184,41,221,0.8)') {
+            _flashOverlay.style.background = `radial-gradient(ellipse at center, ${color} 0%, rgba(0,245,255,0.3) 50%, transparent 70%)`;
+            _flashOverlay.style.opacity = '1';
+            setTimeout(() => { _flashOverlay.style.transition = 'opacity 0.8s ease'; _flashOverlay.style.opacity = '0'; }, 120);
+            setTimeout(() => { _flashOverlay.style.transition = 'opacity 0.15s ease'; }, 950);
+        }
+
         function loadPreset(preset) {
+            // Flash color based on preset theme
+            const flashColors = {
+                bigbang: 'rgba(255,100,0,0.9)', galaxy: 'rgba(0,100,255,0.8)', neural: 'rgba(184,41,221,0.9)',
+                crystal: 'rgba(0,245,255,0.9)', dna: 'rgba(0,255,136,0.8)', coral: 'rgba(255,100,50,0.8)',
+                warzone: 'rgba(255,0,0,0.9)', forest: 'rgba(34,197,94,0.8)', virus: 'rgba(255,0,255,0.9)',
+                city: 'rgba(255,200,0,0.8)', mandala: 'rgba(184,41,221,0.8)', chaos: 'rgba(255,255,0,0.8)',
+                ecosystem: 'rgba(0,200,100,0.8)', volcano: 'rgba(255,50,0,0.9)', quantumlab: 'rgba(0,245,255,0.9)',
+                acidrain: 'rgba(100,255,0,0.9)', hivemind: 'rgba(255,165,0,0.8)', terminator: 'rgba(255,0,0,0.9)'
+            };
+            triggerDimensionFlash(flashColors[preset] || 'rgba(184,41,221,0.8)');
             clearGrid();
             
             const presets = {

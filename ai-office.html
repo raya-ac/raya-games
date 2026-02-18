@@ -86,13 +86,21 @@
 <body>
     <div class="header">
         <h1>✨ AI Agent Office ✨</h1>
-        <div style="display: flex; gap: 6px;">
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
             <div class="control-btn" id="time-display">🌅 Day 1 09:00</div>
             <div class="control-btn" id="weather-display">☀️ Sunny</div>
             <button class="control-btn" onclick="toggleMusic()">🎵 Lofi</button>
+            <div style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.15);border-radius:10px;padding:3px 8px;" title="Music Volume">
+                <span style="font-size:9px;color:rgba(255,255,255,0.9);">🔈</span>
+                <input type="range" id="officeVolume" min="0" max="100" value="18"
+                    style="width:55px;height:3px;-webkit-appearance:none;background:rgba(255,255,255,0.5);border-radius:2px;outline:none;cursor:pointer;"
+                    oninput="OfficeAudio.setVolume(this.value/100)">
+                <span style="font-size:9px;color:rgba(255,255,255,0.9);">🔊</span>
+            </div>
             <button class="control-btn" onclick="triggerEvent()">🎲 Event</button>
             <button class="control-btn" onclick="openShop()">🛒 Shop</button>
             <button class="control-btn" onclick="forceSave()">💾 Save</button>
+            <a href="/games" class="control-btn" style="background:rgba(255,255,255,0.2);color:white;text-decoration:none;">🎮 All Games</a>
         </div>
     </div>
     

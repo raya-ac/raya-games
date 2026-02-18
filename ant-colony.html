@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ant Colony Optimizer — TSP Solver</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #05080a; color: #ccc; font-family: 'Courier New', monospace; display: flex; height: 100vh; overflow: hidden; }
+canvas { flex: 1; display: block; cursor: crosshair; }
+#sidebar {
+  width: 200px; background: #030508; border-left: 1px solid #1a2a1a;
+  padding: 12px; overflow-y: auto; flex-shrink: 0; font-size: 12px;
+}
+#sidebar h2 { color: #8f8; margin-bottom: 10px; font-size: 14px; }
+.section { margin-bottom: 12px; border-bottom: 1px solid #111; padding-bottom: 10px; }
+.section h3 { color: #6a8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.row { margin: 5px 0; }
+.row label { display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+.row input[type=range] { width: 100%; accent-color: #6f6; }
+button { background: #080f08; border: 1px solid #2a3a2a; color: #aaa; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 2px; }
+button:hover { border-color: #8f8; color: #8f8; }
+button.active { border-color: #8f8; color: #8f8; background: #0f1f0f; }
+#bestEl { color: #8f8; font-size: 13px; font-weight: bold; }
+#iterEl { color: #fa0; }
+#improving { color: #4af; font-size: 10px; }
+.legend { font-size: 10px; color: #666; margin-top: 4px; line-height: 1.8; }
+.legend span { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #080f08; border: 1px solid #6f6; color: #8f8; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="sidebar">
+  <h2>🐜 Ant Colony</h2>
+  <div class="section">
+    <h3>Problem</h3>
+    <button id="btnRandom">🎲 Random Cities</button>
+    <button id="btnGrid">⊞ Grid Layout</button>
+    <button id="btnCircle">⭕ Circle</button>
+    <button id="btnClear">✖ Clear</button>
+    <div style="margin-top:6px;font-size:10px;color:#555;">Click canvas to add cities</div>
+  </div>
+  <div class="section">
+    <h3>ACO Parameters</h3>
+    <div class="row">
+      <label><span>Ants</span><span id="antCountVal">40</span></label>
+      <input type="range" id="antCount" min="5" max="100" value="40">
+    </div>
+    <div class="row">
+      <label><span>Alpha (pheromone)</span><span id="alphaVal">1.0</span></label>
+      <input type="range" id="alpha" min="0.1" max="5" step="0.1" value="1">
+    </div>
+    <div class="row">
+      <label><span>Beta (distance)</span><span id="betaVal">2.0</span></label>
+      <input type="range" id="beta" min="0.1" max="10" step="0.1" value="2">
+    </div>
+    <div class="row">
+      <label><span>Evaporation</span><span id="rhoVal">0.10</span></label>
+      <input type="range" id="rho" min="0.01" max="0.5" step="0.01" value="0.1">
+    </div>
+    <div class="row">
+      <label><span>Speed</span><span id="speedVal">5</span></label>
+      <input type="range" id="speed" min="1" max="20" value="5">
+    </div>
+  </div>
+  <div class="section">
+    <h3>Control</h3>
+    <button id="btnStart">▶ Start</button>
+    <button id="btnStop">⏹ Stop</button>
+    <button id="btnStep">Step</button>
+  </div>
+  <div class="section">
+    <h3>Stats</h3>
+    <div>Best Tour: <span id="bestEl">—</span></div>
+    <div>Iteration: <span id="iterEl">0</span></div>
+    <div id="improving"></div>
+  </div>
+  <div class="legend">
+    <div><span style="background:#4f4"></span>Best tour path</div>
+    <div><span style="background:#f80"></span>Active ants</div>
+    <div><span style="background:#226"></span>Pheromone trail</div>
+    <div><span style="background:#f44"></span>City nodes</div>
+  </div>
+  <div style="margin-top:8px;font-size:9px;color:#444;">M=music · S=start · R=random · C=clear</div>
+</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = canvas.offsetWidth;
+let H = canvas.height = canvas.offsetHeight;
+
+// Cities
+let cities = [];
+let pheromones = [];
+let bestTour = null, bestLength = Infinity;
+let iteration = 0, running = false;
+let animAnts = []; // for visual animation
+let stepsPerFrame = 5;
+
+// ACO params
+let NUM_ANTS = 40, ALPHA = 1.0, BETA = 2.0, RHO = 0.1;
+
+function dist(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function initPheromones() {
+  const n = cities.length;
+  pheromones = Array.from({length:n}, () => new Float64Array(n).fill(1.0));
+}
+
+function tourLength(tour) {
+  let len = 0;
+  for (let i = 0; i < tour.length; i++) {
+    len += dist(cities[tour[i]], cities[tour[(i+1)%tour.length]]);
+  }
+  return len;
+}
+
+function runIteration() {
+  const n = cities.length;
+  if (n < 3) return;
+  const ants = [];
+  // Each ant builds a tour
+  for (let a = 0; a < NUM_ANTS; a++) {
+    const visited = new Uint8Array(n);
+    const tour = [];
+    let current = Math.floor(Math.random() * n);
+    visited[current] = 1;
+    tour.push(current);
+    for (let step = 1; step < n; step++) {
+      // Calculate probabilities
+      let total = 0;
+      const probs = new Float64Array(n);
+      for (let j = 0; j < n; j++) {
+        if (visited[j]) continue;
+        const tau = Math.pow(pheromones[current][j], ALPHA);
+        const eta = Math.pow(1.0 / (dist(cities[current], cities[j]) + 1e-10), BETA);
+        probs[j] = tau * eta;
+        total += probs[j];
+      }
+      // Roulette selection
+      let r = Math.random() * total;
+      let chosen = -1;
+      for (let j = 0; j < n; j++) {
+        if (visited[j]) continue;
+        r -= probs[j];
+        if (r <= 0) { chosen = j; break; }
+      }
+      if (chosen === -1) { for(let j=0;j<n;j++) if(!visited[j]){chosen=j;break;} }
+      visited[chosen] = 1;
+      tour.push(chosen);
+      current = chosen;
+    }
+    ants.push(tour);
+  }
+  // Evaporate
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) pheromones[i][j] *= (1 - RHO);
+  // Deposit
+  let iterBest = null, iterBestLen = Infinity;
+  ants.forEach(tour => {
+    const len = tourLength(tour);
+    const delta = 1000 / len;
+    for (let i = 0; i < tour.length; i++) {
+      const a = tour[i], b = tour[(i+1)%tour.length];
+      pheromones[a][b] += delta;
+      pheromones[b][a] += delta;
+    }
+    if (len < iterBestLen) { iterBest = tour; iterBestLen = len; }
+  });
+  if (iterBestLen < bestLength) {
+    const prev = bestLength;
+    bestLength = iterBestLen; bestTour = [...iterBest];
+    document.getElementById('improving').textContent = `↓ Improved! ${(prev-bestLength).toFixed(1)} saved`;
+    playImprove();
+  } else {
+    document.getElementById('improving').textContent = '';
+  }
+  // Update animated ants
+  animAnts = ants.slice(0, Math.min(8, ants.length)).map(tour => ({
+    tour, pos: 0, frac: 0, color: `hsl(${Math.random()*360},80%,60%)`
+  }));
+  iteration++;
+  document.getElementById('bestEl').textContent = bestLength === Infinity ? '—' : bestLength.toFixed(1);
+  document.getElementById('iterEl').textContent = iteration;
+}
+
+// Preset city layouts
+function randomCities(n=20) {
+  cities = [];
+  for (let i = 0; i < n; i++) cities.push({x: 60+Math.random()*(W-120), y: 40+Math.random()*(H-80)});
+  reset();
+}
+function gridCities() {
+  cities = [];
+  const cols=6, rows=4;
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+    cities.push({x: W*(c+1)/(cols+1), y: H*(r+1)/(rows+1)});
+  }
+  reset();
+}
+function circleCities(n=16) {
+  cities = [];
+  for (let i=0;i<n;i++) {
+    const a=(i/n)*Math.PI*2-Math.PI/2;
+    cities.push({x: W/2+Math.cos(a)*(Math.min(W,H)*0.38), y: H/2+Math.sin(a)*(Math.min(W,H)*0.38)});
+  }
+  reset();
+}
+function reset() {
+  initPheromones(); bestTour=null; bestLength=Infinity; iteration=0; animAnts=[];
+  document.getElementById('bestEl').textContent='—';
+  document.getElementById('iterEl').textContent='0';
+  document.getElementById('improving').textContent='';
+}
+
+// Pheromone intensity lookup
+function pheromoneColor(i, j) {
+  if (!pheromones[i] || !pheromones[j]) return null;
+  const n = cities.length;
+  let maxP = 0;
+  for (let a=0;a<n;a++) for (let b=0;b<n;b++) if(pheromones[a][b]>maxP) maxP=pheromones[a][b];
+  const t = Math.min(1, pheromones[i][j] / (maxP * 0.5 + 0.001));
+  return t;
+}
+
+function draw() {
+  ctx.fillStyle = '#05080a';
+  ctx.fillRect(0,0,W,H);
+  if (cities.length < 2) {
+    ctx.fillStyle = '#333';
+    ctx.font = '16px Courier New'; ctx.textAlign = 'center';
+    ctx.fillText('Click to add cities (min 3), or use presets →', W/2, H/2);
+    ctx.textAlign = 'left';
+    return;
+  }
+  const n = cities.length;
+  // Pheromone trails
+  if (pheromones.length === n) {
+    let maxP = 0;
+    for (let i=0;i<n;i++) for (let j=i+1;j<n;j++) if(pheromones[i][j]>maxP) maxP=pheromones[i][j];
+    for (let i=0;i<n;i++) for (let j=i+1;j<n;j++) {
+      const t = Math.min(1, pheromones[i][j] / (maxP * 0.3 + 0.001));
+      if (t < 0.05) continue;
+      ctx.strokeStyle = `rgba(30,60,180,${t*0.7})`;
+      ctx.lineWidth = t * 3;
+      ctx.beginPath();
+      ctx.moveTo(cities[i].x, cities[i].y);
+      ctx.lineTo(cities[j].x, cities[j].y);
+      ctx.stroke();
+    }
+  }
+  // Best tour
+  if (bestTour && bestTour.length === n) {
+    ctx.strokeStyle = '#4f4';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 6; ctx.shadowColor = '#4f4';
+    ctx.beginPath();
+    ctx.moveTo(cities[bestTour[0]].x, cities[bestTour[0]].y);
+    for (let i=1;i<bestTour.length;i++) ctx.lineTo(cities[bestTour[i]].x, cities[bestTour[i]].y);
+    ctx.closePath(); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // Animated ants
+  animAnts.forEach(ant => {
+    ant.frac += 0.05;
+    if (ant.frac >= 1) { ant.frac = 0; ant.pos = (ant.pos+1) % ant.tour.length; }
+    const cur = ant.tour[ant.pos], nxt = ant.tour[(ant.pos+1)%ant.tour.length];
+    const x = cities[cur].x + (cities[nxt].x-cities[cur].x)*ant.frac;
+    const y = cities[cur].y + (cities[nxt].y-cities[cur].y)*ant.frac;
+    ctx.fillStyle = ant.color;
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+    // Trail
+    ctx.fillStyle = ant.color.replace('60%','30%').replace('rgba','rgb');
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.arc(x-2,y-2,2,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+  // Cities
+  cities.forEach((c,i) => {
+    ctx.shadowBlur = 8; ctx.shadowColor = '#f44';
+    ctx.fillStyle = '#f44';
+    ctx.beginPath(); ctx.arc(c.x, c.y, 6, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = '9px Courier New'; ctx.textAlign = 'center';
+    ctx.fillText(i+1, c.x, c.y+3);
+  });
+  ctx.textAlign = 'left';
+  // Info
+  ctx.fillStyle = '#444';
+  ctx.font = '11px Courier New';
+  ctx.fillText(`${cities.length} cities | ${NUM_ANTS} ants | α=${ALPHA} β=${BETA} ρ=${RHO}`, 10, H-10);
+}
+
+// Controls
+document.getElementById('btnRandom').addEventListener('click', ()=>randomCities(20));
+document.getElementById('btnGrid').addEventListener('click', gridCities);
+document.getElementById('btnCircle').addEventListener('click', ()=>circleCities(16));
+document.getElementById('btnClear').addEventListener('click', ()=>{cities=[];reset();});
+document.getElementById('btnStart').addEventListener('click', ()=>{
+  if(cities.length<3){alert('Add at least 3 cities!');return;}
+  running=true;
+  document.getElementById('btnStart').classList.add('active');
+});
+document.getElementById('btnStop').addEventListener('click', ()=>{
+  running=false;
+  document.getElementById('btnStart').classList.remove('active');
+});
+document.getElementById('btnStep').addEventListener('click', ()=>{ if(cities.length>=3) runIteration(); });
+
+document.getElementById('antCount').addEventListener('input',e=>{NUM_ANTS=parseInt(e.target.value);document.getElementById('antCountVal').textContent=NUM_ANTS;});
+document.getElementById('alpha').addEventListener('input',e=>{ALPHA=parseFloat(e.target.value);document.getElementById('alphaVal').textContent=ALPHA.toFixed(1);});
+document.getElementById('beta').addEventListener('input',e=>{BETA=parseFloat(e.target.value);document.getElementById('betaVal').textContent=BETA.toFixed(1);});
+document.getElementById('rho').addEventListener('input',e=>{RHO=parseFloat(e.target.value);document.getElementById('rhoVal').textContent=RHO.toFixed(2);});
+document.getElementById('speed').addEventListener('input',e=>{stepsPerFrame=parseInt(e.target.value);document.getElementById('speedVal').textContent=stepsPerFrame;});
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  cities.push({x: e.clientX-rect.left, y: e.clientY-rect.top});
+  reset();
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key==='s'||e.key==='S') document.getElementById('btnStart').click();
+  if(e.key==='r'||e.key==='R') randomCities(20);
+  if(e.key==='c'||e.key==='C') {cities=[];reset();}
+  if(e.key===' '){e.preventDefault();running=!running;document.getElementById('btnStart').classList.toggle('active',running);}
+  if(e.key==='m'||e.key==='M') document.getElementById('musicBtn').click();
+});
+
+window.addEventListener('resize',()=>{W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;});
+
+function loop() {
+  if(running) for(let i=0;i<stepsPerFrame;i++) runIteration();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Audio
+let audioCtx=null,musicOn=false,musicNodes=[];
+function initA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+let lastImproveTone=0;
+function playImprove(){
+  const now=Date.now();if(now-lastImproveTone<200)return;lastImproveTone=now;
+  initA();
+  const freq=220+Math.random()*440;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type='triangle';o.frequency.value=freq;
+  o.frequency.linearRampToValueAtTime(freq*1.5,audioCtx.currentTime+0.2);
+  g.gain.value=0.05;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.3);
+  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.3);
+}
+function startMusic(){
+  initA();stopMusic();
+  const m=audioCtx.createGain();m.gain.value=0.18;m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  // Nature background
+  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);
+  const bd=buf.getChannelData(0);
+  for(let i=0;i<bd.length;i++) bd[i]=(Math.random()*2-1);
+  const src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;
+  const f=audioCtx.createBiquadFilter();f.type='bandpass';f.frequency.value=800;f.Q.value=0.5;
+  const sg=audioCtx.createGain();sg.gain.value=0.06;
+  src.connect(f);f.connect(sg);sg.connect(m);src.start();
+  musicNodes.push(src,f,sg);
+  // Drone
+  [[110,0.04],[165,0.02],[220,0.02]].forEach(([freq,v])=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=freq;g.gain.value=v;
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=0.08;lg.gain.value=v*0.4;
+    lfo.connect(lg);lg.connect(g.gain);lfo.start();
+    o.connect(g);g.connect(m);o.start();
+    musicNodes.push(o,g,lfo,lg);
+  });
+  // Random chirps
+  const chirp=()=>{
+    if(!musicOn)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';const f0=600+Math.random()*800;
+    o.frequency.value=f0;o.frequency.exponentialRampToValueAtTime(f0*2,audioCtx.currentTime+0.1);
+    g.gain.value=0.04;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.15);
+    o.connect(g);g.connect(m);o.start();o.stop(audioCtx.currentTime+0.15);
+    setTimeout(chirp,1000+Math.random()*4000);
+  };
+  chirp();
+}
+function stopMusic(){musicNodes.forEach(n=>{try{n.stop?.();n.disconnect?.();}catch(e){}});musicNodes=[];}
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicBtn').textContent=musicOn?'🎵 Music ON':'🎵 Music';
+  if(musicOn)startMusic();else stopMusic();
+});
+
+randomCities(20);
+loop();
+</script>
+</body>
+</html>

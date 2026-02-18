@@ -139,6 +139,21 @@
         .stat-box.generation .value { color: var(--neon-yellow); }
         .stat-box.population .value { color: var(--neon-purple); }
         .stat-box.stability .value { color: var(--neon-orange); }
+        .stat-box { transition: all 0.3s; }
+        .stat-box.stat-flash { animation: statFlash3d 0.4s ease; }
+        @keyframes statFlash3d {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.08); box-shadow: 0 0 20px rgba(0,245,255,0.5); }
+            100% { transform: scale(1); }
+        }
+        /* Music button pulse animation */
+        #space-music-btn.active-music {
+            animation: spaceMusicPulse 2s ease-in-out infinite;
+        }
+        @keyframes spaceMusicPulse {
+            0%,100% { box-shadow: 0 0 5px rgba(0,245,255,0.3); }
+            50% { box-shadow: 0 0 20px rgba(0,245,255,0.8), 0 0 40px rgba(0,245,255,0.2); }
+        }
         
         /* Controls Panel */
         .control-panel {
@@ -770,6 +785,8 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.toneMappingExposure = 1.0;
             container.appendChild(renderer.domElement);
             
             // Controls
@@ -1143,6 +1160,16 @@
             }
         }
         
+        let _prevStats3d = { alive: 0, born: 0, died: 0 };
+        function flashStatBox(id) {
+            const box = document.getElementById(id)?.closest('.stat-box');
+            if (!box) return;
+            box.classList.remove('stat-flash');
+            void box.offsetWidth; // Reflow to restart animation
+            box.classList.add('stat-flash');
+            setTimeout(() => box.classList.remove('stat-flash'), 450);
+        }
+
         function updateStats() {
             stats.alive = cellMeshes.length;
             
@@ -1151,6 +1178,12 @@
             document.getElementById('born-count').textContent = stats.born;
             document.getElementById('died-count').textContent = stats.died;
             document.getElementById('total-pop').textContent = CONFIG.gridSize ** 3;
+            
+            // Stat flash on significant changes
+            if (Math.abs(stats.alive - _prevStats3d.alive) > 20) flashStatBox('alive-count');
+            if (stats.born - _prevStats3d.born > 10) flashStatBox('born-count');
+            if (stats.died - _prevStats3d.died > 10) flashStatBox('died-count');
+            _prevStats3d = { alive: stats.alive, born: stats.born, died: stats.died };
             
             // Calculate stability (ratio of surviving cells)
             const totalCells = CONFIG.gridSize ** 3;
@@ -1562,6 +1595,21 @@
             document.getElementById('info-modal').classList.remove('active');
         }
         
+        // Dynamic scene effects state
+        let _scenePulse = 0; // 0–1 brightness burst on mass births
+        let _prevAlive = 0;
+        const _pointLights3d = [];
+
+        // Create 3 orbiting dynamic point lights
+        (function setupDynamicLights() {
+            const lightColors = [0x00ff88, 0xff00ff, 0x00f5ff];
+            lightColors.forEach((col, i) => {
+                const pl = new THREE.PointLight(col, 0, 60);
+                scene.add(pl);
+                _pointLights3d.push({ light: pl, baseAngle: (i / 3) * Math.PI * 2, speed: 0.3 + i * 0.15 });
+            });
+        })();
+
         // Main render loop
         function render(currentTime = 0) {
             requestAnimationFrame(render);
@@ -1575,16 +1623,43 @@
             }
             
             // Update trails
-            if (CONFIG.showTrails) {
-                updateTrails();
-            }
+            if (CONFIG.showTrails) { updateTrails(); }
             
-            // Animate cells
+            const time = currentTime * 0.001;
+            const gridCentre = CONFIG.gridSize * CONFIG.spacing * 0.5;
+
+            // Orbiting point lights — track active cell mass
+            const aliveCount = cellMeshes.length;
+            const aliveRatio = Math.min(1, aliveCount / 2000);
+            _pointLights3d.forEach(({ light, baseAngle, speed }) => {
+                const angle = baseAngle + time * speed;
+                const r = gridCentre * 1.6;
+                light.position.set(
+                    gridCentre + Math.cos(angle) * r,
+                    gridCentre,
+                    gridCentre + Math.sin(angle) * r
+                );
+                light.intensity = aliveRatio * 1.2;
+                light.distance = 80 + aliveRatio * 80;
+            });
+
+            // Mass-birth pulse — flash brightness when population spikes
+            const birthSpike = aliveCount - _prevAlive;
+            if (birthSpike > 50) _scenePulse = Math.min(1, _scenePulse + birthSpike / 500);
+            _prevAlive = aliveCount;
+            _scenePulse *= 0.92; // Decay
+            renderer.toneMappingExposure = 1 + _scenePulse * 0.6;
+
+            // Animate cells with subtle float + pulse
             cellMeshes.forEach((mesh, i) => {
-                const time = currentTime * 0.001;
-                const offset = i * 0.1;
-                mesh.rotation.x = Math.sin(time + offset) * 0.1;
-                mesh.rotation.y = Math.cos(time + offset) * 0.1;
+                const offset = i * 0.07;
+                const pulse = 1 + Math.sin(time * 1.5 + offset) * 0.04 * (1 + _scenePulse);
+                mesh.rotation.x = Math.sin(time * 0.5 + offset) * 0.08;
+                mesh.rotation.y = Math.cos(time * 0.5 + offset) * 0.08;
+                // Emissive boost on pulse
+                if (mesh.material && CONFIG.glowEffect) {
+                    mesh.material.emissiveIntensity = Math.min(0.8, mesh.material.emissiveIntensity + _scenePulse * 0.1);
+                }
             });
             
             renderer.render(scene, camera);
@@ -1735,9 +1810,16 @@
             updateUI() {
                 const btn = document.getElementById('space-music-btn');
                 if (!btn) return;
-                if (!this.isPlaying) { btn.textContent = '🎵 MUSIC'; btn.style.borderColor='#00f5ff'; btn.style.color='#00f5ff'; btn.style.boxShadow=''; }
-                else if (this.isMuted) { btn.textContent = '🔇 MUTED'; btn.style.borderColor='#555'; btn.style.color='#555'; btn.style.boxShadow=''; }
-                else { btn.textContent = '🔊 AMBIENT'; btn.style.borderColor='#00f5ff'; btn.style.color='#00f5ff'; btn.style.boxShadow='0 0 15px rgba(0,245,255,0.5)'; }
+                if (!this.isPlaying) {
+                    btn.textContent = '🎵 MUSIC'; btn.style.borderColor='#00f5ff'; btn.style.color='#00f5ff'; btn.style.boxShadow='';
+                    btn.classList.remove('active-music');
+                } else if (this.isMuted) {
+                    btn.textContent = '🔇 MUTED'; btn.style.borderColor='#555'; btn.style.color='#555'; btn.style.boxShadow='';
+                    btn.classList.remove('active-music');
+                } else {
+                    btn.textContent = '🔊 AMBIENT'; btn.style.borderColor='#00f5ff'; btn.style.color='#00f5ff';
+                    btn.classList.add('active-music');
+                }
             },
 
             // Sound effects

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Civilization Sim — World History</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #050810; color: #ddd; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; }
+#ui { position: fixed; top: 10px; right: 10px; background: rgba(5,8,20,0.92); border: 1px solid #1a2a4a; padding: 12px; border-radius: 8px; width: 210px; font-size: 12px; max-height: calc(100vh-20px); overflow-y: auto; }
+#ui h2 { color: #4af; margin-bottom: 8px; font-size: 14px; }
+.section { margin-bottom: 10px; border-bottom: 1px solid #0f1a2a; padding-bottom: 8px; }
+.section h3 { color: #6af; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+button { background: #0a1020; border: 1px solid #1a3a5a; color: #aac; padding: 4px 7px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 2px; }
+button:hover { border-color: #4af; color: #4af; }
+button.active { border-color: #4af; color: #4af; background: #0a2040; }
+.slider-row { margin: 4px 0; }
+.slider-row label { display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+.slider-row input { width: 100%; accent-color: #4af; }
+#civList { max-height: 200px; overflow-y: auto; }
+.civ-entry { display: flex; align-items: center; gap: 5px; margin: 3px 0; font-size: 10px; padding: 2px 4px; border-radius: 2px; }
+.civ-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.civ-info { color: #888; }
+#log { position: fixed; bottom: 10px; left: 10px; width: 320px; background: rgba(5,8,20,0.85); border: 1px solid #1a2a3a; padding: 8px; border-radius: 6px; font-size: 11px; max-height: 160px; overflow-y: auto; }
+.log-war { color: #f66; }
+.log-peace { color: #6f8; }
+.log-found { color: #ff0; }
+.log-collapse { color: #f84; }
+.log-trade { color: #4af; }
+#yearEl { position: fixed; top: 10px; left: 10px; font-size: 20px; color: #fa0; font-weight: bold; text-shadow: 0 0 15px #f80; }
+#speedBtn { position: fixed; top: 45px; left: 10px; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #0a1020; border: 1px solid #4af; color: #4af; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="yearEl">Year 1</div>
+<button id="speedBtn">Speed: 1x</button>
+<div id="ui">
+  <h2>🌍 Civilization Sim</h2>
+  <div class="section">
+    <h3>World</h3>
+    <button id="btnNew">🌍 New World</button>
+    <button id="btnPause">⏸ Pause</button>
+    <div class="slider-row">
+      <label><span>Civilizations</span><span id="civCountVal">8</span></label>
+      <input type="range" id="civCount" min="2" max="20" value="8">
+    </div>
+  </div>
+  <div class="section">
+    <h3>Civilizations</h3>
+    <div id="civList"></div>
+  </div>
+  <div class="section">
+    <h3>Legend</h3>
+    <div style="font-size:9px;color:#668;line-height:1.8;">
+      ⚔️ War declaration<br>
+      🤝 Peace treaty<br>
+      🏛 City founded<br>
+      💀 Civ collapsed<br>
+      💰 Trade route<br>
+      🌿 Territory = pop
+    </div>
+  </div>
+  <div style="font-size:9px;color:#446;margin-top:4px;">M=music · Space=pause · N=new world</div>
+</div>
+<div id="log"></div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+
+// World gen
+let terrain, civs, year, paused, speed, animEvents;
+const CELL = 6;
+let GW, GH;
+
+const CIV_NAMES = ['Akkadia','Byzantium','Carthage','Dynastia','Eldorado','Fushan','Galatia','Helios','Illyria','Jericho','Kemet','Lagash','Mycenae','Nori','Olympus','Pangaea','Quetzal','Roma','Sparta','Thebes','Uruk','Valdris','Westmere','Xiandu'];
+const CIV_COLORS = ['#f44','#4af','#ff0','#f84','#8f4','#f4a','#4fa','#a4f','#fa4','#44f','#f44','#8af','#f8a','#4f8','#af4','#ff4','#4ff','#f4f','#88f','#f88'];
+
+const T_OCEAN=0,T_SHALLOW=1,T_PLAINS=2,T_HILLS=3,T_MOUNTAIN=4,T_FOREST=5,T_DESERT=6;
+const TERRAIN_COLORS=['#0a1a3a','#0a2a4a','#2a4a1a','#3a3a2a','#4a4a4a','#1a3a0a','#6a5a2a'];
+const TERRAIN_NAMES=['Ocean','Shallow','Plains','Hills','Mountain','Forest','Desert'];
+
+function generateTerrain() {
+  GW = Math.floor(W/CELL); GH = Math.floor(H/CELL);
+  terrain = new Uint8Array(GW*GH);
+  // Simplex-like noise using sum of sines
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++) {
+    const nx=x/GW, ny=y/GH;
+    let h = 0;
+    h += Math.sin(nx*7+2.1)*Math.cos(ny*5+1.3)*0.4;
+    h += Math.sin(nx*13+0.5)*Math.cos(ny*11+3.2)*0.25;
+    h += Math.sin(nx*23+1.1)*Math.cos(ny*19+0.7)*0.15;
+    h += Math.sin(nx*41+2.9)*Math.cos(ny*37+1.5)*0.1;
+    h += Math.sin(nx*3+0.3)*Math.cos(ny*2.5+0.8)*0.5;
+    h = (h+1.4)/2.8;
+    // Distance from edge (island effect)
+    const ex=Math.min(nx,1-nx)*2, ey=Math.min(ny,1-ny)*2;
+    const edge=Math.min(ex,ey);
+    h = h*0.7 + edge*0.3;
+    let t;
+    if(h<0.35) t=T_OCEAN;
+    else if(h<0.42) t=T_SHALLOW;
+    else if(h<0.55) t=T_PLAINS;
+    else if(h<0.65) t=T_FOREST;
+    else if(h<0.72) t=T_HILLS;
+    else if(h<0.82) t=T_DESERT;
+    else t=T_MOUNTAIN;
+    terrain[y*GW+x]=t;
+  }
+}
+
+function isLand(x,y){if(x<0||x>=GW||y<0||y>=GH)return false;const t=terrain[y*GW+x];return t>T_SHALLOW;}
+function isSea(x,y){if(x<0||x>=GW||y<0||y>=GH)return true;return terrain[y*GW+x]<=T_SHALLOW;}
+
+class Civ {
+  constructor(id, name, color, x, y) {
+    this.id=id; this.name=name; this.color=color;
+    this.capital={x,y};
+    this.cities=[{x,y,pop:5,name:name+' Capital'}];
+    this.territory=new Set([`${x},${y}`]);
+    this.population=5;
+    this.military=3+Math.floor(Math.random()*5);
+    this.economy=2+Math.floor(Math.random()*4);
+    this.tech=1+Math.random();
+    this.alive=true;
+    this.age=0;
+    this.wars=new Set();
+    this.treaties=new Set();
+    // Expand territory initially
+    this.expandTo(x,y,3);
+  }
+  expandTo(cx,cy,radius) {
+    for(let dy=-radius;dy<=radius;dy++) for(let dx=-radius;dx<=radius;dx++) {
+      if(dx*dx+dy*dy>radius*radius) continue;
+      const nx=cx+dx,ny=cy+dy;
+      if(!isLand(nx,ny)) continue;
+      this.territory.add(`${nx},${ny}`);
+    }
+  }
+  update() {
+    if(!this.alive) return;
+    this.age++;
+    const growthRate=0.002*(1+this.economy*0.1)*(1-this.wars.size*0.2);
+    this.population+=growthRate*this.population;
+    this.economy+=0.001;
+    this.tech+=0.0005;
+    // Expand territory
+    if(Math.random()<0.02*(1+this.tech*0.2)) {
+      const border=[];
+      this.territory.forEach(k=>{
+        const [x,y]=k.split(',').map(Number);
+        for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+          const nx=x+dx,ny=y+dy;
+          const nk=`${nx},${ny}`;
+          if(isLand(nx,ny)&&!this.territory.has(nk)&&!civAt(nx,ny)) border.push({x:nx,y:ny});
+        }
+      });
+      if(border.length>0) {
+        const pick=border[Math.floor(Math.random()*border.length)];
+        this.territory.add(`${pick.x},${pick.y}`);
+      }
+    }
+    // Found new city
+    if(this.population>20*this.cities.length&&Math.random()<0.005) {
+      const candidates=[];
+      this.territory.forEach(k=>{
+        const [x,y]=k.split(',').map(Number);
+        let near=false;
+        this.cities.forEach(c=>{if(Math.hypot(c.x-x,c.y-y)<15)near=true;});
+        if(!near&&isLand(x,y)&&terrain[y*GW+x]===T_PLAINS) candidates.push({x,y});
+      });
+      if(candidates.length>0){
+        const c=candidates[Math.floor(Math.random()*candidates.length)];
+        this.cities.push({x:c.x,y:c.y,pop:2,name:this.name+' '+['Nova','Old','New','Port','Fort','East','West','North','South'][this.cities.length]});
+        addLog(`🏛 ${this.name} founds a new city`,'found');
+        playFound();
+      }
+    }
+    // Collapse if too small
+    if(this.population<1||this.territory.size<2){
+      this.alive=false;
+      addLog(`💀 ${this.name} has collapsed`,'collapse');
+      playCollapse();
+    }
+  }
+}
+
+function civAt(x,y) {
+  return civs.find(c=>c.alive&&c.territory.has(`${x},${y}`));
+}
+
+function addLog(msg,cls='') {
+  const logEl=document.getElementById('log');
+  const div=document.createElement('div');
+  div.className='log-'+cls;
+  div.textContent=`Y${year}: ${msg}`;
+  logEl.appendChild(div);
+  logEl.scrollTop=logEl.scrollHeight;
+  if(logEl.children.length>60) logEl.removeChild(logEl.firstChild);
+}
+
+function initCivs(count) {
+  civs=[];
+  const landCells=[];
+  for(let y=5;y<GH-5;y++) for(let x=5;x<GW-5;x++) {
+    if(terrain[y*GW+x]===T_PLAINS) landCells.push({x,y});
+  }
+  for(let i=0;i<count&&i<CIV_NAMES.length;i++) {
+    let attempts=0, placed=false;
+    while(attempts++<200&&!placed) {
+      const cell=landCells[Math.floor(Math.random()*landCells.length)];
+      let tooClose=false;
+      civs.forEach(c=>{if(Math.hypot(c.capital.x-cell.x,c.capital.y-cell.y)<15)tooClose=true;});
+      if(!tooClose){
+        civs.push(new Civ(i,CIV_NAMES[i],CIV_COLORS[i%CIV_COLORS.length],cell.x,cell.y));
+        placed=true;
+      }
+    }
+  }
+}
+
+function diplomacy() {
+  const alive=civs.filter(c=>c.alive);
+  if(alive.length<2) return;
+  // Border conflicts → war
+  alive.forEach(a=>{
+    if(!a.alive) return;
+    alive.forEach(b=>{
+      if(a.id>=b.id||!b.alive) return;
+      // Check if borders touch
+      let borders=false;
+      for(const k of a.territory) {
+        const [x,y]=k.split(',').map(Number);
+        if(b.territory.has(`${x-1},${y}`)||b.territory.has(`${x+1},${y}`)||b.territory.has(`${x},${y-1}`)||b.territory.has(`${x},${y+1}`)){borders=true;break;}
+      }
+      if(borders&&!a.wars.has(b.id)&&!a.treaties.has(b.id)&&Math.random()<0.003) {
+        a.wars.add(b.id); b.wars.add(a.id);
+        addLog(`⚔️ ${a.name} declares war on ${b.name}!`,'war');
+        playWar();
+        animEvents.push({type:'war',x:(a.capital.x+b.capital.x)/2*CELL,y:(a.capital.y+b.capital.y)/2*CELL,life:60});
+      }
+      // War resolution
+      if(a.wars.has(b.id)&&Math.random()<0.002) {
+        // Battle: swap territory
+        const winner=a.military*(0.8+Math.random()*0.4)>b.military*(0.8+Math.random()*0.4)?a:b;
+        const loser=winner===a?b:a;
+        const stolen=[];
+        loser.territory.forEach(k=>{
+          if(Math.random()<0.05) stolen.push(k);
+        });
+        stolen.forEach(k=>{loser.territory.delete(k);winner.territory.add(k);});
+        loser.population=Math.max(1,loser.population*(0.85+Math.random()*0.1));
+        loser.military=Math.max(1,loser.military-1);
+        winner.military=Math.min(20,winner.military+0.5);
+        if(Math.random()<0.3){
+          a.wars.delete(b.id); b.wars.delete(a.id);
+          a.treaties.add(b.id); b.treaties.add(a.id);
+          addLog(`🤝 ${a.name} and ${b.name} sign peace`,'peace');
+          setTimeout(()=>{a.treaties.delete(b.id);b.treaties.delete(a.id);},5000);
+        }
+      }
+    });
+  });
+}
+
+// Terrain texture canvas
+let terrainCanvas=null;
+function buildTerrainCanvas() {
+  terrainCanvas=document.createElement('canvas');
+  terrainCanvas.width=GW; terrainCanvas.height=GH;
+  const tc=terrainCanvas.getContext('2d');
+  const img=tc.createImageData(GW,GH);
+  const d=img.data;
+  const TC={
+    [T_OCEAN]:[8,20,50],[T_SHALLOW]:[10,35,80],[T_PLAINS]:[35,65,20],
+    [T_HILLS]:[55,50,30],[T_MOUNTAIN]:[70,70,70],[T_FOREST]:[25,50,15],[T_DESERT]:[100,85,40]
+  };
+  for(let i=0;i<GW*GH;i++){const t=terrain[i];const[r,g,b]=TC[t];const n=(Math.random()-0.5)*8;d[i*4]=Math.max(0,Math.min(255,r+n));d[i*4+1]=Math.max(0,Math.min(255,g+n));d[i*4+2]=Math.max(0,Math.min(255,b+n));d[i*4+3]=255;}
+  tc.putImageData(img,0,0);
+}
+
+// Territory overlay canvas
+const terrOv=document.createElement('canvas');
+const toc=terrOv.getContext('2d');
+function buildTerritoryOverlay() {
+  terrOv.width=GW; terrOv.height=GH;
+  toc.clearRect(0,0,GW,GH);
+  const img=toc.createImageData(GW,GH);
+  const d=img.data;
+  civs.forEach(civ=>{
+    if(!civ.alive) return;
+    const [r,g,b]=hexToRgb(civ.color);
+    civ.territory.forEach(k=>{
+      const [x,y]=k.split(',').map(Number);
+      if(x<0||x>=GW||y<0||y>=GH) return;
+      const i=y*GW+x;
+      d[i*4]=r;d[i*4+1]=g;d[i*4+2]=b;d[i*4+3]=60;
+    });
+  });
+  toc.putImageData(img,0,0);
+}
+function hexToRgb(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
+
+let frameCount=0;
+function draw() {
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,H);
+  if(terrainCanvas) ctx.drawImage(terrainCanvas,0,0,W,H);
+  // Territory
+  buildTerritoryOverlay();
+  ctx.drawImage(terrOv,0,0,W,H);
+  // Cities
+  civs.filter(c=>c.alive).forEach(civ=>{
+    civ.cities.forEach((city,ci)=>{
+      const sx=city.x*CELL, sy=city.y*CELL;
+      const r=ci===0?5:3;
+      ctx.shadowBlur=8; ctx.shadowColor=civ.color;
+      ctx.fillStyle=civ.color;
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+      // City name label
+      ctx.fillStyle='rgba(0,0,0,0.6)';
+      ctx.fillRect(sx+6,sy-8,city.name.length*5+4,13);
+      ctx.fillStyle='#ddd'; ctx.font='9px Courier New';
+      ctx.fillText(city.name,sx+8,sy+2);
+    });
+    // War lines
+    civ.wars.forEach(tid=>{
+      const target=civs.find(c=>c.id===tid);
+      if(!target||!target.alive) return;
+      ctx.strokeStyle=`${civ.color}88`;
+      ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.moveTo(civ.capital.x*CELL,civ.capital.y*CELL);
+      ctx.lineTo(target.capital.x*CELL,target.capital.y*CELL);
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+  });
+  // Anim events
+  animEvents.forEach(ev=>{
+    ctx.globalAlpha=ev.life/60;
+    ctx.font='24px serif'; ctx.textAlign='center';
+    ctx.fillText(ev.type==='war'?'⚔️':'🤝',ev.x,ev.y-(60-ev.life)*0.5);
+    ev.life--;
+  });
+  animEvents=animEvents.filter(e=>e.life>0);
+  ctx.globalAlpha=1; ctx.textAlign='left';
+}
+
+function updateCivList() {
+  const list=document.getElementById('civList');
+  list.innerHTML='';
+  const sorted=[...civs].filter(c=>c.alive).sort((a,b)=>b.population-a.population);
+  sorted.forEach(c=>{
+    const div=document.createElement('div');
+    div.className='civ-entry';
+    div.innerHTML=`<div class="civ-dot" style="background:${c.color}"></div><div>${c.name}</div><div class="civ-info">(${c.population.toFixed(0)})</div>`;
+    if(c.wars.size>0) div.innerHTML+=`<span style="color:#f44;font-size:10px">⚔️${c.wars.size}</span>`;
+    list.appendChild(div);
+  });
+}
+
+function init(count=8) {
+  year=1; paused=false; speed=1; animEvents=[];
+  generateTerrain(); buildTerrainCanvas();
+  initCivs(count);
+  document.getElementById('yearEl').textContent='Year 1';
+  addLog('🌍 A new world begins...','found');
+}
+
+let lastUpdate=0, speedMult=1;
+function loop(ts) {
+  if(!paused&&ts-lastUpdate>50/speedMult) {
+    lastUpdate=ts;
+    for(let s=0;s<speedMult;s++){
+      year++;
+      civs.forEach(c=>c.update());
+      if(year%5===0) diplomacy();
+      if(year%10===0) updateCivList();
+    }
+    document.getElementById('yearEl').textContent=`Year ${year}`;
+  }
+  if(frameCount%2===0) draw();
+  frameCount++;
+  requestAnimationFrame(loop);
+}
+
+// Controls
+let numCivs=8;
+document.getElementById('civCount').addEventListener('input',e=>{numCivs=parseInt(e.target.value);document.getElementById('civCountVal').textContent=numCivs;});
+document.getElementById('btnNew').addEventListener('click',()=>init(numCivs));
+document.getElementById('btnPause').addEventListener('click',()=>{
+  paused=!paused;
+  document.getElementById('btnPause').textContent=paused?'▶ Resume':'⏸ Pause';
+  document.getElementById('btnPause').classList.toggle('active',paused);
+});
+document.getElementById('speedBtn').addEventListener('click',()=>{
+  speedMult=speedMult===1?5:speedMult===5?20:1;
+  document.getElementById('speedBtn').textContent=`Speed: ${speedMult}x`;
+});
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();document.getElementById('btnPause').click();}
+  if(e.key==='n'||e.key==='N') init(numCivs);
+  if(e.key==='m'||e.key==='M') document.getElementById('musicBtn').click();
+});
+window.addEventListener('resize',()=>{W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;init(numCivs);});
+
+// Audio
+let audioCtx=null,musicOn=false,musicNodes=[];
+function initA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function playWar(){initA();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sawtooth';o.frequency.value=110;o.frequency.exponentialRampToValueAtTime(60,audioCtx.currentTime+0.3);g.gain.value=0.1;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.4);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.4);}
+function playFound(){initA();[523,659,784].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='triangle';o.frequency.value=f;g.gain.value=0.06;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.3);o.connect(g);g.connect(audioCtx.destination);o.start(audioCtx.currentTime+i*0.1);o.stop(audioCtx.currentTime+0.35+i*0.1);});}
+function playCollapse(){initA();[440,330,220].forEach((f,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sawtooth';o.frequency.value=f;g.gain.value=0.08;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.4);o.connect(g);g.connect(audioCtx.destination);o.start(audioCtx.currentTime+i*0.15);o.stop(audioCtx.currentTime+0.5+i*0.15);});}
+function startMusic(){
+  initA();stopMusic();
+  const m=audioCtx.createGain();m.gain.value=0.15;m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  [[55,0.05],[82.5,0.03],[110,0.025],[165,0.02]].forEach(([f,v])=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain(),filt=audioCtx.createBiquadFilter();
+    o.type='sawtooth';o.frequency.value=f;filt.type='lowpass';filt.frequency.value=300;g.gain.value=v;
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=0.04+f*0.001;lg.gain.value=v*0.4;
+    lfo.connect(lg);lg.connect(g.gain);lfo.start();
+    o.connect(filt);filt.connect(g);g.connect(m);o.start();
+    musicNodes.push(o,g,filt,lfo,lg);
+  });
+  // Epic horns
+  const horn=()=>{
+    if(!musicOn)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sawtooth';const f=110*[1,1.5,2,2.5][Math.floor(Math.random()*4)];
+    o.frequency.value=f;g.gain.value=0.04;
+    g.gain.setValueAtTime(0,audioCtx.currentTime);
+    g.gain.linearRampToValueAtTime(0.04,audioCtx.currentTime+0.3);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+2);
+    o.connect(g);g.connect(m);o.start();o.stop(audioCtx.currentTime+2);
+    setTimeout(horn,3000+Math.random()*8000);
+  };
+  horn();
+}
+function stopMusic(){musicNodes.forEach(n=>{try{n.stop?.();n.disconnect?.();}catch(e){}});musicNodes=[];}
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicBtn').textContent=musicOn?'🎵 Music ON':'🎵 Music';
+  if(musicOn)startMusic();else stopMusic();
+});
+
+init(8);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

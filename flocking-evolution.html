@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flocking Evolution — Prey &amp; Predators</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #020508; color: #ddd; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; }
+#ui {
+  position: fixed; top: 10px; right: 10px;
+  background: rgba(2,5,12,0.92); border: 1px solid #1a2a3a;
+  padding: 12px; border-radius: 8px; width: 210px; font-size: 12px;
+}
+#ui h2 { color: #4ff; margin-bottom: 8px; font-size: 14px; }
+.section { margin-bottom: 10px; border-bottom: 1px solid #0a1520; padding-bottom: 8px; }
+.section h3 { color: #4af; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+.stat-row { display: flex; justify-content: space-between; margin: 3px 0; font-size: 11px; }
+.stat-row .label { color: #668; }
+.stat-row .prey { color: #4af; }
+.stat-row .pred { color: #f64; }
+.row label { display: flex; justify-content: space-between; font-size: 10px; color: #668; }
+.row input[type=range] { width: 100%; accent-color: #4af; margin: 2px 0 4px; }
+button { background: #0a1020; border: 1px solid #1a3a4a; color: #aac; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 2px; }
+button:hover { border-color: #4af; color: #4af; }
+button.active { border-color: #4af; color: #4af; background: #0a2030; }
+#genEl { color: #fa0; font-size: 13px; font-weight: bold; }
+#chartCanvas { width: 100%; height: 60px; border: 1px solid #1a2a3a; border-radius: 3px; margin-top: 4px; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #0a1020; border: 1px solid #4ff; color: #4ff; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+#legend { font-size: 10px; color: #446; line-height: 1.8; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h2>🧬 Flocking Evolution</h2>
+  <div class="section">
+    <h3>Population</h3>
+    <div class="stat-row"><span class="label">Prey</span><span class="prey" id="preyCount">0</span></div>
+    <div class="stat-row"><span class="label">Predators</span><span class="pred" id="predCount">0</span></div>
+    <div class="stat-row"><span class="label">Generation</span><span id="genEl">0</span></div>
+    <div class="stat-row"><span class="label">Time</span><span id="timeEl">0s</span></div>
+  </div>
+  <div class="section">
+    <h3>Prey Genome (avg)</h3>
+    <div class="stat-row"><span class="label">Cohesion</span><span class="prey" id="preyCohe">—</span></div>
+    <div class="stat-row"><span class="label">Separation</span><span class="prey" id="preySep">—</span></div>
+    <div class="stat-row"><span class="label">Align</span><span class="prey" id="preyAlign">—</span></div>
+    <div class="stat-row"><span class="label">Flee</span><span class="prey" id="preyFlee">—</span></div>
+    <div class="stat-row"><span class="label">Speed</span><span class="prey" id="preySpeed">—</span></div>
+  </div>
+  <div class="section">
+    <h3>Predator Genome (avg)</h3>
+    <div class="stat-row"><span class="label">Chase</span><span class="pred" id="predChase">—</span></div>
+    <div class="stat-row"><span class="label">Separation</span><span class="pred" id="predSep">—</span></div>
+    <div class="stat-row"><span class="label">Speed</span><span class="pred" id="predSpeed">—</span></div>
+  </div>
+  <div class="section">
+    <h3>Controls</h3>
+    <button id="btnReset">🔄 Reset</button>
+    <button id="btnPause">⏸ Pause</button>
+    <button id="btnTrails">Trails: Off</button>
+    <div class="row">
+      <label><span>Speed</span><span id="simSpeedVal">1x</span></label>
+      <input type="range" id="simSpeed" min="1" max="5" value="1">
+    </div>
+  </div>
+  <div class="section">
+    <h3>Population History</h3>
+    <canvas id="chartCanvas" width="186" height="60"></canvas>
+  </div>
+  <div id="legend">
+    🔵 Prey flock (evolving)<br>
+    🔴 Predator (evolving)<br>
+    🟢 Food pellets<br>
+    Traits evolve via natural selection
+  </div>
+  <div style="margin-top:4px;font-size:9px;color:#334;">M=music · Space=pause · R=reset · T=trails</div>
+</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const chart = document.getElementById('chartCanvas');
+const chartCtx = chart.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+
+let preyList=[], predList=[], foods=[];
+let paused=false, showTrails=false, generation=0, simTime=0;
+let stepsPerFrame=1;
+const FOOD_COUNT=80;
+const INIT_PREY=60, INIT_PRED=8;
+const popHistory={prey:[],pred:[]};
+
+// Genome ranges
+const PREY_GENOME = {cohesion:[0,5],separation:[0,10],alignment:[0,5],flee:[0,15],speed:[1.5,4]};
+const PRED_GENOME = {chase:[0,10],separation:[0,8],speed:[1.5,4.5],patience:[0,1]};
+
+function rand(min,max){return min+Math.random()*(max-min);}
+function mutate(val,min,max,rate=0.1){return Math.max(min,Math.min(max,val+(Math.random()-0.5)*rate*(max-min)));}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+class Prey {
+  constructor(genome=null) {
+    this.x=rand(50,W-50); this.y=rand(50,H-50);
+    const speed=genome?genome.speed:rand(...PREY_GENOME.speed);
+    const angle=Math.random()*Math.PI*2;
+    this.vx=Math.cos(angle)*speed; this.vy=Math.sin(angle)*speed;
+    this.genome=genome||{
+      cohesion:rand(...PREY_GENOME.cohesion),
+      separation:rand(...PREY_GENOME.separation),
+      alignment:rand(...PREY_GENOME.alignment),
+      flee:rand(...PREY_GENOME.flee),
+      speed
+    };
+    this.energy=100+Math.random()*50;
+    this.age=0; this.maxAge=800+Math.random()*400;
+    this.trail=[];
+    this.alive=true;
+    this.size=3+this.genome.speed*0.5;
+    this.hue=180+this.genome.flee*3;
+  }
+  update(dt) {
+    this.age++;
+    this.energy-=0.05*(1+this.genome.speed*0.1);
+    if(this.energy<=0||this.age>this.maxAge){this.alive=false;return;}
+    // Flocking
+    let ax=0,ay=0;
+    let cx=0,cy=0,cvx=0,cvy=0,cn=0;
+    let sx=0,sy=0,sn=0;
+    preyList.forEach(other=>{
+      if(other===this||!other.alive)return;
+      const dx=other.x-this.x,dy=other.y-this.y;
+      const d=Math.hypot(dx,dy);
+      if(d<80){cx+=other.x;cy+=other.y;cvx+=other.vx;cvy+=other.vy;cn++;}
+      if(d<25&&d>0){sx-=dx/d;sy-=dy/d;sn++;}
+    });
+    if(cn>0){
+      const cohF=this.genome.cohesion;
+      ax+=(cx/cn-this.x)/500*cohF;
+      ay+=(cy/cn-this.y)/500*cohF;
+      const alignF=this.genome.alignment;
+      ax+=(cvx/cn-this.vx)*0.05*alignF;
+      ay+=(cvy/cn-this.vy)*0.05*alignF;
+    }
+    if(sn>0){
+      const sepF=this.genome.separation;
+      ax+=sx/sn*0.1*sepF;
+      ay+=sy/sn*0.1*sepF;
+    }
+    // Flee from predators
+    predList.forEach(pred=>{
+      if(!pred.alive)return;
+      const dx=this.x-pred.x,dy=this.y-pred.y;
+      const d=Math.hypot(dx,dy);
+      if(d<120&&d>0){
+        const f=this.genome.flee/d;
+        ax+=dx*f; ay+=dy*f;
+      }
+    });
+    // Seek food
+    let bestFd=999,bestF=null;
+    foods.forEach(f=>{
+      const d=Math.hypot(f.x-this.x,f.y-this.y);
+      if(d<bestFd){bestFd=d;bestF=f;}
+    });
+    if(bestF&&bestFd<150){ax+=(bestF.x-this.x)/bestFd*0.5;ay+=(bestF.y-this.y)/bestFd*0.5;}
+    // Eat food
+    foods.forEach(f=>{
+      if(Math.hypot(f.x-this.x,f.y-this.y)<8){this.energy=Math.min(200,this.energy+30);f.eaten=true;}
+    });
+    this.vx+=ax; this.vy+=ay;
+    const sp=Math.hypot(this.vx,this.vy);
+    const maxSp=this.genome.speed;
+    if(sp>maxSp){this.vx=this.vx/sp*maxSp;this.vy=this.vy/sp*maxSp;}
+    if(sp<0.5&&sp>0){this.vx=this.vx/sp*0.5;this.vy=this.vy/sp*0.5;}
+    this.x=(this.x+this.vx+W)%W; this.y=(this.y+this.vy+H)%H;
+    if(showTrails){this.trail.push({x:this.x,y:this.y});if(this.trail.length>20)this.trail.shift();}
+    // Reproduce
+    if(this.energy>150&&Math.random()<0.001&&preyList.filter(p=>p.alive).length<200){
+      const child=new Prey({
+        cohesion:mutate(this.genome.cohesion,...PREY_GENOME.cohesion),
+        separation:mutate(this.genome.separation,...PREY_GENOME.separation),
+        alignment:mutate(this.genome.alignment,...PREY_GENOME.alignment),
+        flee:mutate(this.genome.flee,...PREY_GENOME.flee),
+        speed:mutate(this.genome.speed,...PREY_GENOME.speed),
+      });
+      child.x=this.x; child.y=this.y;
+      this.energy*=0.6;
+      preyList.push(child);
+      generation=Math.max(generation,1);
+    }
+  }
+  draw() {
+    if(showTrails&&this.trail.length>1){
+      for(let i=1;i<this.trail.length;i++){
+        ctx.globalAlpha=(i/this.trail.length)*0.3;
+        ctx.strokeStyle=`hsl(${this.hue},80%,50%)`;
+        ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(this.trail[i-1].x,this.trail[i-1].y);ctx.lineTo(this.trail[i].x,this.trail[i].y);ctx.stroke();
+      }
+    }
+    ctx.globalAlpha=1;
+    const angle=Math.atan2(this.vy,this.vx);
+    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(angle);
+    ctx.fillStyle=`hsl(${this.hue},70%,${50+this.energy/4}%)`;
+    ctx.beginPath(); ctx.moveTo(this.size*2,0); ctx.lineTo(-this.size,this.size); ctx.lineTo(-this.size,-this.size); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+class Predator {
+  constructor(genome=null) {
+    this.x=rand(50,W-50); this.y=rand(50,H-50);
+    const speed=genome?genome.speed:rand(...PRED_GENOME.speed);
+    const angle=Math.random()*Math.PI*2;
+    this.vx=Math.cos(angle)*speed; this.vy=Math.sin(angle)*speed;
+    this.genome=genome||{
+      chase:rand(...PRED_GENOME.chase),
+      separation:rand(...PRED_GENOME.separation),
+      speed,
+      patience:rand(...PRED_GENOME.patience)
+    };
+    this.energy=120+Math.random()*80;
+    this.age=0; this.maxAge=1200+Math.random()*600;
+    this.alive=true; this.trail=[];
+    this.size=5+this.genome.speed*0.5;
+    this.target=null;
+  }
+  update() {
+    this.age++;
+    this.energy-=0.08*(1+this.genome.speed*0.15);
+    if(this.energy<=0||this.age>this.maxAge){this.alive=false;return;}
+    // Find target
+    if(!this.target||!this.target.alive){
+      let best=null,bestD=999;
+      preyList.forEach(p=>{
+        if(!p.alive)return;
+        const d=Math.hypot(p.x-this.x,p.y-this.y);
+        if(d<bestD){bestD=d;best=p;}
+      });
+      this.target=best;
+    }
+    let ax=0,ay=0;
+    if(this.target&&this.target.alive){
+      const dx=this.target.x-this.x,dy=this.target.y-this.y;
+      const d=Math.hypot(dx,dy)+0.001;
+      ax+=dx/d*this.genome.chase*0.5;
+      ay+=dy/d*this.genome.chase*0.5;
+      // Eat prey
+      if(d<this.size+this.target.size){
+        this.target.alive=false;
+        this.energy=Math.min(300,this.energy+80);
+        this.target=null;
+        playEat();
+      }
+    }
+    // Separation from other predators
+    predList.forEach(other=>{
+      if(other===this||!other.alive)return;
+      const dx=this.x-other.x,dy=this.y-other.y;
+      const d=Math.hypot(dx,dy);
+      if(d<50&&d>0){ax+=dx/d*this.genome.separation*0.2;ay+=dy/d*this.genome.separation*0.2;}
+    });
+    this.vx+=ax; this.vy+=ay;
+    const sp=Math.hypot(this.vx,this.vy);
+    const maxSp=this.genome.speed;
+    if(sp>maxSp){this.vx=this.vx/sp*maxSp;this.vy=this.vy/sp*maxSp;}
+    this.x=(this.x+this.vx+W)%W; this.y=(this.y+this.vy+H)%H;
+    if(showTrails){this.trail.push({x:this.x,y:this.y});if(this.trail.length>15)this.trail.shift();}
+    // Reproduce
+    if(this.energy>200&&Math.random()<0.0008&&predList.filter(p=>p.alive).length<30){
+      const child=new Predator({
+        chase:mutate(this.genome.chase,...PRED_GENOME.chase),
+        separation:mutate(this.genome.separation,...PRED_GENOME.separation),
+        speed:mutate(this.genome.speed,...PRED_GENOME.speed,0.05),
+        patience:mutate(this.genome.patience,...PRED_GENOME.patience),
+      });
+      child.x=this.x; child.y=this.y;
+      this.energy*=0.5;
+      predList.push(child);
+      generation++;
+    }
+  }
+  draw() {
+    if(showTrails&&this.trail.length>1){
+      for(let i=1;i<this.trail.length;i++){
+        ctx.globalAlpha=(i/this.trail.length)*0.3;
+        ctx.strokeStyle='rgba(255,80,40,0.5)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(this.trail[i-1].x,this.trail[i-1].y);ctx.lineTo(this.trail[i].x,this.trail[i].y);ctx.stroke();
+      }
+    }
+    ctx.globalAlpha=1;
+    const angle=Math.atan2(this.vy,this.vx);
+    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(angle);
+    ctx.fillStyle=`hsl(10,80%,${40+this.energy/5}%)`;
+    ctx.shadowBlur=6; ctx.shadowColor='#f64';
+    ctx.beginPath(); ctx.moveTo(this.size*2.5,0); ctx.lineTo(-this.size*1.5,this.size*1.2); ctx.lineTo(-this.size,0); ctx.lineTo(-this.size*1.5,-this.size*1.2); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.restore();
+  }
+}
+
+function spawnFood(n=1) {
+  for(let i=0;i<n;i++) foods.push({x:rand(20,W-20),y:rand(20,H-20),eaten:false,age:0});
+}
+
+function init() {
+  preyList=[]; predList=[]; foods=[]; generation=0; simTime=0;
+  popHistory.prey=[]; popHistory.pred=[];
+  for(let i=0;i<INIT_PREY;i++) preyList.push(new Prey());
+  for(let i=0;i<INIT_PRED;i++) predList.push(new Predator());
+  spawnFood(FOOD_COUNT);
+}
+
+function avg(list,key){if(!list.length)return 0;return list.reduce((a,b)=>a+(b.genome[key]||0),0)/list.length;}
+
+let frameCount=0, lastStatsUpdate=0;
+function update() {
+  simTime++;
+  // Update
+  preyList.forEach(p=>{if(p.alive)p.update();});
+  predList.forEach(p=>{if(p.alive)p.update();});
+  foods.forEach(f=>f.age++);
+  preyList=preyList.filter(p=>p.alive);
+  predList=predList.filter(p=>p.alive);
+  foods=foods.filter(f=>!f.eaten&&f.age<1000);
+  // Refill food
+  while(foods.length<FOOD_COUNT) spawnFood(1);
+  // Repopulate if extinct
+  if(preyList.length<5) for(let i=0;i<20;i++) preyList.push(new Prey());
+  if(predList.length<2) predList.push(new Predator());
+  // Stats
+  if(frameCount%30===0){
+    const ap=preyList.length, ad=predList.length;
+    popHistory.prey.push(ap); popHistory.pred.push(ad);
+    if(popHistory.prey.length>186) {popHistory.prey.shift();popHistory.pred.shift();}
+    document.getElementById('preyCount').textContent=ap;
+    document.getElementById('predCount').textContent=ad;
+    document.getElementById('genEl').textContent=generation;
+    document.getElementById('timeEl').textContent=Math.floor(simTime/60)+'s';
+    document.getElementById('preyCohe').textContent=avg(preyList,'cohesion').toFixed(2);
+    document.getElementById('preySep').textContent=avg(preyList,'separation').toFixed(2);
+    document.getElementById('preyAlign').textContent=avg(preyList,'alignment').toFixed(2);
+    document.getElementById('preyFlee').textContent=avg(preyList,'flee').toFixed(2);
+    document.getElementById('preySpeed').textContent=avg(preyList,'speed').toFixed(2);
+    document.getElementById('predChase').textContent=avg(predList,'chase').toFixed(2);
+    document.getElementById('predSep').textContent=avg(predList,'separation').toFixed(2);
+    document.getElementById('predSpeed').textContent=avg(predList,'speed').toFixed(2);
+    drawChart();
+  }
+}
+
+function drawChart() {
+  chartCtx.fillStyle='#020508';
+  chartCtx.fillRect(0,0,186,60);
+  const maxPrey=Math.max(...popHistory.prey,1);
+  const maxPred=Math.max(...popHistory.pred,1);
+  const maxVal=Math.max(maxPrey,maxPred);
+  chartCtx.strokeStyle='#4af';chartCtx.lineWidth=1;
+  chartCtx.beginPath();
+  popHistory.prey.forEach((v,i)=>{const x=i,y=60-v/maxVal*55;i===0?chartCtx.moveTo(x,y):chartCtx.lineTo(x,y);});
+  chartCtx.stroke();
+  chartCtx.strokeStyle='#f64';
+  chartCtx.beginPath();
+  popHistory.pred.forEach((v,i)=>{const x=i,y=60-v/maxVal*55;i===0?chartCtx.moveTo(x,y):chartCtx.lineTo(x,y);});
+  chartCtx.stroke();
+}
+
+function draw() {
+  ctx.fillStyle=showTrails?'rgba(2,5,12,0.4)':'#020508';
+  ctx.fillRect(0,0,W,H);
+  // Food
+  foods.forEach(f=>{
+    ctx.fillStyle='#2a6a2a';
+    ctx.beginPath();ctx.arc(f.x,f.y,3,0,Math.PI*2);ctx.fill();
+  });
+  preyList.forEach(p=>p.draw());
+  predList.forEach(p=>p.draw());
+}
+
+function loop() {
+  if(!paused) for(let s=0;s<stepsPerFrame;s++) update();
+  draw();
+  frameCount++;
+  requestAnimationFrame(loop);
+}
+
+// Controls
+document.getElementById('btnReset').addEventListener('click',init);
+document.getElementById('btnPause').addEventListener('click',()=>{
+  paused=!paused;
+  document.getElementById('btnPause').textContent=paused?'▶ Resume':'⏸ Pause';
+  document.getElementById('btnPause').classList.toggle('active',paused);
+});
+document.getElementById('btnTrails').addEventListener('click',()=>{
+  showTrails=!showTrails;
+  document.getElementById('btnTrails').textContent=`Trails: ${showTrails?'On':'Off'}`;
+  document.getElementById('btnTrails').classList.toggle('active',showTrails);
+});
+document.getElementById('simSpeed').addEventListener('input',e=>{
+  stepsPerFrame=parseInt(e.target.value);
+  document.getElementById('simSpeedVal').textContent=stepsPerFrame+'x';
+});
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();document.getElementById('btnPause').click();}
+  if(e.key==='r'||e.key==='R') init();
+  if(e.key==='t'||e.key==='T') document.getElementById('btnTrails').click();
+  if(e.key==='m'||e.key==='M') document.getElementById('musicBtn').click();
+});
+window.addEventListener('resize',()=>{W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;});
+
+// Audio
+let audioCtx=null,musicOn=false,musicNodes=[];
+function initA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+let lastEat=0;
+function playEat(){const now=Date.now();if(now-lastEat<100)return;lastEat=now;initA();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=220;o.frequency.exponentialRampToValueAtTime(110,audioCtx.currentTime+0.15);g.gain.value=0.06;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.2);}
+function startMusic(){
+  initA();stopMusic();
+  const m=audioCtx.createGain();m.gain.value=0.15;m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  // Evolving ambient
+  [[55,0.05],[110,0.03],[165,0.025],[220,0.015]].forEach(([f,v])=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain(),filt=audioCtx.createBiquadFilter();
+    o.type='sine';o.frequency.value=f;filt.type='lowpass';filt.frequency.value=400;g.gain.value=v;
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=0.05+f*0.002;lg.gain.value=v*0.5;
+    lfo.connect(lg);lg.connect(g.gain);lfo.start();
+    o.connect(filt);filt.connect(g);g.connect(m);o.start();
+    musicNodes.push(o,g,filt,lfo,lg);
+  });
+  // Nature sounds
+  const chirp=()=>{
+    if(!musicOn)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';const f0=800+Math.random()*1200;
+    o.frequency.value=f0;o.frequency.exponentialRampToValueAtTime(f0*(0.8+Math.random()*0.4),audioCtx.currentTime+0.1);
+    g.gain.value=0.03;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.2);
+    o.connect(g);g.connect(m);o.start();o.stop(audioCtx.currentTime+0.2);
+    setTimeout(chirp,800+Math.random()*3000);
+  };
+  chirp();
+  // Wind noise
+  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate,audioCtx.sampleRate);
+  const bd=buf.getChannelData(0);for(let i=0;i<bd.length;i++)bd[i]=(Math.random()*2-1);
+  const src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;
+  const f=audioCtx.createBiquadFilter();f.type='bandpass';f.frequency.value=400;f.Q.value=0.3;
+  const sg=audioCtx.createGain();sg.gain.value=0.04;
+  src.connect(f);f.connect(sg);sg.connect(m);src.start();
+  musicNodes.push(src,f,sg);
+}
+function stopMusic(){musicNodes.forEach(n=>{try{n.stop?.();n.disconnect?.();}catch(e){}});musicNodes=[];}
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicBtn').textContent=musicOn?'🎵 Music ON':'🎵 Music';
+  if(musicOn)startMusic();else stopMusic();
+});
+
+init();
+loop();
+</script>
+</body>
+</html>

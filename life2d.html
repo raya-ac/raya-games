@@ -106,8 +106,20 @@
             border-radius: 6px;
             padding: 6px 8px;
             text-align: center;
+            transition: all 0.3s;
         }
-        
+        .stat-box:hover {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 12px rgba(0,245,255,0.2);
+        }
+        .stat-box.stat-flash {
+            animation: statFlash2d 0.4s ease;
+        }
+        @keyframes statFlash2d {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.1); box-shadow: 0 0 20px rgba(0,245,255,0.6); }
+            100% { transform: scale(1); }
+        }
         .stat-box .value {
             font-family: 'Orbitron', monospace;
             font-size: 14px;
@@ -452,6 +464,9 @@
         </div>
     </div>
     
+    <!-- Music Visualizer -->
+    <canvas id="vizCanvas" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:320px;height:40px;z-index:12;pointer-events:none;opacity:0.7;border-radius:4px;"></canvas>
+
     <div class="hud hud-bottom">
         <button class="btn" onclick="spawnParticle('red')">🔴 Red</button>
         <button class="btn" onclick="spawnParticle('blue')">🔵 Blue</button>
@@ -822,11 +837,26 @@
             }
         }
         
+        let _prev2dParticles = 0, _prev2dBirths = 0, _prev2dDeaths = 0;
+        function _flash2d(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const box = el.closest('.stat-box') || el.parentElement;
+            box.classList.remove('stat-flash'); void box.offsetWidth; box.classList.add('stat-flash');
+            setTimeout(() => box.classList.remove('stat-flash'), 450);
+        }
+
         function updateStats() {
             document.getElementById('particle-count').textContent = particles.length;
             document.getElementById('generation').textContent = generation;
             document.getElementById('births').textContent = births;
             document.getElementById('deaths').textContent = deaths;
+
+            // Stat flash on notable changes
+            if (Math.abs(particles.length - _prev2dParticles) > 15) _flash2d('particle-count');
+            if (births - _prev2dBirths > 8) _flash2d('births');
+            if (deaths - _prev2dDeaths > 8) _flash2d('deaths');
+            _prev2dParticles = particles.length; _prev2dBirths = births; _prev2dDeaths = deaths;
             
             const species = {};
             particles.forEach(p => species[p.type] = (species[p.type] || 0) + 1);
@@ -1278,11 +1308,56 @@
         `;
         document.head.appendChild(style);
 
+        // ---- Music Visualizer ----
+        const vizCanvas = document.getElementById('vizCanvas');
+        const vizCtx = vizCanvas ? vizCanvas.getContext('2d') : null;
+        vizCanvas.width = 320; vizCanvas.height = 40;
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            if (!vizCtx || !ElectroAudio.analyser) {
+                // Draw idle bars when no analyser
+                if (vizCtx) {
+                    vizCtx.clearRect(0, 0, 320, 40);
+                    const t = Date.now() * 0.002;
+                    for (let i = 0; i < 32; i++) {
+                        const h = (Math.sin(t + i * 0.4) * 0.5 + 0.5) * 15;
+                        vizCtx.fillStyle = `hsl(${280 + i * 4}, 100%, 60%)`;
+                        vizCtx.fillRect(i * 10, 40 - h, 8, h);
+                    }
+                }
+                return;
+            }
+            const data = new Uint8Array(ElectroAudio.analyser.frequencyBinCount);
+            ElectroAudio.analyser.getByteFrequencyData(data);
+            vizCtx.clearRect(0, 0, 320, 40);
+            const step = Math.floor(data.length / 32);
+            for (let i = 0; i < 32; i++) {
+                const val = data[i * step] / 255;
+                const h = val * 38;
+                const hue = 280 + val * 60;
+                vizCtx.fillStyle = `hsl(${hue}, 100%, ${40 + val * 40}%)`;
+                vizCtx.shadowBlur = val * 12;
+                vizCtx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+                vizCtx.fillRect(i * 10, 40 - h, 8, h);
+            }
+            vizCtx.shadowBlur = 0;
+        }
+        drawVisualizer();
+
         // Auto-start music on first user interaction
         let _audioReady = false;
         function _initAudio() {
             if (_audioReady) return; _audioReady = true;
             ElectroAudio.startMusic();
+            // Attach analyser node for visualizer
+            if (ElectroAudio.ctx) {
+                const analyser = ElectroAudio.ctx.createAnalyser();
+                analyser.fftSize = 128;
+                analyser.smoothingTimeConstant = 0.82;
+                ElectroAudio.masterGain.connect(analyser);
+                ElectroAudio.analyser = analyser;
+            }
             document.removeEventListener('click', _initAudio);
             document.removeEventListener('keydown', _initAudio);
         }
