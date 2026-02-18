@@ -37,6 +37,12 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
         }
 
         .header-actions {
@@ -112,36 +118,62 @@
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
 
-        /* Music Controls */
+        /* Enhanced Music Controls */
         .music-controls {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             background: rgba(233, 69, 96, 0.15);
             border: 1px solid rgba(233, 69, 96, 0.3);
-            border-radius: 10px;
-            padding: 8px 12px;
+            border-radius: 12px;
+            padding: 8px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .music-controls:hover {
+            background: rgba(233, 69, 96, 0.25);
+            border-color: rgba(233, 69, 96, 0.5);
         }
 
         .music-toggle {
             background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
             color: white;
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(233, 69, 96, 0.4);
+            box-shadow: 0 2px 15px rgba(233, 69, 96, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .music-toggle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .music-toggle:hover::before {
+            width: 100%;
+            height: 100%;
         }
 
         .music-toggle:hover {
             transform: scale(1.1);
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.5);
+            box-shadow: 0 4px 20px rgba(233, 69, 96, 0.6);
         }
 
         .music-toggle.muted {
@@ -149,30 +181,73 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
+        .music-toggle.muted:hover {
+            box-shadow: 0 4px 15px rgba(75, 85, 99, 0.5);
+        }
+
+        .music-toggle.playing {
+            animation: musicPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes musicPulse {
+            0%, 100% { box-shadow: 0 2px 15px rgba(233, 69, 96, 0.5); }
+            50% { box-shadow: 0 4px 25px rgba(233, 69, 96, 0.8), 0 0 40px rgba(233, 69, 96, 0.3); }
+        }
+
         .volume-slider {
-            width: 80px;
+            width: 90px;
             height: 6px;
             border-radius: 3px;
             background: rgba(255,255,255,0.2);
             outline: none;
             -webkit-appearance: none;
+            cursor: pointer;
         }
 
         .volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             background: #e94560;
             cursor: pointer;
-            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+            box-shadow: 0 0 12px rgba(233, 69, 96, 0.6);
+            transition: transform 0.2s;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
         }
 
         .music-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #888;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .sound-indicator {
+            display: flex;
+            gap: 3px;
+            align-items: flex-end;
+            height: 16px;
+        }
+
+        .sound-bar {
+            width: 3px;
+            background: #e94560;
+            border-radius: 2px;
+            transition: height 0.1s;
+        }
+
+        .sound-bar:nth-child(1) { height: 30%; }
+        .sound-bar:nth-child(2) { height: 60%; }
+        .sound-bar:nth-child(3) { height: 100%; }
+
+        .music-toggle.muted .sound-bar {
+            background: #666;
+            height: 20% !important;
         }
 
         /* Alert Banner for Riots */
@@ -208,6 +283,12 @@
             background: rgba(255,255,255,0.05);
             border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
         .stat-icon { font-size: 24px; }
@@ -246,6 +327,11 @@
             padding: 20px;
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: rgba(233, 69, 96, 0.2);
         }
 
         .panel-title {
@@ -255,6 +341,9 @@
             padding-bottom: 10px;
             border-bottom: 2px solid #e94560;
             color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         /* Navigation Tabs */
@@ -276,17 +365,50 @@
             align-items: center;
             gap: 10px;
             font-size: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, rgba(233, 69, 96, 0.3), transparent);
+            transition: width 0.3s ease;
+        }
+
+        .nav-tab:hover::before {
+            width: 100%;
         }
 
         .nav-tab:hover {
             background: rgba(233, 69, 96, 0.2);
             border-color: #e94560;
+            transform: translateX(5px);
         }
 
         .nav-tab.active {
             background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
             border-color: #e94560;
             color: white;
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+        }
+
+        .nav-tab.active::before {
+            display: none;
+        }
+
+        .nav-tab .shortcut {
+            margin-left: auto;
+            font-size: 10px;
+            opacity: 0.6;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
         }
 
         /* Content Area */
@@ -328,10 +450,27 @@
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .building-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .building-card:hover::after {
+            left: 100%;
         }
 
         .building-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-5px) scale(1.02);
             border-color: #e94560;
             box-shadow: 0 10px 30px rgba(233, 69, 96, 0.2);
         }
@@ -341,7 +480,14 @@
             cursor: not-allowed;
         }
 
-        .building-icon { font-size: 36px; margin-bottom: 8px; }
+        .building-card.locked:hover {
+            transform: none;
+            border-color: rgba(255,255,255,0.1);
+            box-shadow: none;
+        }
+
+        .building-icon { font-size: 36px; margin-bottom: 8px; transition: transform 0.3s; }
+        .building-card:hover .building-icon { transform: scale(1.1); }
         .building-name { font-weight: bold; margin-bottom: 5px; font-size: 14px; }
         .building-count { color: #e94560; font-size: 13px; }
         .building-cost { font-size: 12px; color: #4ade80; margin-top: 5px; }
@@ -359,11 +505,35 @@
             transition: all 0.3s ease;
             margin: 3px;
             font-size: 13px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:hover::before {
+            width: 200px;
+            height: 200px;
         }
 
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn.secondary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
@@ -383,6 +553,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .staff-card:hover {
+            border-color: rgba(233, 69, 96, 0.3);
+            transform: translateX(5px);
         }
 
         .staff-info { display: flex; align-items: center; gap: 15px; }
@@ -422,7 +598,10 @@
             padding: 3px 8px;
             border-radius: 12px;
             font-weight: 600;
+            transition: transform 0.2s;
         }
+
+        .trait-badge:hover { transform: scale(1.1); }
 
         .trait-violent { background: rgba(239, 68, 68, 0.3); color: #fca5a5; }
         .trait-smart { background: rgba(59, 130, 246, 0.3); color: #93c5fd; }
@@ -446,6 +625,12 @@
             padding: 8px;
             border-radius: 6px;
             text-align: center;
+            transition: all 0.2s;
+        }
+
+        .inmate-stat:hover {
+            background: rgba(0,0,0,0.3);
+            transform: scale(1.05);
         }
 
         .inmate-stat-label { color: #888; font-size: 10px; }
@@ -478,12 +663,29 @@
             border-radius: 4px;
             overflow: hidden;
             margin-top: 5px;
+            position: relative;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         .progress-fill {
             height: 100%;
             border-radius: 4px;
-            transition: width 0.3s ease;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .progress-fill.health { background: linear-gradient(90deg, #f87171, #ef4444); }
@@ -498,6 +700,11 @@
             padding: 15px;
             background: rgba(255,255,255,0.05);
             border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .policy-item:hover {
+            background: rgba(255,255,255,0.08);
         }
 
         .policy-header {
@@ -547,6 +754,18 @@
             border-left: 3px solid;
             background: rgba(255,255,255,0.05);
             font-size: 13px;
+            transition: all 0.3s ease;
+            animation: slideInLeft 0.3s ease;
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .event-item:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateX(5px);
         }
 
         .event-item.info { border-left-color: #60a5fa; }
@@ -567,9 +786,10 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            backdrop-filter: blur(5px);
         }
 
-        .modal-overlay.active { display: flex; }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.3s ease; }
 
         .modal {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -581,6 +801,12 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             max-height: 80vh;
             overflow-y: auto;
+            animation: modalPop 0.3s ease;
+        }
+
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.8) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
         .modal-title { font-size: 24px; margin-bottom: 20px; color: #e94560; }
@@ -602,7 +828,14 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        .notification.show { transform: translateX(0); }
+        .notification.show { transform: translateX(0); animation: notificationPulse 0.5s ease; }
+
+        @keyframes notificationPulse {
+            0% { transform: translateX(400px) scale(0.8); }
+            50% { transform: translateX(0) scale(1.05); }
+            100% { transform: translateX(0) scale(1); }
+        }
+
         .notification.success { background: linear-gradient(135deg, #4ade80, #22c55e); }
         .notification.error { background: linear-gradient(135deg, #f87171, #ef4444); }
         .notification.warning { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000; }
@@ -628,6 +861,13 @@
             font-size: 18px;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .map-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .map-cell.cell { background: rgba(233, 69, 96, 0.3); border-color: #e94560; }
@@ -666,6 +906,12 @@
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 20px;
+            animation: riotPulse 1s infinite;
+        }
+
+        @keyframes riotPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(220, 38, 38, 0.6); }
         }
 
         .riot-panel.active { display: block; }
@@ -690,14 +936,17 @@
         .program-card:hover {
             border-color: #4ade80;
             transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(74, 222, 128, 0.2);
         }
 
         .program-card.active {
             border-color: #4ade80;
             background: rgba(74, 222, 128, 0.1);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
         }
 
-        .program-icon { font-size: 32px; margin-bottom: 10px; }
+        .program-icon { font-size: 32px; margin-bottom: 10px; transition: transform 0.3s; }
+        .program-card:hover .program-icon { transform: scale(1.2); }
         .program-name { font-weight: bold; margin-bottom: 5px; }
         .program-desc { font-size: 12px; color: #888; margin-bottom: 10px; }
         .program-cost { color: #4ade80; font-size: 13px; }
@@ -725,6 +974,12 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .contraband-item:hover {
+            transform: scale(1.05);
+            background: rgba(0,0,0,0.3);
         }
 
         /* Custom scrollbar */
@@ -755,6 +1010,11 @@
             background: rgba(255,255,255,0.03);
             border-radius: 10px;
             padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .section-box:hover {
+            background: rgba(255,255,255,0.06);
         }
 
         .section-title {
@@ -763,6 +1023,64 @@
             margin-bottom: 10px;
             color: #e94560;
         }
+
+        /* Keyboard shortcuts hint */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #888;
+            z-index: 100;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 250px;
+        }
+
+        .keyboard-hint kbd {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .keyboard-hint h4 {
+            color: #e94560;
+            margin-bottom: 8px;
+        }
+
+        /* Visualizer bars for music */
+        .visualizer {
+            display: flex;
+            gap: 2px;
+            align-items: flex-end;
+            height: 20px;
+            margin-left: 8px;
+        }
+
+        .visualizer-bar {
+            width: 3px;
+            background: #e94560;
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        .music-toggle:not(.muted) ~ .visualizer .visualizer-bar {
+            animation: visualizer 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes visualizer {
+            0% { height: 20%; }
+            100% { height: 100%; }
+        }
+
+        .visualizer-bar:nth-child(1) { animation-delay: 0s; }
+        .visualizer-bar:nth-child(2) { animation-delay: 0.1s; }
+        .visualizer-bar:nth-child(3) { animation-delay: 0.2s; }
+        .visualizer-bar:nth-child(4) { animation-delay: 0.3s; }
+        .visualizer-bar:nth-child(5) { animation-delay: 0.4s; }
     </style>
 </head>
 <body>
@@ -771,12 +1089,19 @@
         <div class="logo">🏛️ Prison Empire Tycoon</div>
         <div class="header-actions">
             <div class="music-controls" id="music-controls">
-                <button class="music-toggle" id="music-toggle" onclick="musicSystem.toggle()" title="Click to start music">
-                    🎵
+                <button class="music-toggle muted" id="music-toggle" onclick="audioSystem.toggle()" title="Click to start music (M)">
+                    🔇
                 </button>
+                <div class="visualizer" id="visualizer">
+                    <div class="visualizer-bar"></div>
+                    <div class="visualizer-bar"></div>
+                    <div class="visualizer-bar"></div>
+                    <div class="visualizer-bar"></div>
+                    <div class="visualizer-bar"></div>
+                </div>
                 <div style="display: flex; flex-direction: column; align-items: center;">
-                    <span class="music-label">Music</span>
-                    <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="15" oninput="musicSystem.setVolume(this.value)">
+                    <span class="music-label">Ambience</span>
+                    <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="20" oninput="audioSystem.setVolume(this.value)">
                 </div>
             </div>
             <button class="save-btn" onclick="game.saveGame()">💾 Save</button>
@@ -851,16 +1176,36 @@
             <div class="panel">
                 <div class="panel-title">📋 Menu</div>
                 <div class="nav-tabs">
-                    <div class="nav-tab active" data-tab="overview"><span>🏛️</span> Overview</div>
-                    <div class="nav-tab" data-tab="buildings"><span>🏗️</span> Buildings</div>
-                    <div class="nav-tab" data-tab="staff"><span>👮</span> Staff</div>
-                    <div class="nav-tab" data-tab="inmates"><span>👥</span> Inmates</div>
-                    <div class="nav-tab" data-tab="programs"><span>📚</span> Rehabilitation</div>
-                    <div class="nav-tab" data-tab="parole"><span>📝</span> Parole & Appeals</div>
-                    <div class="nav-tab" data-tab="security"><span>🔒</span> Security</div>
-                    <div class="nav-tab" data-tab="policies"><span>📜</span> Policies</div>
-                    <div class="nav-tab" data-tab="finance"><span>💵</span> Finance</div>
-                    <div class="nav-tab" data-tab="settings"><span>⚙️</span> Settings</div>
+                    <div class="nav-tab active" data-tab="overview" onclick="game.switchTab('overview')">
+                        <span>🏛️</span> Overview <span class="shortcut">1</span>
+                    </div>
+                    <div class="nav-tab" data-tab="buildings" onclick="game.switchTab('buildings')">
+                        <span>🏗️</span> Buildings <span class="shortcut">2</span>
+                    </div>
+                    <div class="nav-tab" data-tab="staff" onclick="game.switchTab('staff')">
+                        <span>👮</span> Staff <span class="shortcut">3</span>
+                    </div>
+                    <div class="nav-tab" data-tab="inmates" onclick="game.switchTab('inmates')">
+                        <span>👥</span> Inmates <span class="shortcut">4</span>
+                    </div>
+                    <div class="nav-tab" data-tab="programs" onclick="game.switchTab('programs')">
+                        <span>📚</span> Rehabilitation <span class="shortcut">5</span>
+                    </div>
+                    <div class="nav-tab" data-tab="parole" onclick="game.switchTab('parole')">
+                        <span>📝</span> Parole & Appeals <span class="shortcut">6</span>
+                    </div>
+                    <div class="nav-tab" data-tab="security" onclick="game.switchTab('security')">
+                        <span>🔒</span> Security <span class="shortcut">7</span>
+                    </div>
+                    <div class="nav-tab" data-tab="policies" onclick="game.switchTab('policies')">
+                        <span>📜</span> Policies <span class="shortcut">8</span>
+                    </div>
+                    <div class="nav-tab" data-tab="finance" onclick="game.switchTab('finance')">
+                        <span>💵</span> Finance <span class="shortcut">9</span>
+                    </div>
+                    <div class="nav-tab" data-tab="settings" onclick="game.switchTab('settings')">
+                        <span>⚙️</span> Settings <span class="shortcut">0</span>
+                    </div>
                 </div>
             </div>
             <div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -899,13 +1244,13 @@
                     <h3 style="color: #dc2626; margin-bottom: 15px;">🚨 RIOT IN PROGRESS!</h3>
                     <p>Prisoners are rioting! Take immediate action to suppress the riot.</p>
                     <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="btn danger" onclick="game.suppressRiot('guards')">
+                        <button class="btn danger" onclick="game.suppressRiot('guards')" id="btn-riot-guards">
                             👮 Deploy Riot Guards (-$5,000)
                         </button>
-                        <button class="btn warning" onclick="game.suppressRiot('negotiate')">
+                        <button class="btn warning" onclick="game.suppressRiot('negotiate')" id="btn-riot-negotiate">
                             🗣️ Negotiate (Risky)
                         </button>
-                        <button class="btn" onclick="game.suppressRiot('lockdown')">
+                        <button class="btn" onclick="game.suppressRiot('lockdown')" id="btn-riot-lockdown">
                             🔒 Lockdown All Wings
                         </button>
                     </div>
@@ -953,15 +1298,11 @@
             <!-- Buildings Tab -->
             <div class="tab-content" id="buildings">
                 <div class="panel-title">🏗️ Build Facilities</div>
-                <div class="building-grid" id="building-grid">
-                    <!-- Generated by JS -->
-                </div>
+                <div class="building-grid" id="building-grid"></div>
                 
                 <div style="margin-top: 30px;">
                     <div class="panel-title">🔓 Expansion Areas</div>
-                    <div class="building-grid" id="expansion-grid">
-                        <!-- Generated by JS -->
-                    </div>
+                    <div class="building-grid" id="expansion-grid"></div>
                 </div>
             </div>
 
@@ -971,9 +1312,7 @@
                 <p style="color: #888; margin-bottom: 15px; font-size: 13px;">
                     Hire staff with different skill levels. Higher skilled staff are more effective but cost more.
                 </p>
-                <div class="staff-list" id="staff-list">
-                    <!-- Generated by JS -->
-                </div>
+                <div class="staff-list" id="staff-list"></div>
                 <div style="margin-top: 20px;">
                     <h4 style="margin-bottom: 10px;">Current Staff</h4>
                     <div id="current-staff">
@@ -1025,9 +1364,7 @@
                 <p style="color: #888; margin-bottom: 15px; font-size: 13px;">
                     Enroll inmates in programs to reduce recidivism and improve parole outcomes. Each program costs money to run daily.
                 </p>
-                <div class="program-grid" id="program-grid">
-                    <!-- Generated by JS -->
-                </div>
+                <div class="program-grid" id="program-grid"></div>
                 
                 <div style="margin-top: 30px;">
                     <div class="panel-title">📊 Program Statistics</div>
@@ -1258,7 +1595,7 @@
             <!-- Settings Tab -->
             <div class="tab-content" id="settings">
                 <div class="panel-title">⚙️ Game Settings</div>
-                
+
                 <div class="policy-item">
                     <div class="policy-header">
                         <span class="policy-label">💾 Auto-Save</span>
@@ -1373,4 +1710,1028 @@
     <!-- Notification -->
     <div class="notification" id="notification"></div>
 
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="keyboard-hint" id="keyboard-hint">
+        <h4>⌨️ Keyboard Shortcuts</h4>
+        <div><kbd>1-9</kbd> Switch tabs</div>
+        <div><kbd>M</kbd> Toggle music</div>
+        <div><kbd>S</kbd> Save game</div>
+        <div><kbd>L</kbd> Load game</div>
+        <div><kbd>N</kbd> Next day</div>
+        <div><kbd>Space</kbd> Pause/Resume</div>
+        <div><kbd>?</kbd> Toggle this help</div>
+    </div>
+
     <script>
+
+// ================================================
+// PRISON AUDIO SYSTEM - Industrial Ambient
+// ================================================
+const audioSystem = (() => {
+    let ctx = null, masterGain = null, compressor = null;
+    let enabled = false, volume = 0.2;
+    let ambientNodes = [], beatInterval = null, ambientInterval = null;
+    let beepInterval = null;
+
+    function init() {
+        try {
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            compressor = ctx.createDynamicsCompressor();
+            compressor.threshold.value = -20; compressor.ratio.value = 4;
+            masterGain = ctx.createGain();
+            masterGain.gain.value = 0;
+            masterGain.connect(compressor);
+            compressor.connect(ctx.destination);
+        } catch(e) { console.log('Audio not supported'); }
+    }
+
+    function playDrone(freq, gainVal, duration) {
+        if (!ctx || !enabled) return null;
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 400;
+        osc.type = 'sawtooth'; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, ctx.currentTime);
+        g.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + 2);
+        osc.connect(filter); filter.connect(g); g.connect(masterGain);
+        osc.start();
+        if (duration) {
+            g.gain.setValueAtTime(gainVal, ctx.currentTime + duration - 1);
+            g.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+            osc.stop(ctx.currentTime + duration);
+        }
+        return { osc, gain: g };
+    }
+
+    function playMetalHit(time) {
+        if (!ctx || !enabled) return;
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * Math.exp(-i/(ctx.sampleRate*0.05));
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 1200;
+        const g = ctx.createGain(); g.gain.value = 0.04;
+        src.connect(filter); filter.connect(g); g.connect(masterGain);
+        src.start(time || ctx.currentTime);
+    }
+
+    function playIntercomBeep() {
+        if (!ctx || !enabled) return;
+        [880, 1100].forEach((f, i) => {
+            const osc = ctx.createOscillator(); const g = ctx.createGain();
+            osc.frequency.value = f; osc.type = 'sine';
+            const t = ctx.currentTime + i * 0.15;
+            g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.03, t+0.02);
+            g.gain.setValueAtTime(0.03, t+0.08); g.gain.linearRampToValueAtTime(0, t+0.1);
+            osc.connect(g); g.connect(masterGain); osc.start(t); osc.stop(t+0.11);
+        });
+    }
+
+    function startAmbient() {
+        if (!ctx) return;
+        // Low industrial drone
+        ambientNodes.push(playDrone(55, 0.08));
+        ambientNodes.push(playDrone(82, 0.05));
+        ambientNodes.push(playDrone(110, 0.03));
+
+        // Slow metallic beats (chains, doors)
+        let beat = 0;
+        beatInterval = setInterval(() => {
+            if (!enabled) return;
+            const pattern = [1,0,0,1, 0,1,0,0, 1,0,0,0, 0,1,0,1];
+            if (pattern[beat % 16]) playMetalHit();
+            beat++;
+        }, 400);
+
+        // Random intercom beeps
+        beepInterval = setInterval(() => {
+            if (enabled && Math.random() < 0.4) playIntercomBeep();
+        }, 7000);
+    }
+
+    function stopAmbient() {
+        ambientNodes.forEach(n => {
+            if (n && n.osc) { try { n.osc.stop(); } catch(e){} }
+        });
+        ambientNodes = [];
+        clearInterval(beatInterval); clearInterval(beepInterval);
+    }
+
+    function updateVisualizer() {
+        const bars = document.querySelectorAll('.visualizer-bar');
+        bars.forEach((b, i) => {
+            const h = enabled ? (20 + Math.random() * 80) : 10;
+            b.style.height = h + '%';
+            b.style.animationDelay = (i * 0.1) + 's';
+        });
+    }
+
+    return {
+        toggle() {
+            if (!ctx) init();
+            if (ctx.state === 'suspended') ctx.resume();
+            enabled = !enabled;
+            const btn = document.getElementById('music-toggle');
+            if (enabled) {
+                masterGain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
+                startAmbient();
+                btn.textContent = '🔊'; btn.classList.remove('muted'); btn.classList.add('playing');
+                const viz = document.getElementById('visualizer');
+                if (viz) viz.style.opacity = '1';
+            } else {
+                masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+                setTimeout(stopAmbient, 300);
+                btn.textContent = '🔇'; btn.classList.add('muted'); btn.classList.remove('playing');
+            }
+            // Animate visualizer
+            if (enabled) setInterval(updateVisualizer, 150);
+        },
+        setVolume(v) {
+            volume = v / 100;
+            if (masterGain && enabled) masterGain.gain.setTargetAtTime(volume, ctx.currentTime, 0.1);
+        },
+        playClick() {
+            if (!ctx || !enabled) return;
+            const osc = ctx.createOscillator(); const g = ctx.createGain();
+            osc.frequency.value = 600; osc.type = 'sine';
+            g.gain.setValueAtTime(0.05, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+            osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.09);
+        },
+        playPurchase() {
+            if (!ctx || !enabled) return;
+            [523, 659, 784].forEach((f, i) => {
+                const osc = ctx.createOscillator(); const g = ctx.createGain();
+                osc.frequency.value = f; osc.type = 'sine';
+                const t = ctx.currentTime + i*0.1;
+                g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+                osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t+0.16);
+            });
+        },
+        playAlert() {
+            if (!ctx || !enabled) return;
+            [440, 550, 440, 550].forEach((f, i) => {
+                const osc = ctx.createOscillator(); const g = ctx.createGain();
+                osc.frequency.value = f; osc.type = 'square';
+                const t = ctx.currentTime + i*0.15;
+                g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.14);
+                osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t+0.15);
+            });
+        },
+        playRiot() {
+            if (!ctx || !enabled) return;
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const osc = ctx.createOscillator(); const g = ctx.createGain();
+                    osc.frequency.value = 80 + Math.random()*200; osc.type = 'sawtooth';
+                    g.gain.setValueAtTime(0.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.2);
+                    osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime+0.21);
+                }, i*120);
+            }
+        }
+    };
+})();
+
+// ================================================
+// PRISON GAME ENGINE
+// ================================================
+const game = (() => {
+    // --- STATE ---
+    let state = {
+        money: 50000, inmates: [], staff: {guards:0,counselors:0,medics:0,admins:0},
+        buildings: {cells:1,cafeteria:0,gym:0,library:0,workshop:0,medical:0,chapel:0,solitary:0},
+        expansions: {minSecurity:0,deathRow:0,womens:0},
+        programs: {education:false,vocational:false,therapy:false,drugRehab:false,faithBased:false},
+        activePrograms: new Set(),
+        policies: {security:3, rehabilitation:50, food:3, work:50, cellQuality:2},
+        unrest: 0, reputation: 50, day: 1,
+        riotActive: false, riotDuration: 0, riotDamage: 0,
+        contraband: {weapons:0,drugs:0,phones:0,alcohol:0},
+        hasScanner: false, extraPatrols: false,
+        paroleStats: {approved:0,denied:0,upheld:0,wrongful:0},
+        paused: false, autosave: true,
+        events: [{time:'Day 1 - Morning', text:'Prison facility established. Welcome, Warden!', type:'info'}],
+        transactions: ['Day 1: Initial funding received (+$50,000)'],
+        dayTimer: null
+    };
+
+    const NAMES = ['Marcus Johnson','Luis Torres','Derek White','Antoine Brown','James Miller',
+        'Robert Davis','Michael Wilson','Carlos Garcia','Tyrone Jackson','Nathan Lee',
+        'Brandon Smith','Deshawn Harris','Kevin Thompson','Andre Robinson','Jason Williams'];
+    const TRAITS_POOL = ['violent','smart','addict','gang','snitch','loyal','psychopath','innocent'];
+    const CRIMES = ['Armed Robbery','Drug Trafficking','Assault','Fraud','Murder','Burglary','Extortion'];
+
+    function rand(min,max) { return Math.floor(Math.random()*(max-min+1))+min; }
+    function choose(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+    function getCapacity() {
+        return 20 + state.buildings.cells*15 + state.expansions.minSecurity*25 +
+               state.expansions.deathRow*10 + state.expansions.womens*30;
+    }
+
+    function getGuardCount() { return state.staff.guards; }
+    function getSecurityLevel() {
+        const g = getGuardCount(), p = state.policies.security;
+        if (g >= 10 && p >= 4) return 'Maximum';
+        if (g >= 6 && p >= 3) return 'High';
+        if (g >= 3 && p >= 2) return 'Medium';
+        return 'Low';
+    }
+
+    function getDailyCosts() {
+        const staffCost = (state.staff.guards*800 + state.staff.counselors*600 +
+                          state.staff.medics*700 + state.staff.admins*500);
+        const foodCost = state.inmates.length * [5,8,12,18,25][state.policies.food-1];
+        const programCost = [...state.activePrograms].length * 500;
+        const maint = Object.values(state.buildings).reduce((a,v)=>a+v*100,0);
+        return { staffCost, foodCost, programCost, maint };
+    }
+
+    function getDailyRevenue() {
+        const base = 2000 + state.inmates.length * 80;
+        const workIncome = state.policies.work * state.inmates.length * 0.3;
+        return { base, workIncome };
+    }
+
+    function addEvent(text, type='info') {
+        const times = ['Morning','Afternoon','Evening','Night'];
+        state.events.unshift({time:`Day ${state.day} - ${choose(times)}`, text, type});
+        if (state.events.length > 50) state.events.pop();
+        renderEvents();
+    }
+
+    function addTransaction(text) {
+        state.transactions.unshift(`Day ${state.day}: ${text}`);
+        if (state.transactions.length > 30) state.transactions.pop();
+    }
+
+    function generateInmate() {
+        const numTraits = rand(1,3);
+        const traits = [];
+        const pool = [...TRAITS_POOL];
+        for (let i=0;i<numTraits;i++) {
+            const idx = Math.floor(Math.random()*pool.length);
+            traits.push(pool.splice(idx,1)[0]);
+        }
+        const sentence = rand(2,25);
+        const violent = traits.includes('violent') || traits.includes('psychopath');
+        const innocent = traits.includes('innocent');
+        return {
+            id: Date.now()+Math.random(), name: choose(NAMES)+' #'+rand(100,999),
+            crime: choose(CRIMES), sentence, servedYears: 0,
+            traits, age: rand(18,55),
+            health: rand(60,100), happiness: rand(30,80), rehab: rand(0,40),
+            risk: violent?'high':(traits.includes('gang')?'medium':'low'),
+            innocent, inPrograms: [], anger: rand(0,40)
+        };
+    }
+
+    // --- RENDER FUNCTIONS ---
+    function renderUI() {
+        const costs = getDailyCosts();
+        const rev = getDailyRevenue();
+        const netDaily = rev.base + rev.workIncome - costs.staffCost - costs.foodCost - costs.programCost - costs.maint;
+        const cap = getCapacity();
+        const inmateCount = state.inmates.length;
+        const staffTotal = Object.values(state.staff).reduce((a,v)=>a+v,0);
+        const sec = getSecurityLevel();
+
+        // Header stats
+        document.getElementById('money').textContent = '$'+state.money.toLocaleString();
+        document.getElementById('inmate-count').textContent = inmateCount;
+        document.getElementById('capacity').textContent = cap;
+        document.getElementById('staff-count').textContent = staffTotal;
+        document.getElementById('security-level').textContent = sec;
+        document.getElementById('reputation').textContent = state.reputation+'%';
+        document.getElementById('day').textContent = state.day;
+
+        // Unrest
+        const unrestPct = Math.min(100, state.unrest);
+        document.getElementById('unrest-bar').style.width = unrestPct+'%';
+        const unrestLabel = unrestPct<20?'Calm':unrestPct<40?'Uneasy':unrestPct<60?'Tense':unrestPct<80?'Dangerous':'RIOT RISK';
+        const lvlClass = unrestPct<20?'calm':unrestPct<40?'uneasy':unrestPct<60?'tense':unrestPct<80?'dangerous':'riot';
+        document.getElementById('unrest-text').textContent = unrestLabel;
+        document.getElementById('unrest-text').className = 'unrest-value unrest-level-'+lvlClass;
+        document.getElementById('unrest-level').textContent = unrestLabel;
+
+        // Sidebar
+        document.getElementById('sidebar-money').textContent = '$'+state.money.toLocaleString();
+        document.getElementById('sidebar-inmate-count').textContent = inmateCount;
+        document.getElementById('sidebar-capacity').textContent = cap;
+        document.getElementById('sidebar-staff-count').textContent = staffTotal;
+        document.getElementById('sidebar-reputation').textContent = state.reputation+'%';
+        document.getElementById('sidebar-unrest').textContent = unrestLabel;
+        document.getElementById('sidebar-day').textContent = state.day;
+        document.getElementById('sidebar-revenue').textContent = '+$'+(rev.base+rev.workIncome).toLocaleString();
+        document.getElementById('sidebar-expenses').textContent = '-$'+(costs.staffCost+costs.foodCost+costs.programCost+costs.maint).toLocaleString();
+        document.getElementById('sidebar-net').textContent = (netDaily>=0?'+':'')+'$'+netDaily.toLocaleString();
+        document.getElementById('sidebar-net').style.color = netDaily>=0?'#4ade80':'#f87171';
+
+        // Finance tab
+        document.getElementById('daily-grant').textContent = '+$'+rev.base.toLocaleString();
+        document.getElementById('work-income').textContent = '+$'+Math.floor(rev.workIncome).toLocaleString();
+        document.getElementById('staff-cost').textContent = '-$'+costs.staffCost.toLocaleString();
+        document.getElementById('food-cost').textContent = '-$'+costs.foodCost.toLocaleString();
+        document.getElementById('program-cost').textContent = '-$'+costs.programCost.toLocaleString();
+        document.getElementById('maintenance-cost').textContent = '-$'+costs.maint.toLocaleString();
+        document.getElementById('net-income').textContent = (netDaily>=0?'+':'')+'$'+netDaily.toLocaleString();
+        document.getElementById('net-income').style.color = netDaily>=0?'#4ade80':'#f87171';
+
+        // Security overview
+        document.getElementById('guard-ratio').textContent = getGuardCount()+':'+inmateCount;
+        document.getElementById('high-risk-count').textContent = state.inmates.filter(i=>i.risk==='high').length;
+        document.getElementById('gang-count').textContent = state.inmates.filter(i=>i.traits.includes('gang')).length;
+        document.getElementById('contraband-today').textContent = Object.values(state.contraband).reduce((a,v)=>a+v,0);
+        document.getElementById('contraband-weapons').textContent = state.contraband.weapons;
+        document.getElementById('contraband-drugs').textContent = state.contraband.drugs;
+        document.getElementById('contraband-phones').textContent = state.contraband.phones;
+        document.getElementById('contraband-alcohol').textContent = state.contraband.alcohol;
+
+        // Overview summaries
+        document.getElementById('overview-security').textContent = sec;
+        document.getElementById('overview-food').textContent = ['Poor','Basic','Standard','Good','Excellent'][state.policies.food-1];
+        document.getElementById('overview-cell-quality').textContent = ['Bare','Basic','Decent','Comfortable','Premium'][state.policies.cellQuality-1];
+        document.getElementById('overview-programs').textContent = state.activePrograms.size;
+
+        // Parole stats
+        document.getElementById('parole-approved').textContent = state.paroleStats.approved;
+        document.getElementById('parole-denied').textContent = state.paroleStats.denied;
+        document.getElementById('appeals-upheld').textContent = state.paroleStats.upheld;
+        document.getElementById('wrongful-released').textContent = state.paroleStats.wrongful;
+
+        // Riot
+        const riotPanel = document.getElementById('riot-panel');
+        const riotAlert = document.getElementById('riot-alert');
+        if (state.riotActive) {
+            riotPanel.classList.add('active'); riotAlert.classList.add('active');
+            document.getElementById('riot-duration').textContent = state.riotDuration;
+            document.getElementById('riot-damage').textContent = state.riotDamage.toLocaleString();
+        } else {
+            riotPanel.classList.remove('active'); riotAlert.classList.remove('active');
+        }
+
+        renderPrisonMap(); renderOverviewBuildings(); renderOverviewStaff();
+        renderBuildings(); renderStaff(); renderInmates(); renderPrograms();
+        renderParole(); renderTransactions();
+    }
+
+    function renderEvents() {
+        const log = document.getElementById('event-log');
+        log.innerHTML = state.events.slice(0,15).map(e=>`
+            <div class="event-item ${e.type}">
+                <div class="event-time">${e.time}</div>
+                <div>${e.text}</div>
+            </div>`).join('');
+    }
+
+    function renderPrisonMap() {
+        const map = document.getElementById('prison-map');
+        const cells = [];
+        for (let i=0;i<8;i++) {
+            for (let j=0;j<8;j++) cells.push(`<div class="map-cell ${Math.random()<0.3?'cell':''}">
+                ${Math.random()<0.1?'👤':Math.random()<0.05?'👮':''}
+            </div>`);
+        }
+        map.innerHTML = cells.join('');
+    }
+
+    function renderOverviewBuildings() {
+        const el = document.getElementById('overview-buildings');
+        const bMap = {cells:['🏢','Cell Blocks'],cafeteria:['🍽️','Cafeteria'],gym:['💪','Gym'],
+            library:['📚','Library'],workshop:['🔧','Workshop'],medical:['🏥','Medical'],
+            chapel:['⛪','Chapel'],solitary:['🔒','Solitary']};
+        el.innerHTML = Object.entries(bMap).map(([k,[icon,name]])=>
+            state.buildings[k]>0?`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+                <span>${icon} ${name}</span><span style="color:#e94560">${state.buildings[k]}</span>
+            </div>`:''
+        ).join('');
+    }
+
+    function renderOverviewStaff() {
+        const el = document.getElementById('overview-staff');
+        const sMap = {guards:['👮','Guards'],counselors:['🧠','Counselors'],medics:['🏥','Medics'],admins:['📋','Admins']};
+        el.innerHTML = Object.entries(sMap).map(([k,[icon,name]])=>`
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+                <span>${icon} ${name}</span><span style="color:#60a5fa">${state.staff[k]}</span>
+            </div>`).join('');
+    }
+
+    function renderBuildings() {
+        const BUILDINGS = [
+            {id:'cells',icon:'🏢',name:'Cell Block',base:5000,per:15,desc:'Houses 15 more inmates',key:'buildings'},
+            {id:'cafeteria',icon:'🍽️',name:'Cafeteria',base:8000,desc:'Reduces hunger unrest',key:'buildings'},
+            {id:'gym',icon:'💪',name:'Gymnasium',base:12000,desc:'Reduces inmate unrest',key:'buildings'},
+            {id:'library',icon:'📚',name:'Library',base:10000,desc:'Enables education programs',key:'buildings'},
+            {id:'workshop',icon:'🔧',name:'Workshop',base:15000,desc:'Enables vocational training',key:'buildings'},
+            {id:'medical',icon:'🏥',name:'Medical Wing',base:20000,desc:'Improves inmate health',key:'buildings'},
+            {id:'chapel',icon:'⛪',name:'Chapel',base:8000,desc:'Improves morale',key:'buildings'},
+            {id:'solitary',icon:'🔒',name:'Solitary Block',base:12000,desc:'Houses violent inmates',key:'buildings'},
+        ];
+        const grid = document.getElementById('building-grid');
+        grid.innerHTML = BUILDINGS.map(b=>{
+            const count = state.buildings[b.id]||0;
+            const cost = b.base + count*(b.base*0.5);
+            return `<div class="building-card" onclick="game.buyBuilding('${b.id}',${b.base})">
+                <div class="building-icon">${b.icon}</div>
+                <div class="building-name">${b.name}</div>
+                <div class="building-count">Owned: ${count}</div>
+                <div style="font-size:11px;color:#888;margin-top:4px">${b.desc}</div>
+                <div class="building-cost">💰 $${cost.toLocaleString()}</div>
+            </div>`;
+        }).join('');
+
+        const EXPANSIONS = [
+            {id:'minSecurity',icon:'🌿',name:'Min. Security Wing',cost:30000,desc:'25 additional beds, lower unrest'},
+            {id:'deathRow',icon:'⚡',name:'Death Row',cost:50000,desc:'High security, max 10 inmates'},
+            {id:'womens',icon:'👩',name:"Women's Facility",cost:40000,desc:'30 beds, separate facility'},
+        ];
+        const expGrid = document.getElementById('expansion-grid');
+        expGrid.innerHTML = EXPANSIONS.map(e=>{
+            const count = state.expansions[e.id]||0;
+            return `<div class="building-card" onclick="game.buyExpansion('${e.id}',${e.cost})">
+                <div class="building-icon">${e.icon}</div>
+                <div class="building-name">${e.name}</div>
+                <div class="building-count">Owned: ${count}</div>
+                <div style="font-size:11px;color:#888;margin-top:4px">${e.desc}</div>
+                <div class="building-cost">💰 $${e.cost.toLocaleString()}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderStaff() {
+        const STAFF_TYPES = [
+            {id:'guards',icon:'👮',name:'Prison Guard',salary:800,desc:'Reduces unrest, prevents escapes',effect:'security'},
+            {id:'counselors',icon:'🧠',name:'Counselor',salary:600,desc:'Runs rehab programs, reduces recidivism',effect:'rehab'},
+            {id:'medics',icon:'🏥',name:'Medical Staff',salary:700,desc:'Treats inmate injuries',effect:'health'},
+            {id:'admins',icon:'📋',name:'Administrator',salary:500,desc:'Improves efficiency and reputation',effect:'admin'},
+        ];
+        const sl = document.getElementById('staff-list');
+        sl.innerHTML = STAFF_TYPES.map(s=>`
+            <div class="staff-card">
+                <div class="staff-info">
+                    <span class="staff-icon">${s.icon}</span>
+                    <div class="staff-details">
+                        <h4>${s.name}</h4>
+                        <p>${s.desc}</p>
+                        <div class="skill-stars">⭐⭐⭐</div>
+                    </div>
+                </div>
+                <div style="text-align:right">
+                    <div class="staff-salary">$${s.salary}/day</div>
+                    <div class="staff-controls">
+                        <button class="btn small danger" onclick="game.fireStaff('${s.id}')">−</button>
+                        <span style="min-width:30px;text-align:center">${state.staff[s.id]}</span>
+                        <button class="btn small success" onclick="game.hireStaff('${s.id}',${s.salary})">+</button>
+                    </div>
+                </div>
+            </div>`).join('');
+    }
+
+    function renderInmates() {
+        const el = document.getElementById('inmate-list');
+        if (state.inmates.length === 0) {
+            el.innerHTML = '<p style="color:#888;text-align:center;padding:40px">No inmates yet. Accept intake from the Overview tab.</p>';
+            return;
+        }
+        el.innerHTML = state.inmates.map(inmate=>{
+            const traitHTML = inmate.traits.map(t=>`<span class="trait-badge trait-${t}">${t}</span>`).join('');
+            const riskColors = {low:'risk-low',medium:'risk-medium',high:'risk-high'};
+            return `<div class="inmate-item">
+                <div class="inmate-header">
+                    <div>
+                        <div class="inmate-name">👤 ${inmate.name}</div>
+                        <div style="font-size:12px;color:#888">${inmate.crime} • ${inmate.sentence}yr sentence • Age ${inmate.age}</div>
+                        <div class="inmate-traits">${traitHTML}</div>
+                    </div>
+                    <span class="inmate-risk ${riskColors[inmate.risk]}">${inmate.risk.toUpperCase()}</span>
+                </div>
+                <div class="inmate-stats">
+                    <div class="inmate-stat">
+                        <div class="inmate-stat-label">Health</div>
+                        <div class="inmate-stat-value">${inmate.health}%</div>
+                        <div class="progress-bar"><div class="progress-fill health" style="width:${inmate.health}%"></div></div>
+                    </div>
+                    <div class="inmate-stat">
+                        <div class="inmate-stat-label">Happiness</div>
+                        <div class="inmate-stat-value">${inmate.happiness}%</div>
+                        <div class="progress-bar"><div class="progress-fill happiness" style="width:${inmate.happiness}%"></div></div>
+                    </div>
+                    <div class="inmate-stat">
+                        <div class="inmate-stat-label">Rehab</div>
+                        <div class="inmate-stat-value">${inmate.rehab}%</div>
+                        <div class="progress-bar"><div class="progress-fill rehab" style="width:${inmate.rehab}%"></div></div>
+                    </div>
+                    <div class="inmate-stat">
+                        <div class="inmate-stat-label">Anger</div>
+                        <div class="inmate-stat-value">${inmate.anger}%</div>
+                        <div class="progress-bar"><div class="progress-fill unrest" style="width:${inmate.anger}%"></div></div>
+                    </div>
+                </div>
+                <div class="inmate-actions">
+                    <button class="btn small" onclick="game.punishInmate('${inmate.id}')">⚠️ Punish</button>
+                    <button class="btn small secondary" onclick="game.sendToSolitary('${inmate.id}')">🔒 Solitary</button>
+                    <button class="btn small success" onclick="game.enrollInProgram('${inmate.id}')">📚 Program</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderPrograms() {
+        const PROGRAMS = [
+            {id:'education',icon:'📚',name:'Education Program',desc:'GED classes, reduces recidivism',cost:500,req:'library'},
+            {id:'vocational',icon:'🔧',name:'Vocational Training',desc:'Job skills, generates income',cost:600,req:'workshop'},
+            {id:'therapy',icon:'🧠',name:'Group Therapy',desc:'Anger management, lowers unrest',cost:400,req:'counselors'},
+            {id:'drugRehab',icon:'💊',name:'Drug Rehabilitation',desc:'Helps addicts, improves health',cost:700,req:'medical'},
+            {id:'faithBased',icon:'⛪',name:'Faith-Based Program',desc:'Spiritual guidance, boosts morale',cost:200,req:'chapel'},
+        ];
+        const grid = document.getElementById('program-grid');
+        grid.innerHTML = PROGRAMS.map(p=>{
+            const active = state.activePrograms.has(p.id);
+            const reqMet = p.req === 'counselors' ? state.staff.counselors > 0 : (state.buildings[p.req]||0) > 0;
+            return `<div class="program-card ${active?'active':''}" onclick="game.toggleProgram('${p.id}',${p.cost})">
+                <div class="program-icon">${p.icon}</div>
+                <div class="program-name">${p.name}</div>
+                <div class="program-desc">${p.desc}</div>
+                <div class="program-cost">${active?'✅ ACTIVE':'$'+p.cost+'/day'}</div>
+                ${!reqMet?`<div style="font-size:10px;color:#fbbf24;margin-top:5px">Requires: ${p.req}</div>`:''}
+            </div>`;
+        }).join('');
+    }
+
+    function renderParole() {
+        const paroleQ = document.getElementById('parole-queue');
+        const eligible = state.inmates.filter(i=>i.servedYears >= i.sentence*0.3 && i.rehab > 50);
+        if (eligible.length === 0) {
+            paroleQ.innerHTML = '<p style="color:#888">No parole applications pending</p>';
+        } else {
+            paroleQ.innerHTML = eligible.slice(0,5).map(i=>`
+                <div style="background:rgba(255,255,255,0.05);padding:10px;border-radius:8px;margin-bottom:8px">
+                    <strong>${i.name}</strong><br>
+                    <span style="font-size:12px;color:#888">Rehab: ${i.rehab}% • Served: ${i.servedYears} of ${i.sentence} yrs</span>
+                    <div style="margin-top:8px;display:flex;gap:8px">
+                        <button class="btn small success" onclick="game.grantParole('${i.id}')">✅ Grant</button>
+                        <button class="btn small danger" onclick="game.denyParole('${i.id}')">❌ Deny</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        const appealsQ = document.getElementById('appeals-queue');
+        const appealers = state.inmates.filter(i=>i.innocent && i.servedYears >= 1);
+        if (appealers.length === 0) {
+            appealsQ.innerHTML = '<p style="color:#888">No appeals pending</p>';
+        } else {
+            appealsQ.innerHTML = appealers.slice(0,3).map(i=>`
+                <div style="background:rgba(255,215,0,0.05);border:1px solid rgba(255,215,0,0.2);padding:10px;border-radius:8px;margin-bottom:8px">
+                    <strong>${i.name}</strong><br>
+                    <span style="font-size:12px;color:#fbbf24">⚖️ Claims innocence</span>
+                    <div style="margin-top:8px;display:flex;gap:8px">
+                        <button class="btn small success" onclick="game.upholdAppeal('${i.id}')">✅ Uphold</button>
+                        <button class="btn small danger" onclick="game.denyAppeal('${i.id}')">❌ Deny</button>
+                    </div>
+                </div>`).join('');
+        }
+    }
+
+    function renderTransactions() {
+        const el = document.getElementById('transaction-history');
+        if (el) el.innerHTML = state.transactions.slice(0,15).map(t=>`<p style="color:#888;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)">${t}</p>`).join('');
+    }
+
+    // --- GAME ACTIONS ---
+    return {
+        switchTab(tabId) {
+            audioSystem.playClick();
+            document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tabId));
+            document.querySelectorAll('.tab-content').forEach(t=>t.classList.toggle('active', t.id===tabId));
+        },
+
+        acceptIntake() {
+            audioSystem.playClick();
+            const cap = getCapacity();
+            if (state.inmates.length >= cap) { this.showNotification('⚠️ Prison is at capacity!','warning'); return; }
+            const count = rand(1,3);
+            for (let i=0;i<count;i++) { if (state.inmates.length < cap) state.inmates.push(generateInmate()); }
+            addEvent(`📥 Accepted ${count} new inmate(s). Population: ${state.inmates.length}/${cap}`,'info');
+            audioSystem.playPurchase();
+            this.showNotification(`📥 ${count} new inmate(s) arrived`,'success');
+            renderUI();
+        },
+
+        nextDay() {
+            audioSystem.playClick();
+            state.day++;
+            state.inmates.forEach(i=>{ i.servedYears += 1/365; });
+
+            // Calculate finances
+            const costs = getDailyCosts();
+            const rev = getDailyRevenue();
+            const net = rev.base + rev.workIncome - costs.staffCost - costs.foodCost - costs.programCost - costs.maint;
+            state.money += net;
+            if (net < 0) addEvent(`💸 Operating at a loss! Net: $${net.toLocaleString()}`,'danger');
+            addTransaction(`Net income: ${net>=0?'+':''}$${Math.floor(net).toLocaleString()}`);
+
+            // Update unrest
+            const overcrowding = Math.max(0, state.inmates.length - getCapacity()*0.85) * 2;
+            const guardDeficit = Math.max(0, state.inmates.length/10 - getGuardCount()) * 3;
+            const programBonus = state.activePrograms.size * 3;
+            const foodBonus = (state.policies.food - 3) * 2;
+            state.unrest = Math.max(0, Math.min(100,
+                state.unrest + overcrowding + guardDeficit - programBonus - foodBonus +
+                (Math.random()*4-2)));
+
+            // Update inmate stats
+            state.inmates.forEach(i=>{
+                i.anger = Math.max(0, Math.min(100, i.anger + (state.unrest>50?2:state.unrest<20?-1:0) + (Math.random()*2-1)));
+                i.happiness = Math.max(0, Math.min(100, i.happiness + foodBonus + programBonus/2 - (overcrowding/10)));
+                if (state.activePrograms.has('drugRehab') && i.traits.includes('addict')) i.rehab = Math.min(100, i.rehab+2);
+                if (state.activePrograms.has('education')) i.rehab = Math.min(100, i.rehab+1);
+                if (state.buildings.medical && state.staff.medics > 0) i.health = Math.min(100, i.health+1);
+            });
+
+            // Riot check
+            if (!state.riotActive && state.unrest >= 85 && Math.random() < 0.3) {
+                state.riotActive = true; state.riotDuration = 0; state.riotDamage = 0;
+                addEvent('🚨 RIOT STARTED! Prisoners have taken control of a wing!','danger');
+                audioSystem.playRiot();
+                this.showNotification('🚨 RIOT IN PROGRESS!','riot');
+            }
+            if (state.riotActive) {
+                state.riotDuration++; state.riotDamage += rand(500,2000);
+                state.money -= rand(500,2000);
+            }
+
+            // Random events
+            if (Math.random() < 0.15) this.randomEvent();
+
+            // Reputation
+            state.reputation = Math.max(0, Math.min(100,
+                state.reputation + (state.activePrograms.size * 0.5) - (state.riotActive?2:0) + (state.unrest<20?0.5:-0.5)));
+
+            // Autosave
+            if (state.autosave && state.day % 5 === 0) this.saveGame(true);
+
+            addEvent(`📅 Day ${state.day} ended. Balance: $${state.money.toLocaleString()}`,'info');
+            renderUI();
+        },
+
+        randomEvent() {
+            const events = [
+                {text:'👮 A guard report shows suspicious activity. Morale drops slightly.',fn:()=>{},'type':'warning'},
+                {text:'📺 Prison featured on news show. Reputation +5.',fn:()=>{state.reputation=Math.min(100,state.reputation+5);},'type':'success'},
+                {text:'💊 Drug contraband discovered in cell block!',fn:()=>{state.contraband.drugs+=rand(1,5);},'type':'danger'},
+                {text:'🔪 Fight broke out in the cafeteria. Unrest +5.',fn:()=>{state.unrest+=5;},'type':'danger'},
+                {text:'📋 State inspection passed. Reputation +3.',fn:()=>{state.reputation+=3;},'type':'success'},
+                {text:'💰 Federal grant received! +$5,000',fn:()=>{state.money+=5000;addTransaction('+$5,000 federal grant');},'type':'success'},
+                {text:'🔑 Contraband phone network discovered.',fn:()=>{state.contraband.phones+=rand(1,3);},'type':'warning'},
+            ];
+            const ev = choose(events);
+            ev.fn(); addEvent(ev.text, ev.type);
+        },
+
+        buyBuilding(id, baseCost) {
+            audioSystem.playClick();
+            const count = state.buildings[id]||0;
+            const cost = baseCost + count*(baseCost*0.5);
+            if (state.money < cost) { this.showNotification('❌ Insufficient funds!','error'); audioSystem.playAlert(); return; }
+            state.money -= cost;
+            state.buildings[id] = count+1;
+            addTransaction(`-$${cost.toLocaleString()} ${id} constructed`);
+            addEvent(`🏗️ ${id} built for $${cost.toLocaleString()}`,'success');
+            audioSystem.playPurchase();
+            this.showNotification(`🏗️ Building constructed!`,'success');
+            renderUI();
+        },
+
+        buyExpansion(id, cost) {
+            audioSystem.playClick();
+            if (state.money < cost) { this.showNotification('❌ Insufficient funds!','error'); return; }
+            state.money -= cost;
+            state.expansions[id] = (state.expansions[id]||0)+1;
+            addTransaction(`-$${cost.toLocaleString()} expansion`);
+            audioSystem.playPurchase();
+            this.showNotification(`🔓 Expansion complete!`,'success');
+            renderUI();
+        },
+
+        hireStaff(type, salary) {
+            audioSystem.playClick();
+            if (state.money < salary*10) { this.showNotification('❌ Insufficient funds to hire!','error'); return; }
+            state.money -= salary*10;
+            state.staff[type]++;
+            addTransaction(`-$${(salary*10).toLocaleString()} hired ${type}`);
+            audioSystem.playPurchase();
+            this.showNotification(`👮 New ${type} hired!`,'success');
+            renderUI();
+        },
+
+        fireStaff(type) {
+            audioSystem.playClick();
+            if (state.staff[type] <= 0) return;
+            state.staff[type]--;
+            addEvent(`Staff reduction: 1 ${type} let go`,'warning');
+            renderUI();
+        },
+
+        conductSearch(type='random') {
+            audioSystem.playClick();
+            const cost = type==='full'?2000:500;
+            if (state.money < cost) { this.showNotification('❌ Insufficient funds!','error'); return; }
+            state.money -= cost;
+            const found = Math.floor(Math.random()*5);
+            if (found > 0) {
+                const types = ['weapons','drugs','phones','alcohol'];
+                const t = choose(types); state.contraband[t] = Math.max(0, state.contraband[t]-1);
+                addEvent(`🔍 Search: Found ${found} contraband items`,'warning');
+                state.unrest = Math.min(100, state.unrest+3);
+                audioSystem.playAlert();
+                this.showNotification(`🔍 Found ${found} contraband items!`,'warning');
+            } else {
+                addEvent('🔍 Search: Nothing found today','info');
+                this.showNotification('🔍 Search complete - nothing found','success');
+            }
+            addTransaction(`-$${cost} contraband search`);
+            renderUI();
+        },
+
+        installScanner() {
+            if (state.hasScanner) { this.showNotification('Scanner already installed!','warning'); return; }
+            if (state.money < 10000) { this.showNotification('❌ Insufficient funds!','error'); return; }
+            state.money -= 10000; state.hasScanner = true;
+            addTransaction('-$10,000 body scanner installed');
+            addEvent('📡 Body scanner installed. Contraband reduction active.','success');
+            audioSystem.playPurchase();
+            this.showNotification('📡 Body scanner installed!','success');
+            renderUI();
+        },
+
+        deployRiotSquad() {
+            audioSystem.playClick();
+            if (state.money < 3000) { this.showNotification('❌ Insufficient funds!','error'); return; }
+            state.money -= 3000;
+            state.unrest = Math.max(0, state.unrest-15);
+            addTransaction('-$3,000 riot squad deployed');
+            addEvent('👮 Riot squad deployed. Unrest reduced.','success');
+            audioSystem.playPurchase();
+            this.showNotification('👮 Riot squad deployed!','success');
+            renderUI();
+        },
+
+        increasePatrols() {
+            state.extraPatrols = true;
+            addEvent('🚶 Extra patrols ordered (-$500/day)','info');
+            this.showNotification('🚶 Extra patrols ordered!','success');
+        },
+
+        suppressRiot(method) {
+            audioSystem.playClick();
+            if (!state.riotActive) return;
+            let success = false;
+            if (method === 'guards') {
+                if (state.money < 5000) { this.showNotification('❌ Insufficient funds!','error'); return; }
+                state.money -= 5000; success = true;
+                addTransaction('-$5,000 riot suppression');
+            } else if (method === 'negotiate') {
+                success = Math.random() < 0.4;
+                state.unrest = success ? Math.max(0,state.unrest-20) : Math.min(100,state.unrest+10);
+            } else if (method === 'lockdown') {
+                success = getGuardCount() >= 5;
+                state.unrest = Math.max(0, state.unrest-10);
+            }
+            if (success) {
+                state.riotActive = false; state.riotDuration = 0;
+                addEvent('✅ Riot suppressed successfully!','success');
+                audioSystem.playPurchase();
+                this.showNotification('✅ Riot suppressed!','success');
+            } else {
+                addEvent('❌ Suppression failed! Riot continues.','danger');
+                this.showNotification('❌ Suppression failed!','error');
+            }
+            renderUI();
+        },
+
+        toggleProgram(id, cost) {
+            audioSystem.playClick();
+            if (state.activePrograms.has(id)) {
+                state.activePrograms.delete(id);
+                addEvent(`📚 ${id} program deactivated`,'info');
+                this.showNotification(`Program deactivated`,'warning');
+            } else {
+                if (state.money < cost*30) { this.showNotification('❌ Need 30 days of funding upfront!','error'); return; }
+                state.activePrograms.add(id);
+                addEvent(`📚 ${id} program activated`,'success');
+                audioSystem.playPurchase();
+                this.showNotification(`📚 Program activated!`,'success');
+            }
+            renderUI();
+        },
+
+        punishInmate(id) {
+            audioSystem.playClick();
+            const i = state.inmates.find(i=>i.id==id);
+            if (!i) return;
+            i.anger = Math.max(0, i.anger-15); i.happiness = Math.max(0, i.happiness-10);
+            state.unrest = Math.min(100, state.unrest+2);
+            addEvent(`⚠️ Inmate ${i.name} punished`,'warning');
+            this.showNotification('⚠️ Inmate punished','warning');
+            renderUI();
+        },
+
+        sendToSolitary(id) {
+            audioSystem.playClick();
+            if (!state.buildings.solitary) { this.showNotification('❌ No solitary block!','error'); return; }
+            const i = state.inmates.find(i=>i.id==id);
+            if (!i) return;
+            i.anger = Math.max(0, i.anger-25); i.happiness = Math.max(0, i.happiness-20);
+            addEvent(`🔒 ${i.name} sent to solitary confinement`,'warning');
+            this.showNotification('🔒 Sent to solitary','warning');
+            renderUI();
+        },
+
+        enrollInProgram(id) {
+            const i = state.inmates.find(i=>i.id==id);
+            if (!i) return;
+            if (state.activePrograms.size === 0) { this.showNotification('❌ No active programs!','error'); return; }
+            const prog = [...state.activePrograms][0];
+            if (!i.inPrograms.includes(prog)) {
+                i.inPrograms.push(prog); i.rehab = Math.min(100, i.rehab+5);
+                addEvent(`📚 ${i.name} enrolled in ${prog}`,'success');
+                this.showNotification(`📚 Enrolled in ${prog}!`,'success');
+                renderUI();
+            }
+        },
+
+        grantParole(id) {
+            audioSystem.playClick();
+            const idx = state.inmates.findIndex(i=>i.id==id);
+            if (idx<0) return;
+            const i = state.inmates.splice(idx,1)[0];
+            state.paroleStats.approved++;
+            addEvent(`✅ ${i.name} granted parole after rehabilitation`,'success');
+            audioSystem.playPurchase();
+            this.showNotification(`✅ ${i.name} paroled!`,'success');
+            renderUI();
+        },
+
+        denyParole(id) {
+            audioSystem.playClick();
+            const i = state.inmates.find(i=>i.id==id);
+            if (i) { state.paroleStats.denied++; i.anger=Math.min(100,i.anger+10); }
+            addEvent(`❌ Parole denied`,'info');
+            renderUI();
+        },
+
+        upholdAppeal(id) {
+            audioSystem.playClick();
+            const idx = state.inmates.findIndex(i=>i.id==id);
+            if (idx<0) return;
+            const i = state.inmates.splice(idx,1)[0];
+            state.paroleStats.upheld++; state.paroleStats.wrongful++;
+            state.reputation = Math.max(0, state.reputation-10);
+            addEvent(`⚖️ WRONGFUL CONVICTION! ${i.name} exonerated. Reputation damaged.`,'danger');
+            audioSystem.playAlert();
+            this.showNotification(`⚖️ Wrongful conviction exposed!`,'error');
+            renderUI();
+        },
+
+        denyAppeal(id) {
+            audioSystem.playClick();
+            const i = state.inmates.find(i=>i.id==id);
+            if (i) i.anger = Math.min(100, i.anger+15);
+            addEvent('⚖️ Appeal denied','info');
+            renderUI();
+        },
+
+        updatePolicy(type, val) {
+            audioSystem.playClick();
+            state.policies[type] = parseInt(val);
+            const labels = {
+                security: ['Minimum','Low','Medium','High','Maximum'],
+                food: ['Poor','Basic','Standard','Good','Excellent'],
+                work: v=>v<25?'Minimal':v<50?'Light':v<75?'Moderate':'Heavy'
+            };
+            if (labels[type]) {
+                const disp = typeof labels[type]==='function'?labels[type](val):labels[type][val-1];
+                const el = document.getElementById(type+'-value')||document.getElementById('security-value');
+                if (el && type==='security') el.textContent = disp;
+                if (type==='food') { const fe=document.getElementById('food-value'); if(fe) fe.textContent=disp; }
+                if (type==='work') { const we=document.getElementById('work-value'); if(we) we.textContent=typeof labels[type]==='function'?labels[type](val):''; }
+            }
+            if (type==='rehabilitation') {
+                const v=parseInt(val); const rv=document.getElementById('rehab-value');
+                if(rv) rv.textContent=v<25?'Punishment':v<50?'Balanced-hard':v<75?'Balanced-soft':'Rehabilitation';
+            }
+            if (type==='cellQuality') {
+                const q=['Bare','Basic','Decent','Comfortable','Premium'][val-1];
+                const cq=document.getElementById('cell-quality-value'); if(cq) cq.textContent=q;
+            }
+        },
+
+        saveGame(silent=false) {
+            audioSystem.playClick();
+            const save = {
+                money:state.money, inmates:state.inmates, staff:state.staff,
+                buildings:state.buildings, expansions:state.expansions,
+                programs:[...state.activePrograms], policies:state.policies,
+                unrest:state.unrest, reputation:state.reputation, day:state.day,
+                paroleStats:state.paroleStats, contraband:state.contraband,
+                hasScanner:state.hasScanner
+            };
+            localStorage.setItem('prisonTycoonSave', JSON.stringify(save));
+            const el = document.getElementById('save-status');
+            if(el) el.innerHTML = `<span style="color:#4ade80">✅ Saved on Day ${state.day}</span>`;
+            if (!silent) { this.showNotification('💾 Game saved!','success'); }
+        },
+
+        loadGame() {
+            const data = localStorage.getItem('prisonTycoonSave');
+            if (!data) { this.showNotification('❌ No save found!','error'); return; }
+            try {
+                const save = JSON.parse(data);
+                Object.assign(state, save);
+                state.activePrograms = new Set(save.programs||[]);
+                addEvent('📂 Game loaded successfully','success');
+                audioSystem.playPurchase();
+                this.showNotification('📂 Game loaded!','success');
+                renderUI();
+            } catch(e) { this.showNotification('❌ Save corrupted!','error'); }
+        },
+
+        newGame() {
+            if (!confirm('Start a new game? All progress will be lost.')) return;
+            state = {
+                money:50000, inmates:[], staff:{guards:0,counselors:0,medics:0,admins:0},
+                buildings:{cells:1,cafeteria:0,gym:0,library:0,workshop:0,medical:0,chapel:0,solitary:0},
+                expansions:{minSecurity:0,deathRow:0,womens:0},
+                programs:[], activePrograms:new Set(),
+                policies:{security:3,rehabilitation:50,food:3,work:50,cellQuality:2},
+                unrest:0, reputation:50, day:1,
+                riotActive:false, riotDuration:0, riotDamage:0,
+                contraband:{weapons:0,drugs:0,phones:0,alcohol:0},
+                hasScanner:false, extraPatrols:false,
+                paroleStats:{approved:0,denied:0,upheld:0,wrongful:0},
+                paused:false, autosave:true,
+                events:[{time:'Day 1 - Morning',text:'Prison facility established. Welcome, Warden!',type:'info'}],
+                transactions:['Day 1: Initial funding received (+$50,000)']
+            };
+            this.showNotification('🔄 New game started!','success');
+            renderUI();
+        },
+
+        toggleAutosave(v) { state.autosave = v; },
+
+        showModal(title, content, actions=[]) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = content;
+            const actEl = document.getElementById('modal-actions');
+            actEl.innerHTML = actions.map(a=>`<button class="btn ${a.cls||''}" onclick="${a.action}">${a.label}</button>`).join('')
+                + '<button class="btn secondary" onclick="game.closeModal()">Close</button>';
+            document.getElementById('modal').classList.add('active');
+        },
+
+        closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        },
+
+        showNotification(msg, type='info') {
+            const el = document.getElementById('notification');
+            el.textContent = msg; el.className = `notification ${type} show`;
+            setTimeout(()=>el.classList.remove('show'), 3000);
+        }
+    };
+})();
+
+// ================================================
+// KEYBOARD SHORTCUTS
+// ================================================
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const tabs = ['overview','buildings','staff','inmates','programs','parole','security','policies','finance','settings'];
+    const key = e.key;
+    if (key >= '1' && key <= '9') game.switchTab(tabs[parseInt(key)-1]);
+    if (key === '0') game.switchTab('settings');
+    if (key.toLowerCase() === 'm') audioSystem.toggle();
+    if (key.toLowerCase() === 's' && !e.ctrlKey) game.saveGame();
+    if (key.toLowerCase() === 'l') game.loadGame();
+    if (key.toLowerCase() === 'n') game.nextDay();
+    if (key === '?') {
+        const hint = document.getElementById('keyboard-hint');
+        if (hint) hint.style.display = hint.style.display==='none'?'block':'none';
+    }
+    if (key === 'Escape') game.closeModal();
+});
+
+// ================================================
+// INIT
+// ================================================
+window.addEventListener('load', () => {
+    renderUI();
+    // Close hint after 8 seconds
+    setTimeout(() => {
+        const hint = document.getElementById('keyboard-hint');
+        if (hint) hint.style.display = 'none';
+    }, 8000);
+});
+    </script>
+</body>
+</html>

@@ -683,7 +683,42 @@
             cursor: pointer;
             border: none;
         }
-    </style>
+    
+        /* === Enhanced Visual Effects === */
+        @keyframes infectedPulse {
+            0%, 100% { box-shadow: 0 0 5px var(--warning); }
+            50% { box-shadow: 0 0 20px var(--warning), 0 0 40px rgba(255,170,0,0.3); }
+        }
+        @keyframes deadPulse {
+            0%, 100% { box-shadow: 0 0 5px var(--danger); }
+            50% { box-shadow: 0 0 20px var(--danger), 0 0 40px rgba(255,68,68,0.3); }
+        }
+        .stat-value.infected { animation: infectedPulse 2s ease-in-out infinite; }
+        .stat-value.dead { animation: deadPulse 1.5s ease-in-out infinite; }
+        .news-item { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform:translateX(20px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        .trait:not(.locked):not(.purchased):hover { animation: traitGlow 0.3s ease; }
+        @keyframes traitGlow { 0% { border-color:var(--border); } 100% { border-color:var(--accent); box-shadow:0 0 15px rgba(0,255,136,0.3); } }
+        .trait.purchased { animation: purchasePop 0.4s ease; }
+        @keyframes purchasePop { 0% { transform:scale(1); } 50% { transform:scale(1.05); } 100% { transform:scale(1); } }
+        /* Music control enhancement */
+        #musicStatus { transition: all 0.3s; }
+        .header-buttons button:hover { box-shadow: 0 0 15px rgba(0,255,136,0.3); }
+        /* Cure bar shimmer */
+        .progress-fill.research { background: linear-gradient(90deg, var(--info), #88ccff, var(--info)); background-size: 200%; animation: shimmer 2s linear infinite; }
+        @keyframes shimmer { 0% { background-position:0% 50%; } 100% { background-position:200% 50%; } }
+        /* Country circle pulse on infection */
+        .country[data-infected="true"] { filter: drop-shadow(0 0 8px rgba(255,170,0,0.8)); }
+        /* Keyboard hint */
+        .key-hint { 
+            position: fixed; bottom:20px; left:20px; 
+            background: rgba(10,10,15,0.9); border:1px solid var(--border);
+            border-radius:8px; padding:10px; font-size:11px; color:var(--text-dim);
+            z-index:50; line-height:1.8;
+        }
+        .key-hint kbd { background:var(--bg-card); padding:2px 6px; border-radius:4px; border:1px solid var(--border); color:var(--accent); }
+
+</style>
 </head>
 <body>
     <!-- Start Screen -->
@@ -1401,6 +1436,7 @@
                         const lethality = type.lethality * traitMultipliers.lethality;
                         const newDeaths = country.infected * lethality * 0.001;
                         country.dead += newDeaths;
+                    if (newDeaths > 10000 && gameState.musicEnabled) playDeathWave();
                         country.infected -= newDeaths;
 
                         // Corpse transmission
@@ -1455,6 +1491,7 @@
                                     if (!target.hasInfected) {
                                         target.hasInfected = true;
                                         addNews(`Disease spreads to ${target.name}!`, 'spread');
+                                        if (gameState.musicEnabled) playCountryInfected();
                                     }
                                 }
                             }
@@ -1485,6 +1522,7 @@
                         }
                     });
                     addNews(`Disease spontaneously mutated: ${randomTrait.name}`, 'warning');
+                    if (gameState.musicEnabled) playMutationSound();
                     renderTraits(document.querySelector('.tab.active').dataset.tab);
                 }
             }
@@ -1656,217 +1694,182 @@
             }
         }
 
-        // Lofi Music System
+        // ==================== OMINOUS DISEASE AMBIENT SYSTEM ====================
         let audioCtx = null;
         let masterGain = null;
-        let compressor = null;
-        let vinylNode = null;
-        let chordInterval = null;
-        let beatInterval = null;
-        let currentChordIndex = 0;
         let isPlaying = false;
-
-        // Jazz chord frequencies (Cmaj7, Am7, Fmaj7, G7)
-        const chordProgression = [
-            { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] }, // C4, E4, G4, B4
-            { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },  // A3, C4, E4, G4
-            { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 349.23] }, // F3, A3, C4, E4
-            { name: 'G7', notes: [196.00, 246.94, 293.66, 392.00] }     // G3, B3, D4, G4
-        ];
+        let droneNodes = [];
+        let pulseInterval = null;
+        let ambientInterval = null;
 
         function initAudio() {
             if (audioCtx) return;
-            
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Master compressor: threshold -24dB, ratio 4:1
-            compressor = audioCtx.createDynamicsCompressor();
-            compressor.threshold.value = -24;
-            compressor.knee.value = 30;
-            compressor.ratio.value = 4;
-            compressor.attack.value = 0.003;
-            compressor.release.value = 0.25;
-            
-            // Master gain node
+            const comp = audioCtx.createDynamicsCompressor();
+            comp.threshold.value = -18; comp.ratio.value = 6;
             masterGain = audioCtx.createGain();
-            masterGain.gain.value = 0.15; // Default 15% volume
-            
-            compressor.connect(masterGain);
+            masterGain.gain.value = 0.2;
+            comp.connect(masterGain);
             masterGain.connect(audioCtx.destination);
         }
 
-        function createVinylCrackle() {
-            const bufferSize = audioCtx.sampleRate * 2; // 2 seconds buffer
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            
-            // Generate brown noise for vinyl texture
-            let lastOut = 0;
-            for (let i = 0; i < bufferSize; i++) {
-                const white = Math.random() * 2 - 1;
-                lastOut = (lastOut + (0.02 * white)) / 1.02;
-                data[i] = lastOut * 3.5; // Boost for crackle effect
-            }
-            
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            noise.loop = true;
-            
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0.008; // Very subtle vinyl crackle
-            
-            noise.connect(gain);
-            gain.connect(compressor);
-            
-            return { source: noise, gain: gain };
+        function createDrone(freq, vol, detune=0) {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const f = audioCtx.createBiquadFilter();
+            o.type = 'sawtooth';
+            o.frequency.value = freq;
+            o.detune.value = detune;
+            // Slow LFO for tremolo
+            const lfo = audioCtx.createOscillator();
+            const lfoG = audioCtx.createGain();
+            lfo.frequency.value = 0.15;
+            lfoG.gain.value = vol * 0.3;
+            lfo.connect(lfoG); lfoG.connect(g.gain);
+            f.type = 'lowpass'; f.frequency.value = 300; f.Q.value = 3;
+            g.gain.setValueAtTime(vol, audioCtx.currentTime);
+            o.connect(f); f.connect(g); g.connect(masterGain);
+            o.start(); lfo.start();
+            return { osc: o, gain: g, lfo };
         }
 
-        function playChord(chord) {
+        function playOminousTone(freq, dur, vol=0.12, delay=0) {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime + delay;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const f = audioCtx.createBiquadFilter();
+            o.type = 'triangle'; o.frequency.value = freq;
+            f.type = 'lowpass'; f.frequency.value = 500; f.Q.value = 5;
+            g.gain.setValueAtTime(0, now);
+            g.gain.linearRampToValueAtTime(vol, now + dur*0.3);
+            g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            o.connect(f); f.connect(g); g.connect(masterGain);
+            o.start(now); o.stop(now + dur);
+        }
+
+        function playHeartbeat() {
+            if (!isPlaying || !audioCtx) return;
             const now = audioCtx.currentTime;
-            
-            chord.notes.forEach((freq, i) => {
-                // Create sine wave oscillator for soft sound
-                const osc = audioCtx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.value = freq;
-                
-                // Gain node for this note
-                const noteGain = audioCtx.createGain();
-                noteGain.gain.value = 0;
-                
-                // Slow attack/release: 1.5s attack, 1s release
-                const volume = 0.025; // Very low volume per oscillator
-                noteGain.gain.setValueAtTime(0, now);
-                noteGain.gain.linearRampToValueAtTime(volume, now + 1.5);
-                noteGain.gain.setValueAtTime(volume, now + 3.5);
-                noteGain.gain.exponentialRampToValueAtTime(0.001, now + 4.5);
-                
-                // Slight detune for warmth
-                osc.detune.value = (Math.random() - 0.5) * 10;
-                
-                osc.connect(noteGain);
-                noteGain.connect(compressor);
-                
-                osc.start(now);
-                osc.stop(now + 5);
+            // Thump thump - heartbeat pattern
+            [0, 0.15].forEach(d => {
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = 'sine'; o.frequency.value = 55;
+                g.gain.setValueAtTime(0, now+d);
+                g.gain.linearRampToValueAtTime(0.35, now+d+0.05);
+                g.gain.exponentialRampToValueAtTime(0.001, now+d+0.25);
+                o.connect(g); g.connect(masterGain);
+                o.start(now+d); o.stop(now+d+0.25);
             });
         }
 
-        function playKick(time) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            
-            osc.frequency.setValueAtTime(60, time);
-            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-            
-            gain.gain.setValueAtTime(0.08, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
-            
-            osc.connect(gain);
-            gain.connect(compressor);
-            
-            osc.start(time);
-            osc.stop(time + 0.5);
-        }
-
-        function playSnare(time) {
-            // Snare using filtered noise
-            const bufferSize = audioCtx.sampleRate * 0.1;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1;
-            }
-            
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            
-            // Bandpass filter for snare character
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 1000;
-            filter.Q.value = 1;
-            
-            const gain = audioCtx.createGain();
-            gain.gain.setValueAtTime(0.04, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
-            
-            noise.connect(filter);
-            filter.connect(gain);
-            gain.connect(compressor);
-            
-            noise.start(time);
-        }
-
-        function scheduleBeat() {
-            if (!isPlaying) return;
-            
-            const beatDuration = 60 / 75; // 75 BPM
+        function playInfectionSound() {
+            if (!audioCtx) return;
+            // Wet, organic spread sound
             const now = audioCtx.currentTime;
-            
-            // Simple downtempo beat: kick on 1 and 3, snare on 2 and 4
-            playKick(now);
-            setTimeout(() => playSnare(now + beatDuration), beatDuration * 1000);
-            setTimeout(() => playKick(now + beatDuration * 2), beatDuration * 2 * 1000);
-            setTimeout(() => playSnare(now + beatDuration * 3), beatDuration * 3 * 1000);
+            const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*0.3, audioCtx.sampleRate);
+            const d = buf.getChannelData(0);
+            let last = 0;
+            for (let i=0; i<d.length; i++) {
+                last = (last + 0.02*(Math.random()*2-1))/1.02;
+                d[i] = last * 5;
+            }
+            const src = audioCtx.createBufferSource(); src.buffer = buf;
+            const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 200; f.Q.value = 2;
+            const g = audioCtx.createGain(); g.gain.setValueAtTime(0.3, now); g.gain.exponentialRampToValueAtTime(0.001, now+0.3);
+            src.connect(f); f.connect(g); g.connect(masterGain); src.start(now);
         }
 
-        function scheduleChords() {
-            if (!isPlaying) return;
-            
-            const chord = chordProgression[currentChordIndex];
-            playChord(chord);
-            
-            currentChordIndex = (currentChordIndex + 1) % chordProgression.length;
+        function playCountryInfected() {
+            if (!audioCtx || !isPlaying) return;
+            // Ominous bell toll
+            playOminousTone(110, 3, 0.2);
+            playOminousTone(146.83, 2.5, 0.15, 0.1);
+            playInfectionSound();
+        }
+
+        function playDeathWave() {
+            if (!audioCtx || !isPlaying) return;
+            // Deep boom
+            const now = audioCtx.currentTime;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = 'sine'; o.frequency.setValueAtTime(60, now); o.frequency.exponentialRampToValueAtTime(20, now+1.5);
+            g.gain.setValueAtTime(0.5, now); g.gain.exponentialRampToValueAtTime(0.001, now+1.5);
+            o.connect(g); g.connect(masterGain); o.start(now); o.stop(now+1.5);
+        }
+
+        function playMutationSound() {
+            if (!audioCtx || !isPlaying) return;
+            const now = audioCtx.currentTime;
+            // Glitchy rising tone
+            [0,0.1,0.2,0.3].forEach((d,i) => {
+                const freq = 200 * Math.pow(1.5, i);
+                playOminousTone(freq, 0.4, 0.15, d);
+            });
+        }
+
+        function startAmbient() {
+            // Dark drone chords: Dm7 voicing at low register
+            const droneFreqs = [
+                { f: 36.71, v: 0.15, d: 0 },    // D1
+                { f: 55.00, v: 0.12, d: -8 },    // A1
+                { f: 73.42, v: 0.10, d: 5 },     // C2
+                { f: 87.31, v: 0.08, d: -4 },    // F2 (minor 3rd)
+            ];
+            droneNodes = droneFreqs.map(({f,v,d}) => createDrone(f, v, d));
+
+            // Heartbeat pulse every ~2.8 seconds
+            playHeartbeat();
+            pulseInterval = setInterval(() => { if (isPlaying) playHeartbeat(); }, 2800);
+
+            // Evolving ambient tones - ominous minor chords
+            const ambientChords = [
+                [73.42, 87.31, 110.00],   // Dm chord
+                [65.41, 77.78, 98.00],    // Cm chord
+                [82.41, 98.00, 123.47],   // Em chord
+                [69.30, 82.41, 103.83],   // Eb chord
+            ];
+            let ci = 0;
+            const playAmbChord = () => {
+                if (!isPlaying) return;
+                const ch = ambientChords[ci % ambientChords.length];
+                ch.forEach((freq, i) => playOminousTone(freq*2, 6, 0.08 - i*0.01, i*0.3));
+                ci++;
+            };
+            playAmbChord();
+            ambientInterval = setInterval(playAmbChord, 6000);
+        }
+
+        function stopAmbient() {
+            droneNodes.forEach(({osc, lfo}) => {
+                try { osc.stop(); lfo.stop(); } catch(e) {}
+            });
+            droneNodes = [];
+            if (pulseInterval) { clearInterval(pulseInterval); pulseInterval = null; }
+            if (ambientInterval) { clearInterval(ambientInterval); ambientInterval = null; }
         }
 
         function startMusic() {
             if (!audioCtx) initAudio();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             isPlaying = true;
-            
-            // Start vinyl crackle
-            if (!vinylNode) {
-                vinylNode = createVinylCrackle();
-                vinylNode.source.start();
-            }
-            vinylNode.gain.gain.setValueAtTime(0.008, audioCtx.currentTime);
-            
-            // Schedule chords every 4 seconds
-            scheduleChords();
-            chordInterval = setInterval(scheduleChords, 4000);
-            
-            // Schedule beats at 75 BPM (4 beats = ~3.2 seconds per bar)
-            scheduleBeat();
-            beatInterval = setInterval(scheduleBeat, (60 / 75) * 4 * 1000);
+            startAmbient();
         }
 
         function stopMusic() {
             isPlaying = false;
-            
-            if (chordInterval) {
-                clearInterval(chordInterval);
-                chordInterval = null;
-            }
-            if (beatInterval) {
-                clearInterval(beatInterval);
-                beatInterval = null;
-            }
-            
-            // Fade out vinyl
-            if (vinylNode && audioCtx) {
-                const now = audioCtx.currentTime;
-                vinylNode.gain.gain.setValueAtTime(vinylNode.gain.gain.value, now);
-                vinylNode.gain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+            stopAmbient();
+            if (masterGain) {
+                masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
+                masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
             }
         }
 
         function toggleMusic() {
             gameState.musicEnabled = !gameState.musicEnabled;
             document.getElementById('musicStatus').textContent = gameState.musicEnabled ? 'On' : 'Off';
-            
             if (gameState.musicEnabled) {
                 startMusic();
             } else {
@@ -1879,7 +1882,6 @@
                 masterGain.gain.value = value / 100;
             }
         }
-
         // Save/Load System
         function openSaveModal() {
             document.getElementById('saveLoadTitle').textContent = 'Save Game';
@@ -2018,6 +2020,48 @@
         document.getElementById('saveLoadModal').addEventListener('click', (e) => {
             if (e.target.id === 'saveLoadModal') closeSaveLoadModal();
         });
+    
+        // ==================== KEYBOARD CONTROLS ====================
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePause();
+                    break;
+                case 'KeyM':
+                    e.preventDefault();
+                    toggleMusic();
+                    break;
+                case 'KeyS':
+                    if (e.ctrlKey) { e.preventDefault(); openSaveModal(); }
+                    break;
+                case 'KeyL':
+                    if (e.ctrlKey) { e.preventDefault(); openLoadModal(); }
+                    break;
+                case 'Escape':
+                    closeModal();
+                    closeSaveLoadModal();
+                    break;
+                case 'Digit1': case 'KeyT':
+                    document.querySelector('.tab[data-tab="transmission"]')?.click();
+                    break;
+                case 'Digit2': case 'KeyY':
+                    document.querySelector('.tab[data-tab="symptoms"]')?.click();
+                    break;
+                case 'Digit3': case 'KeyA':
+                    if (!e.ctrlKey) document.querySelector('.tab[data-tab="abilities"]')?.click();
+                    break;
+            }
+        });
+
+        // Add keyboard hint to DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            const hint = document.createElement('div');
+            hint.className = 'key-hint';
+            hint.innerHTML = '<strong>⌨️ Keys</strong><br><kbd>Space</kbd> Pause<br><kbd>M</kbd> Music<br><kbd>1/2/3</kbd> Evolution tabs<br><kbd>Esc</kbd> Close modal';
+            document.body.appendChild(hint);
+        });
+
     </script>
 </body>
 </html>

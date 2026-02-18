@@ -1,1162 +1,1076 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medieval Kingdom Wars - Enhanced</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
 
-        body {
-            font-family: 'Cinzel', 'Georgia', serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-            color: #d4af37;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
-
-        #gameContainer {
-            display: flex;
-            height: 100vh;
-        }
-
-        #sidebar {
-            width: 300px;
-            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
-            border-right: 3px solid #d4af37;
-            padding: 12px;
-            overflow-y: auto;
-            box-shadow: 5px 0 20px rgba(0,0,0,0.5);
-        }
-
-        #rightSidebar {
-            width: 320px;
-            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
-            border-left: 3px solid #d4af37;
-            padding: 12px;
-            overflow-y: auto;
-            box-shadow: -5px 0 20px rgba(0,0,0,0.5);
-        }
-
-        #mainArea {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-
-        #topBar {
-            height: 70px;
-            background: linear-gradient(90deg, #1a1a2e 0%, #2a2a4e 50%, #1a1a2e 100%);
-            border-bottom: 2px solid #d4af37;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-        }
-
-        #canvasContainer {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            background: #0a0a0a;
-        }
-
-        #gameCanvas {
-            cursor: crosshair;
-        }
-
-        .panel {
-            background: rgba(26, 26, 46, 0.9);
-            border: 2px solid #d4af37;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        .panel h3 {
-            color: #d4af37;
-            text-align: center;
-            margin-bottom: 8px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid #d4af37;
-            padding-bottom: 6px;
-        }
-
-        .resource-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-        }
-
-        .resource-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 6px 0;
-            padding: 5px 8px;
-            background: rgba(212, 175, 55, 0.1);
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .resource-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .resource-value {
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .btn {
-            background: linear-gradient(180deg, #4a3728 0%, #2a1f18 100%);
-            border: 2px solid #d4af37;
-            color: #d4af37;
-            padding: 8px 12px;
-            cursor: pointer;
-            border-radius: 6px;
-            font-family: 'Cinzel', serif;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s;
-            margin: 3px;
-        }
-
-        .btn:hover {
-            background: linear-gradient(180deg, #5a4738 0%, #3a2f28 100%);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-full {
-            width: calc(100% - 6px);
-            margin: 3px;
-        }
-
-        .btn-war {
-            background: linear-gradient(180deg, #5a2828 0%, #3a1f18 100%);
-            border-color: #ff6b6b;
-        }
-
-        .btn-war:hover {
-            background: linear-gradient(180deg, #6a3838 0%, #4a2f28 100%);
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.4);
-        }
-
-        .btn-ally {
-            background: linear-gradient(180deg, #285a28 0%, #183a18 100%);
-            border-color: #6bff6b;
-        }
-
-        .btn-ally:hover {
-            background: linear-gradient(180deg, #386a38 0%, #284a28 100%);
-            box-shadow: 0 0 15px rgba(107, 255, 107, 0.4);
-        }
-
-        .btn-spy {
-            background: linear-gradient(180deg, #3a285a 0%, #1f183a 100%);
-            border-color: #9b6bff;
-        }
-
-        .btn-spy:hover {
-            background: linear-gradient(180deg, #4a386a 0%, #2f284a 100%);
-            box-shadow: 0 0 15px rgba(155, 107, 255, 0.4);
-        }
-
-        .btn-hero {
-            background: linear-gradient(180deg, #5a4a28 0%, #3a2f18 100%);
-            border-color: #ffd700;
-        }
-
-        .btn-hero:hover {
-            background: linear-gradient(180deg, #6a5a38 0%, #4a3f28 100%);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
-        }
-
-        .unit-card {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid #d4af37;
-            border-radius: 6px;
-            padding: 8px;
-            margin: 5px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .unit-info {
-            flex: 1;
-        }
-
-        .unit-name {
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .unit-stats {
-            font-size: 10px;
-            color: #aaa;
-        }
-
-        .tech-tree {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-        }
-
-        .tech-node {
-            background: rgba(0,0,0,0.4);
-            border: 2px solid #555;
-            border-radius: 6px;
-            padding: 5px 2px;
-            text-align: center;
-            font-size: 9px;
-            cursor: pointer;
-            transition: all 0.3s;
-            min-height: 45px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .tech-node:hover:not(.locked):not(.researched) {
-            border-color: #d4af37;
-            background: rgba(212, 175, 55, 0.2);
-        }
-
-        .tech-node.researched {
-            border-color: #6bff6b;
-            background: rgba(107, 255, 107, 0.2);
-        }
-
-        .tech-node.locked {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .diplomacy-item {
-            display: flex;
-            flex-direction: column;
-            padding: 8px;
-            margin: 5px 0;
-            background: rgba(0,0,0,0.3);
-            border-radius: 4px;
-            border-left: 4px solid #555;
-        }
-
-        .diplomacy-item.allied {
-            border-left-color: #6bff6b;
-        }
-
-        .diplomacy-item.war {
-            border-left-color: #ff6b6b;
-        }
-
-        .diplomacy-item.trade {
-            border-left-color: #d4af37;
-        }
-
-        .diplomacy-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-
-        .diplomacy-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 3px;
-        }
-
-        .diplomacy-actions .btn {
-            padding: 4px 8px;
-            font-size: 9px;
-            margin: 2px;
-        }
-
-        .status-bar {
-            display: flex;
-            gap: 20px;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-        }
-
-        .status-icon {
-            font-size: 18px;
-        }
-
-        #eventLog {
-            max-height: 150px;
-            overflow-y: auto;
-            font-size: 11px;
-        }
-
-        .event-entry {
-            padding: 4px 8px;
-            margin: 3px 0;
-            background: rgba(0,0,0,0.3);
-            border-radius: 3px;
-            border-left: 3px solid #d4af37;
-        }
-
-        .event-entry.negative {
-            border-left-color: #ff6b6b;
-        }
-
-        .event-entry.positive {
-            border-left-color: #6bff6b;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
-            border: 3px solid #d4af37;
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 85vh;
-            overflow-y: auto;
-            box-shadow: 0 0 50px rgba(212, 175, 55, 0.3);
-        }
-
-        .modal h2 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #d4af37;
-            font-size: 20px;
-        }
-
-        .hero-card {
-            background: rgba(0,0,0,0.4);
-            border: 2px solid #ffd700;
-            border-radius: 8px;
-            padding: 12px;
-            margin: 10px 0;
-        }
-
-        .hero-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .hero-name {
-            font-size: 16px;
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .hero-level {
-            background: #4a3728;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-        }
-
-        .hero-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 5px;
-            font-size: 11px;
-            margin: 8px 0;
-        }
-
-        .hero-abilities {
-            margin-top: 8px;
-        }
-
-        .hero-ability {
-            background: rgba(212, 175, 55, 0.2);
-            padding: 5px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            margin: 3px 0;
-            border-left: 3px solid #d4af37;
-        }
-
-        .hero-actions {
-            display: flex;
-            gap: 5px;
-            margin-top: 8px;
-        }
-
-        .castle-info {
-            text-align: center;
-        }
-
-        .castle-level {
-            font-size: 20px;
-            color: #ffd700;
-            margin: 5px 0;
-        }
-
-        .building-list {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 5px;
-            margin-top: 10px;
-        }
-
-        .building-item {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid #555;
-            border-radius: 4px;
-            padding: 5px;
-            font-size: 10px;
-            text-align: center;
-        }
-
-        .building-item.built {
-            border-color: #6bff6b;
-            background: rgba(107, 255, 107, 0.1);
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 18px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 9px;
-            overflow: hidden;
-            margin: 8px 0;
-            border: 1px solid #d4af37;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #d4af37 0%, #ffd700 100%);
-            transition: width 0.3s;
-        }
-
-        #minimap {
-            width: 100%;
-            height: 100px;
-            background: #0a0a0a;
-            border: 2px solid #d4af37;
-            border-radius: 6px;
-            margin-top: 10px;
-        }
-
-        .mode-toggle {
-            display: flex;
-            background: rgba(0,0,0,0.5);
-            border-radius: 20px;
-            padding: 3px;
-        }
-
-        .mode-btn {
-            padding: 8px 16px;
-            border: none;
-            background: transparent;
-            color: #888;
-            cursor: pointer;
-            border-radius: 17px;
-            font-family: 'Cinzel', serif;
-            font-size: 11px;
-            transition: all 0.3s;
-        }
-
-        .mode-btn.active {
-            background: #d4af37;
-            color: #1a1a2e;
-        }
-
-        .tooltip {
-            position: absolute;
-            background: rgba(26, 26, 46, 0.95);
-            border: 2px solid #d4af37;
-            border-radius: 6px;
-            padding: 10px;
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 100;
-            max-width: 220px;
-            display: none;
-        }
-
-        .tooltip.show {
-            display: block;
-        }
-
-        #turnInfo {
-            text-align: center;
-        }
-
-        #turnNumber {
-            font-size: 18px;
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .back-btn {
-            background: linear-gradient(180deg, #4a3728 0%, #2a1f18 100%);
-            border: 2px solid #d4af37;
-            color: #d4af37;
-            padding: 8px 15px;
-            text-decoration: none;
-            border-radius: 6px;
-            font-family: 'Cinzel', serif;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-            font-size: 12px;
-            margin-bottom: 10px;
-        }
-
-        .back-btn:hover {
-            background: linear-gradient(180deg, #5a4738 0%, #3a2f28 100%);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
-        }
-
-        .siege-panel {
-            background: rgba(90, 40, 40, 0.3);
-            border: 2px solid #ff6b6b;
-        }
-
-        .spy-panel {
-            background: rgba(60, 40, 90, 0.3);
-            border: 2px solid #9b6bff;
-        }
-
-        .fog-toggle {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 8px 0;
-            font-size: 12px;
-        }
-
-        .toggle-switch {
-            width: 45px;
-            height: 22px;
-            background: #333;
-            border-radius: 22px;
-            position: relative;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .toggle-switch.active {
-            background: #d4af37;
-        }
-
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            background: white;
-            border-radius: 50%;
-            top: 2px;
-            left: 2px;
-            transition: transform 0.3s;
-        }
-
-        .toggle-switch.active::after {
-            transform: translateX(23px);
-        }
-
-        .victory-tracker {
-            background: rgba(0,0,0,0.4);
-            border: 2px solid #ffd700;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 10px 0;
-        }
-
-        .victory-type {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-        }
-
-        .victory-type:last-child {
-            border-bottom: none;
-        }
-
-        .victory-progress {
-            font-size: 11px;
-            color: #aaa;
-        }
-
-        .spy-mission {
-            background: rgba(155, 107, 255, 0.1);
-            border: 1px solid #9b6bff;
-            border-radius: 6px;
-            padding: 10px;
-            margin: 8px 0;
-        }
-
-        .spy-mission h4 {
-            color: #9b6bff;
-            margin-bottom: 5px;
-        }
-
-        .mission-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 8px;
-        }
-
-        .siege-weapon-card {
-            background: rgba(90, 40, 40, 0.2);
-            border: 1px solid #ff6b6b;
-            border-radius: 6px;
-            padding: 8px;
-            margin: 5px 0;
-        }
-
-        .trade-panel {
-            background: rgba(40, 90, 40, 0.2);
-            border: 1px solid #6bff6b;
-            border-radius: 6px;
-            padding: 10px;
-            margin: 8px 0;
-        }
-
-        .resource-trade-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
-            font-size: 12px;
-        }
-
-        .intel-report {
-            background: rgba(155, 107, 255, 0.15);
-            border-left: 4px solid #9b6bff;
-            padding: 8px;
-            margin: 5px 0;
-            border-radius: 0 4px 4px 0;
-            font-size: 11px;
-        }
-
-        .tab-container {
-            display: flex;
-            border-bottom: 2px solid #d4af37;
-            margin-bottom: 10px;
-        }
-
-        .tab-btn {
-            background: transparent;
-            border: none;
-            color: #888;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-family: 'Cinzel', serif;
-            font-size: 11px;
-            transition: all 0.3s;
-        }
-
-        .tab-btn.active {
-            color: #d4af37;
-            border-bottom: 2px solid #d4af37;
-            margin-bottom: -2px;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #0a0a0a;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #d4af37;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #ffd700;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 1200px) {
-            #sidebar { width: 260px; }
-            #rightSidebar { width: 260px; }
+        // ==================== EPIC MEDIEVAL AUDIO SYSTEM ====================
+        class MedievalAudioSystem {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = 0.2;
+                this.isPlaying = false;
+                this.currentSection = 0;
+                this.nextNoteTime = 0;
+                this.bpm = 80; // Slow, epic tempo
+                this.timerID = null;
+                
+                // Chord progressions for epic orchestral feel
+                this.chordProgressions = [
+                    // Epic intro progression
+                    [
+                        { root: 65.41, type: 'minor', notes: [65.41, 77.78, 98.00, 116.54] }, // Dm
+                        { root: 55.00, type: 'major', notes: [55.00, 69.30, 82.41, 110.00] }, // A
+                        { root: 73.42, type: 'minor', notes: [73.42, 87.31, 110.00, 130.81] }, // Cm
+                        { root: 49.00, type: 'minor', notes: [49.00, 58.27, 73.42, 87.31] }   // Gm
+                    ],
+                    // Battle progression
+                    [
+                        { root: 41.20, type: 'minor', notes: [41.20, 49.00, 61.74, 73.42] },   // E low
+                        { root: 55.00, type: 'minor', notes: [55.00, 65.41, 82.41, 98.00] },   // A
+                        { root: 65.41, type: 'minor', notes: [65.41, 77.78, 98.00, 116.54] }, // Dm
+                        { root: 49.00, type: 'minor', notes: [49.00, 58.27, 73.42, 87.31] }   // G
+                    ]
+                ];
+                
+                this.currentProgression = 0;
+                this.beatCount = 0;
+                
+                // Sound effect generators
+                this.swordSwingBuffer = this.createNoiseBuffer(0.1, 'white');
+                this.arrowWhooshBuffer = this.createNoiseBuffer(0.15, 'pink');
+            }
+            
+            createNoiseBuffer(duration, type) {
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    if (type === 'pink') {
+                        // Pink noise approximation
+                        data[i] = (white + (data[i-1] || 0)) / 2 * 0.5;
+                    } else {
+                        data[i] = white;
+                    }
+                }
+                return buffer;
+            }
+            
+            // Play a string ensemble-like sound
+            playString(freq, duration, volume = 0.3, delay = 0) {
+                const now = this.ctx.currentTime + delay;
+                
+                // Main oscillator (sawtooth for string texture)
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                
+                // Filter for string-like quality
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800 + Math.random() * 400;
+                filter.Q.value = 1;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(volume, now + 0.3);
+                gain.gain.exponentialRampToValueAtTime(volume * 0.7, now + duration * 0.7);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(now);
+                osc.stop(now + duration);
+                
+                // Add subtle vibrato
+                const vibrato = this.ctx.createOscillator();
+                vibrato.frequency.value = 5;
+                const vibratoGain = this.ctx.createGain();
+                vibratoGain.gain.value = freq * 0.01;
+                vibrato.connect(vibratoGain);
+                vibratoGain.connect(osc.frequency);
+                vibrato.start(now);
+                vibrato.stop(now + duration);
+            }
+            
+            // Play brass/horn sound
+            playBrass(freq, duration, volume = 0.25, delay = 0) {
+                const now = this.ctx.currentTime + delay;
+                
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(200, now);
+                filter.frequency.linearRampToValueAtTime(600, now + 0.1);
+                filter.frequency.exponentialRampToValueAtTime(400, now + duration);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(volume, now + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+            
+            // Play choral pad
+            playChoir(freq, duration, volume = 0.2, delay = 0) {
+                const now = this.ctx.currentTime + delay;
+                
+                // Multiple oscillators for choir effect
+                const freqs = [freq, freq * 1.005, freq * 0.995];
+                
+                freqs.forEach((f, i) => {
+                    const osc = this.ctx.createOscillator();
+                    osc.type = i === 0 ? 'sine' : 'triangle';
+                    osc.frequency.value = f;
+                    
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 1200;
+                    
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(volume * (i === 0 ? 1 : 0.5), now + 0.5);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    osc.start(now);
+                    osc.stop(now + duration);
+                });
+            }
+            
+            // Epic drum hit
+            playDrum(type, delay = 0) {
+                const now = this.ctx.currentTime + delay;
+                
+                if (type === 'timpani') {
+                    const osc = this.ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(80, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.5);
+                    
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    osc.start(now);
+                    osc.stop(now + 1);
+                } else if (type === 'snare') {
+                    const buffer = this.createNoiseBuffer(0.2, 'white');
+                    const source = this.ctx.createBufferSource();
+                    source.buffer = buffer;
+                    
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.value = 1000;
+                    
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    
+                    source.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    source.start(now);
+                }
+            }
+            
+            // Battle sound effects
+            playBattleHorn() {
+                const now = this.ctx.currentTime;
+                [220, 329.63, 440].forEach((freq, i) => {
+                    this.playBrass(freq, 1.5, 0.4, i * 0.15);
+                });
+            }
+            
+            playSwordClash() {
+                const now = this.ctx.currentTime;
+                
+                // Metallic clang
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1000;
+                filter.Q.value = 10;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(now);
+                osc.stop(now + 0.3);
+                
+                // Add noise for texture
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = this.swordSwingBuffer;
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.2, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                noise.connect(noiseGain);
+                noiseGain.connect(this.masterGain);
+                noise.start(now);
+            }
+            
+            playArrowShot() {
+                const now = this.ctx.currentTime;
+                
+                const osc = this.ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+            
+            playCastleUpgrade() {
+                const now = this.ctx.currentTime;
+                // Victory fanfare
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    this.playBrass(freq, 2, 0.3, i * 0.2);
+                });
+            }
+            
+            playRecruitSound(unitType) {
+                const now = this.ctx.currentTime;
+                const freqs = {
+                    'knight': [196, 293.66], // G to D
+                    'archer': [329.63, 392], // E to G
+                    'cavalry': [130.81, 196], // C to G
+                    'spy': [261.63, 311.13] // C to D#
+                };
+                
+                const notes = freqs[unitType] || [261.63, 329.63];
+                notes.forEach((freq, i) => {
+                    this.playString(freq, 0.5, 0.2, i * 0.1);
+                });
+            }
+            
+            // Scheduler for background music
+            scheduler() {
+                while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
+                    this.playMusicBeat(this.beatCount, this.nextNoteTime);
+                    this.nextNoteTime += 60 / this.bpm / 2; // 8th notes
+                    this.beatCount++;
+                }
+                if (this.isPlaying) {
+                    this.timerID = requestAnimationFrame(() => this.scheduler());
+                }
+            }
+            
+            playMusicBeat(beat, time) {
+                const eighth = beat % 8;
+                const measure = Math.floor(beat / 8) % 16;
+                const progression = this.chordProgressions[this.currentProgression];
+                const chordIndex = Math.floor(measure / 4) % progression.length;
+                const chord = progression[chordIndex];
+                
+                const delay = (time - this.ctx.currentTime) * 1000;
+                
+                // Play chords on measure start
+                if (eighth === 0) {
+                    // Bass notes
+                    setTimeout(() => this.playString(chord.root, 4, 0.25), delay);
+                    
+                    // Chord tones
+                    chord.notes.slice(1).forEach((note, i) => {
+                        setTimeout(() => this.playString(note, 3.5, 0.15 - i * 0.02), delay + i * 50);
+                    });
+                    
+                    // Occasional brass
+                    if (measure % 8 === 0) {
+                        setTimeout(() => this.playBrass(chord.root * 2, 2, 0.2), delay);
+                    }
+                    
+                    // Choir pad every other measure
+                    if (measure % 2 === 0) {
+                        setTimeout(() => this.playChoir(chord.root * 2, 4, 0.15), delay);
+                    }
+                }
+                
+                // Timpani on beats 0 and 4
+                if (eighth === 0 || eighth === 4) {
+                    setTimeout(() => this.playDrum('timpani'), delay);
+                }
+                
+                // Snare on beat 4 (backbeat)
+                if (eighth === 4 && measure % 2 === 1) {
+                    setTimeout(() => this.playDrum('snare'), delay);
+                }
+                
+                // Switch progressions occasionally
+                if (measure === 15 && eighth === 7) {
+                    this.currentProgression = (this.currentProgression + 1) % this.chordProgressions.length;
+                }
+            }
+            
+            start() {
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                this.isPlaying = true;
+                this.nextNoteTime = this.ctx.currentTime;
+                this.beatCount = 0;
+                this.scheduler();
+            }
+            
+            stop() {
+                this.isPlaying = false;
+                if (this.timerID) {
+                    cancelAnimationFrame(this.timerID);
+                }
+            }
+            
+            setVolume(val) {
+                this.masterGain.gain.value = val / 100;
+            }
         }
         
-        @media (max-width: 900px) {
-            #rightSidebar { display: none; }
-            #sidebar { width: 280px; }
-        }
-
-        .unit-buttons {
-            display: flex;
-            flex-wrap: wrap;
-        }
-
-        .event-popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(180deg, #2a1a1a 0%, #1a0f0f 100%);
-            border: 3px solid #ff6b6b;
-            border-radius: 12px;
-            padding: 30px;
-            z-index: 2000;
-            text-align: center;
-            display: none;
-            box-shadow: 0 0 50px rgba(255, 107, 107, 0.5);
-        }
-
-        .event-popup.active {
-            display: block;
-            animation: popupPulse 0.5s ease;
-        }
-
-        @keyframes popupPulse {
-            0% { transform: translate(-50%, -50%) scale(0.8); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-        }
-
-        .music-control {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
-            border: 2px solid #d4af37;
-            border-radius: 12px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            z-index: 100;
-        }
-
-        .music-toggle {
-            background: linear-gradient(180deg, #4a3728 0%, #2a1f18 100%);
-            border: 2px solid #d4af37;
-            color: #d4af37;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .music-toggle:hover {
-            background: linear-gradient(180deg, #5a4738 0%, #3a2f28 100%);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
-            transform: scale(1.05);
-        }
-
-        .music-toggle.muted {
-            background: linear-gradient(180deg, #3a2828 0%, #1a0f0f 100%);
-            border-color: #ff6b6b;
-            color: #ff6b6b;
-        }
-
-        .volume-control {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .volume-label {
-            font-size: 10px;
-            color: #d4af37;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .volume-slider {
-            width: 100px;
-            height: 6px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: rgba(0,0,0,0.5);
-            border-radius: 3px;
-            outline: none;
-        }
-
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            background: linear-gradient(180deg, #d4af37 0%, #b8960f 100%);
-            border-radius: 50%;
-            cursor: pointer;
-            border: 2px solid #1a1a2e;
-        }
-
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1999;
-            display: none;
-        }
-
-        .overlay.active {
-            display: block;
-        }
-
-        .xp-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 3px 0;
-        }
-
-        .xp-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #9b6bff 0%, #c9a8ff 100%);
-            transition: width 0.3s;
-        }
-    </style>
-</head>
-<body>
-    <div id="gameContainer">
-        <div id="sidebar">
-            <a href="/games" class="back-btn">🎮 Games</a>
+        // ==================== GAME STATE ====================
+        const gameState = {
+            resources: {
+                prestige: 100,
+                gold: 500,
+                wood: 200,
+                stone: 150,
+                food: 200,
+                population: 50,
+                maxPopulation: 100
+            },
+            army: {
+                knights: 0,
+                archers: 0,
+                cavalry: 0,
+                spies: 0
+            },
+            castle: {
+                level: 1,
+                defense: 10,
+                garrison: 0,
+                progress: 0
+            },
+            buildings: {
+                barracks: false,
+                stables: false,
+                archeryRange: false,
+                marketplace: false,
+                blacksmith: false,
+                temple: false
+            },
+            techs: {},
+            diplomacy: {},
+            heroes: [],
+            turn: 1,
+            year: 1,
+            season: 0,
+            seasons: ['Spring', 'Summer', 'Fall', 'Winter'],
+            selectedKingdom: null,
+            audio: null,
+            musicEnabled: false
+        };
+        
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            gameState.audio = new MedievalAudioSystem();
+            initializeGame();
+            setupEventListeners();
+            setupKeyboardControls();
+            drawMap();
+            updateUI();
+        });
+        
+        function initializeGame() {
+            // Initialize kingdoms
+            const kingdomNames = ['Aldoria', 'Brenheim', 'Calador', 'Drakenmoor', 'Eldoria', 'Frostgarde'];
+            kingdomNames.forEach((name, i) => {
+                if (i > 0) { // Skip player kingdom
+                    gameState.diplomacy[name] = {
+                        status: 'neutral',
+                        relation: 0,
+                        color: `hsl(${i * 60}, 70%, 50%)`,
+                        x: 200 + Math.random() * 600,
+                        y: 150 + Math.random() * 400,
+                        army: Math.floor(Math.random() * 20) + 10,
+                        gold: Math.floor(Math.random() * 300) + 200
+                    };
+                }
+            });
             
-            <div class="panel">
-                <h3>👑 Kingdom Resources</h3>
-                <div class="resource-grid">
-                    <div class="resource-row">
-                        <div class="resource-label">👑 Prestige</div>
-                        <div class="resource-value" id="prestige">100</div>
-                    </div>
-                    <div class="resource-row">
-                        <div class="resource-label">🪙 Gold</div>
-                        <div class="resource-value" id="gold">500</div>
-                    </div>
-                    <div class="resource-row">
-                        <div class="resource-label">🪵 Wood</div>
-                        <div class="resource-value" id="wood">200</div>
-                    </div>
-                    <div class="resource-row">
-                        <div class="resource-label">🪨 Stone</div>
-                        <div class="resource-value" id="stone">150</div>
-                    </div>
-                    <div class="resource-row">
-                        <div class="resource-label">🌾 Food</div>
-                        <div class="resource-value" id="food">200</div>
-                    </div>
-                    <div class="resource-row">
-                        <div class="resource-label">👥 Pop</div>
-                        <div class="resource-value" id="population">50/100</div>
-                    </div>
-                </div>
-                <div class="resource-row" style="margin-top: 8px;">
-                    <div class="resource-label">⚔️ Army</div>
-                    <div class="resource-value" id="armySize">0</div>
-                </div>
-                <div class="resource-row">
-                    <div class="resource-label">🕵️ Spies</div>
-                    <div class="resource-value" id="spyCount">0</div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h3>🏰 Castle & Buildings</h3>
-                <div class="castle-info">
-                    <div class="castle-level" id="castleLevel">Level 1</div>
-                    <div>Defense: <span id="castleDefense">10</span> | Garrison: <span id="garrisonSize">0</span></div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="castleProgress" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="building-list" id="buildingList">
-                    <!-- Buildings generated by JS -->
-                </div>
-                <button class="btn btn-full" id="upgradeCastle">Upgrade Castle</button>
-                <button class="btn btn-full" id="manageBuildings">Manage Buildings</button>
-            </div>
-
-            <div class="panel">
-                <h3>⚔️ Recruit Units</h3>
-                <div class="unit-buttons">
-                    <button class="btn" id="recruitKnight">🛡️ Knight<br><small>50🪙 20🌾</small></button>
-                    <button class="btn" id="recruitArcher">🏹 Archer<br><small>30🪙 10🌾</small></button>
-                    <button class="btn" id="recruitCavalry">🐴 Cavalry<br><small>80🪙 30🌾</small></button>
-                    <button class="btn" id="recruitSpy">🕵️ Spy<br><small>100🪙 50🪵</small></button>
-                </div>
-                <div style="margin-top: 8px;">
-                    <button class="btn btn-hero btn-full" id="viewHeroes">🦸 View Heroes</button>
-                </div>
-            </div>
-
-            <canvas id="minimap"></canvas>
-        </div>
-
-        <div id="mainArea">
-            <div id="topBar">
-                <div class="status-bar">
-                    <div class="status-item">
-                        <span class="status-icon">🏰</span>
-                        <span id="kingdomName">Your Kingdom</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-icon">📅</span>
-                        <span id="gameDate">Year 1, Spring</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-icon">🎯</span>
-                        <span id="victoryStatus">Conquest: 0/5</span>
-                    </div>
-                </div>
+            // Initialize heroes
+            const heroNames = ['Sir Galahad', 'Lady Morgana', 'Thorin Ironbeard', 'Elara Swiftwind'];
+            gameState.heroes = heroNames.map((name, i) => ({
+                id: i,
+                name: name,
+                level: 1,
+                xp: 0,
+                maxXp: 100,
+                attack: 10 + Math.floor(Math.random() * 5),
+                defense: 8 + Math.floor(Math.random() * 5),
+                leadership: 5 + Math.floor(Math.random() * 5),
+                assigned: false,
+                abilities: ['Leadership I']
+            }));
+            
+            updateTechTree();
+            updateDiplomacy();
+            updateBuildingsList();
+        }
+        
+        function setupEventListeners() {
+            // Music toggle
+            document.getElementById('musicToggle').addEventListener('click', toggleMusic);
+            document.getElementById('volumeSlider').addEventListener('input', (e) => {
+                if (gameState.audio) {
+                    gameState.audio.setVolume(e.target.value);
+                }
+            });
+            
+            // Unit recruitment
+            document.getElementById('recruitKnight').addEventListener('click', () => recruitUnit('knight'));
+            document.getElementById('recruitArcher').addEventListener('click', () => recruitUnit('archer'));
+            document.getElementById('recruitCavalry').addEventListener('click', () => recruitUnit('cavalry'));
+            document.getElementById('recruitSpy').addEventListener('click', () => recruitUnit('spy'));
+            
+            // Castle
+            document.getElementById('upgradeCastle').addEventListener('click', upgradeCastle);
+            document.getElementById('manageBuildings').addEventListener('click', () => openModal('buildingsModal'));
+            document.getElementById('viewHeroes').addEventListener('click', () => openModal('heroModal'));
+            
+            // Turn
+            document.getElementById('endTurnBtn').addEventListener('click', endTurn);
+            document.getElementById('turnBasedBtn').addEventListener('click', () => setGameMode('turn'));
+            document.getElementById('realTimeBtn').addEventListener('click', () => setGameMode('realtime'));
+            
+            // Save/Load/Reset
+            document.getElementById('saveBtn').addEventListener('click', saveGame);
+            document.getElementById('loadBtn').addEventListener('click', loadGame);
+            document.getElementById('resetBtn').addEventListener('click', () => location.reload());
+            
+            // Canvas click
+            document.getElementById('gameCanvas').addEventListener('click', handleMapClick);
+            
+            // Toggle switches
+            document.getElementById('autoSaveToggle').addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+            document.getElementById('fogToggle').addEventListener('click', function() {
+                this.classList.toggle('active');
+                drawMap();
+            });
+        }
+        
+        function setupKeyboardControls() {
+            document.addEventListener('keydown', (e) => {
+                // Prevent default for game keys
+                if (['Space', 'KeyM', 'KeyH', 'KeyS', 'KeyL', 'KeyN'].includes(e.code)) {
+                    e.preventDefault();
+                }
                 
-                <div id="turnInfo">
-                    <div id="turnNumber">Turn 1</div>
-                </div>
-
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="display: flex; gap: 5px;">
-                        <button class="btn" id="saveBtn" style="width: auto; padding: 6px 12px;" title="Save">💾</button>
-                        <button class="btn" id="loadBtn" style="width: auto; padding: 6px 12px;" title="Load">📂</button>
-                        <button class="btn btn-war" id="resetBtn" style="width: auto; padding: 6px 12px;" title="New">🔄</button>
+                switch(e.code) {
+                    case 'Space':
+                        endTurn();
+                        break;
+                    case 'KeyM':
+                        toggleMusic();
+                        break;
+                    case 'Digit1':
+                        recruitUnit('knight');
+                        break;
+                    case 'Digit2':
+                        recruitUnit('archer');
+                        break;
+                    case 'Digit3':
+                        recruitUnit('cavalry');
+                        break;
+                    case 'Digit4':
+                        recruitUnit('spy');
+                        break;
+                    case 'KeyH':
+                        openModal('heroModal');
+                        break;
+                    case 'KeyS':
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            saveGame();
+                        }
+                        break;
+                    case 'KeyL':
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            loadGame();
+                        }
+                        break;
+                    case 'KeyN':
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            if (confirm('Start a new game?')) location.reload();
+                        }
+                        break;
+                    case 'Escape':
+                        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+                        break;
+                }
+            });
+        }
+        
+        // ==================== AUDIO FUNCTIONS ====================
+        function toggleMusic() {
+            gameState.musicEnabled = !gameState.musicEnabled;
+            const btn = document.getElementById('musicToggle');
+            
+            if (gameState.musicEnabled) {
+                btn.textContent = '🔊';
+                btn.classList.remove('muted');
+                gameState.audio.start();
+            } else {
+                btn.textContent = '🎵';
+                btn.classList.add('muted');
+                gameState.audio.stop();
+            }
+        }
+        
+        // ==================== GAME FUNCTIONS ====================
+        function recruitUnit(type) {
+            const costs = {
+                knight: { gold: 50, food: 20 },
+                archer: { gold: 30, food: 10 },
+                cavalry: { gold: 80, food: 30 },
+                spy: { gold: 100, wood: 50 }
+            };
+            
+            const cost = costs[type];
+            
+            if (gameState.resources.gold >= cost.gold && 
+                gameState.resources.food >= (cost.food || 0) &&
+                gameState.resources.wood >= (cost.wood || 0) &&
+                gameState.resources.population < gameState.resources.maxPopulation) {
+                
+                gameState.resources.gold -= cost.gold;
+                gameState.resources.food -= cost.food || 0;
+                gameState.resources.wood -= cost.wood || 0;
+                gameState.resources.population++;
+                
+                if (type === 'knight') gameState.army.knights++;
+                else if (type === 'archer') gameState.army.archers++;
+                else if (type === 'cavalry') gameState.army.cavalry++;
+                else if (type === 'spy') gameState.army.spies++;
+                
+                // Play recruit sound
+                if (gameState.audio && gameState.musicEnabled) {
+                    gameState.audio.playRecruitSound(type);
+                }
+                
+                // Create particle effect
+                createParticleEffect(window.innerWidth / 2, window.innerHeight / 2, '#ffd700');
+                
+                addEvent(`Recruited ${type.charAt(0).toUpperCase() + type.slice(1)}`, 'positive');
+                updateUI();
+            } else {
+                addEvent('Not enough resources!', 'negative');
+            }
+        }
+        
+        function upgradeCastle() {
+            const cost = gameState.castle.level * 200;
+            if (gameState.resources.gold >= cost && gameState.resources.stone >= 100) {
+                gameState.resources.gold -= cost;
+                gameState.resources.stone -= 100;
+                gameState.castle.progress += 25;
+                
+                if (gameState.castle.progress >= 100) {
+                    gameState.castle.level++;
+                    gameState.castle.defense += 5;
+                    gameState.castle.progress = 0;
+                    gameState.resources.maxPopulation += 20;
+                    
+                    // Play upgrade sound
+                    if (gameState.audio && gameState.musicEnabled) {
+                        gameState.audio.playCastleUpgrade();
+                    }
+                    
+                    addEvent(`Castle upgraded to Level ${gameState.castle.level}!`, 'positive');
+                } else {
+                    addEvent(`Castle upgrade progress: ${gameState.castle.progress}%`, 'positive');
+                }
+                
+                updateUI();
+            } else {
+                addEvent('Not enough resources for upgrade!', 'negative');
+            }
+        }
+        
+        function endTurn() {
+            gameState.turn++;
+            
+            // Season progression
+            if (gameState.turn % 4 === 0) {
+                gameState.season = (gameState.season + 1) % 4;
+                if (gameState.season === 0) gameState.year++;
+            }
+            
+            // Income
+            const income = 20 + (gameState.buildings.marketplace ? 15 : 0) + gameState.castle.level * 5;
+            gameState.resources.gold += income;
+            gameState.resources.food += 10;
+            
+            // Consumption
+            const consumption = gameState.resources.population * 0.5;
+            gameState.resources.food -= consumption;
+            
+            if (gameState.resources.food < 0) {
+                gameState.resources.food = 0;
+                addEvent('Food shortage! Population is starving!', 'negative');
+                gameState.resources.population = Math.max(10, gameState.resources.population - 5);
+            }
+            
+            // AI turns
+            processAI();
+            
+            // Battle horn at start of war
+            if (gameState.turn % 10 === 0 && gameState.audio && gameState.musicEnabled) {
+                gameState.audio.playBattleHorn();
+            }
+            
+            addEvent(`Turn ${gameState.turn} - Income: +${income} gold`, 'positive');
+            updateUI();
+            drawMap();
+        }
+        
+        function processAI() {
+            Object.entries(gameState.diplomacy).forEach(([name, data]) => {
+                // Random diplomatic shifts
+                if (Math.random() < 0.1) {
+                    data.relation += Math.floor(Math.random() * 10) - 5;
+                    
+                    if (data.relation < -30 && data.status !== 'war') {
+                        data.status = 'war';
+                        addEvent(`${name} has declared war!`, 'negative');
+                        
+                        // Play battle horn
+                        if (gameState.audio && gameState.musicEnabled) {
+                            gameState.audio.playBattleHorn();
+                        }
+                        
+                        // Battle flash
+                        document.getElementById('battleFlash').classList.add('active');
+                        setTimeout(() => document.getElementById('battleFlash').classList.remove('active'), 300);
+                        
+                        // Sword clash sounds
+                        if (gameState.audio && gameState.musicEnabled) {
+                            gameState.audio.playSwordClash();
+                            setTimeout(() => gameState.audio.playSwordClash(), 200);
+                        }
+                    } else if (data.relation > 30 && data.status === 'war') {
+                        data.status = 'neutral';
+                        addEvent(`${name} seeks peace!`, 'positive');
+                    }
+                }
+            });
+            
+            updateDiplomacy();
+        }
+        
+        function handleMapClick(e) {
+            const canvas = document.getElementById('gameCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check if clicked on a kingdom
+            Object.entries(gameState.diplomacy).forEach(([name, data]) => {
+                const dx = x - data.x;
+                const dy = y - data.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                    gameState.selectedKingdom = name;
+                    showKingdomActions(name);
+                }
+            });
+        }
+        
+        function showKingdomActions(name) {
+            const data = gameState.diplomacy[name];
+            const action = prompt(`Kingdom: ${name}\nStatus: ${data.status}\nRelation: ${data.relation}\n\nActions: (war, ally, trade, spy)`);
+            
+            if (action === 'war' && data.status !== 'war') {
+                data.status = 'war';
+                data.relation = -50;
+                addEvent(`Declared war on ${name}!`, 'negative');
+                
+                if (gameState.audio && gameState.musicEnabled) {
+                    gameState.audio.playBattleHorn();
+                    gameState.audio.playSwordClash();
+                }
+                
+                document.getElementById('battleFlash').classList.add('active');
+                setTimeout(() => document.getElementById('battleFlash').classList.remove('active'), 300);
+            }
+            
+            updateDiplomacy();
+            drawMap();
+        }
+        
+        // ==================== UI UPDATES ====================
+        function updateUI() {
+            document.getElementById('prestige').textContent = gameState.resources.prestige;
+            document.getElementById('gold').textContent = gameState.resources.gold;
+            document.getElementById('wood').textContent = gameState.resources.wood;
+            document.getElementById('stone').textContent = gameState.resources.stone;
+            document.getElementById('food').textContent = Math.floor(gameState.resources.food);
+            document.getElementById('population').textContent = `${gameState.resources.population}/${gameState.resources.maxPopulation}`;
+            document.getElementById('armySize').textContent = gameState.army.knights + gameState.army.archers + gameState.army.cavalry;
+            document.getElementById('spyCount').textContent = gameState.army.spies;
+            document.getElementById('castleLevel').textContent = `Level ${gameState.castle.level}`;
+            document.getElementById('castleDefense').textContent = gameState.castle.defense;
+            document.getElementById('garrisonSize').textContent = gameState.castle.garrison;
+            document.getElementById('castleProgress').style.width = `${gameState.castle.progress}%`;
+            document.getElementById('turnNumber').textContent = `Turn ${gameState.turn}`;
+            document.getElementById('gameDate').textContent = `Year ${gameState.year}, ${gameState.seasons[gameState.season]}`;
+            document.getElementById('victoryStatus').textContent = `Conquest: ${Object.values(gameState.diplomacy).filter(d => d.status === 'war').length}/5`;
+            
+            // Update victory progress
+            document.getElementById('dominationProgress').textContent = `${Object.values(gameState.diplomacy).filter(d => d.status === 'war').length}/5 kingdoms`;
+            document.getElementById('economicProgress').textContent = `${gameState.resources.gold}/5000 gold`;
+            document.getElementById('culturalProgress').textContent = `${gameState.resources.prestige}/1000 prestige`;
+        }
+        
+        function updateDiplomacy() {
+            const list = document.getElementById('diplomacyList');
+            list.innerHTML = '';
+            
+            Object.entries(gameState.diplomacy).forEach(([name, data]) => {
+                const div = document.createElement('div');
+                div.className = `diplomacy-item ${data.status}`;
+                div.innerHTML = `
+                    <div class="diplomacy-header">
+                        <strong style="color: ${data.color}">${name}</strong>
+                        <span>${data.status.toUpperCase()}</span>
                     </div>
-                    <div class="mode-toggle">
-                        <button class="mode-btn active" id="turnBasedBtn">Turn</button>
-                        <button class="mode-btn" id="realTimeBtn">Real Time</button>
+                    <div style="font-size: 10px; color: #888;">Relation: ${data.relation}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        function updateTechTree() {
+            const tree = document.getElementById('techTree');
+            const techs = [
+                { id: 'iron', name: '⚔️', desc: 'Iron Weapons' },
+                { id: 'archery', name: '🏹', desc: 'Advanced Archery' },
+                { id: 'cavalry', name: '🐴', desc: 'Heavy Cavalry' },
+                { id: 'siege', name: '🏰', desc: 'Siege Craft' },
+                { id: 'trade', name: '💰', desc: 'Trade Routes' },
+                { id: 'diplomacy', name: '📜', desc: 'Diplomacy' },
+                { id: 'espionage', name: '🕵️', desc: 'Espionage' },
+                { id: 'medicine', name: '🏥', desc: 'Medicine' },
+                { id: 'agriculture', name: '🌾', desc: 'Agriculture' }
+            ];
+            
+            tree.innerHTML = techs.map(tech => `
+                <div class="tech-node ${gameState.techs[tech.id] ? 'researched' : ''}" onclick="researchTech('${tech.id}')">
+                    <div style="font-size: 16px;">${tech.name}</div>
+                    <div style="font-size: 8px;">${tech.desc}</div>
+                </div>
+            `).join('');
+        }
+        
+        function researchTech(techId) {
+            if (!gameState.techs[techId] && gameState.resources.gold >= 100) {
+                gameState.resources.gold -= 100;
+                gameState.techs[techId] = true;
+                addEvent(`Researched ${techId}!`, 'positive');
+                updateTechTree();
+                updateUI();
+            }
+        }
+        
+        function updateBuildingsList() {
+            const list = document.getElementById('buildingsList');
+            if (!list) return;
+            
+            const buildings = [
+                { id: 'barracks', name: 'Barracks', cost: '100🪙 50🪵' },
+                { id: 'stables', name: 'Stables', cost: '150🪙 80🪵' },
+                { id: 'archeryRange', name: 'Archery Range', cost: '120🪙 60🪵' },
+                { id: 'marketplace', name: 'Marketplace', cost: '200🪙' },
+                { id: 'blacksmith', name: 'Blacksmith', cost: '180🪙 100🪨' },
+                { id: 'temple', name: 'Temple', cost: '250🪙 100🪨' }
+            ];
+            
+            list.innerHTML = buildings.map(b => `
+                <div class="building-item ${gameState.buildings[b.id] ? 'built' : ''}" onclick="build('${b.id}')">
+                    <strong>${b.name}</strong>
+                    <div style="font-size: 9px; color: #888;">${b.cost}</div>
+                </div>
+            `).join('');
+        }
+        
+        function build(buildingId) {
+            if (!gameState.buildings[buildingId]) {
+                gameState.buildings[buildingId] = true;
+                addEvent(`Built ${buildingId}!`, 'positive');
+                updateBuildingsList();
+            }
+        }
+        
+        // ==================== CANVAS MAP ====================
+        function drawMap() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const container = document.getElementById('canvasContainer');
+            
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            // Clear
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw terrain
+            drawTerrain(ctx, canvas.width, canvas.height);
+            
+            // Draw connections
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            Object.entries(gameState.diplomacy).forEach(([name1, data1]) => {
+                Object.entries(gameState.diplomacy).forEach(([name2, data2]) => {
+                    if (name1 < name2) {
+                        ctx.beginPath();
+                        ctx.moveTo(data1.x, data1.y);
+                        ctx.lineTo(data2.x, data2.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+            
+            // Draw kingdoms
+            Object.entries(gameState.diplomacy).forEach(([name, data]) => {
+                // Glow effect
+                const gradient = ctx.createRadialGradient(data.x, data.y, 0, data.x, data.y, 40);
+                gradient.addColorStop(0, data.color + '40');
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(data.x, data.y, 40, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Kingdom circle
+                ctx.fillStyle = data.color;
+                ctx.beginPath();
+                ctx.arc(data.x, data.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Status indicator
+                if (data.status === 'war') {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(data.x + 15, data.y - 15, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Name
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Cinzel';
+                ctx.textAlign = 'center';
+                ctx.fillText(name, data.x, data.y + 35);
+            });
+            
+            // Draw player castle
+            const playerX = canvas.width / 2;
+            const playerY = canvas.height / 2;
+            
+            // Castle glow
+            const castleGradient = ctx.createRadialGradient(playerX, playerY, 0, playerX, playerY, 60);
+            castleGradient.addColorStop(0, '#ffd70040');
+            castleGradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = castleGradient;
+            ctx.beginPath();
+            ctx.arc(playerX, playerY, 60, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Castle
+            ctx.fillStyle = '#d4af37';
+            ctx.fillRect(playerX - 25, playerY - 20, 50, 40);
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(playerX - 20, playerY - 30, 15, 20);
+            ctx.fillRect(playerX + 5, playerY - 30, 15, 20);
+            
+            // Castle label
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 14px Cinzel';
+            ctx.textAlign = 'center';
+            ctx.fillText('YOUR KINGDOM', playerX, playerY + 50);
+            
+            // Update minimap
+            updateMinimap();
+        }
+        
+        function drawTerrain(ctx, width, height) {
+            // Simple terrain pattern
+            ctx.fillStyle = '#16213e';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 137) % width;
+                const y = (i * 73) % height;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const scaleX = canvas.width / 800;
+            const scaleY = canvas.height / 600;
+            
+            Object.entries(gameState.diplomacy).forEach(([name, data]) => {
+                ctx.fillStyle = data.color;
+                ctx.beginPath();
+                ctx.arc(data.x * scaleX, data.y * scaleY, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(canvas.width / 2 - 5, canvas.height / 2 - 5, 10, 10);
+        }
+        
+        // ==================== UTILITIES ====================
+        function createParticleEffect(x, y, color) {
+            const container = document.getElementById('particlesContainer');
+            
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.background = color;
+                particle.style.transform = `translate(${(Math.random() - 0.5) * 100}px, ${(Math.random() - 0.5) * 100}px)`;
+                particle.style.transition = 'all 0.5s ease-out';
+                container.appendChild(particle);
+                
+                setTimeout(() => {
+                    particle.style.opacity = '0';
+                    particle.style.transform = `translate(${(Math.random() - 0.5) * 200}px, ${(Math.random() - 0.5) * 200}px)`;
+                }, 10);
+                
+                setTimeout(() => particle.remove(), 500);
+            }
+        }
+        
+        function addEvent(message, type = '') {
+            const log = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            entry.className = `event-entry ${type}`;
+            entry.textContent = `Turn ${gameState.turn}: ${message}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            while (log.children.length > 20) {
+                log.removeChild(log.lastChild);
+            }
+        }
+        
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+            
+            if (modalId === 'heroModal') {
+                updateHeroList();
+            } else if (modalId === 'buildingsModal') {
+                updateBuildingsList();
+            }
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        function updateHeroList() {
+            const list = document.getElementById('heroList');
+            list.innerHTML = gameState.heroes.map(hero => `
+                <div class="hero-card">
+                    <div class="hero-header">
+                        <span class="hero-name">${hero.name}</span>
+                        <span class="hero-level">Lv ${hero.level}</span>
                     </div>
-                    <button class="btn" id="endTurnBtn" style="width: auto; padding: 10px 25px;">End Turn</button>
-                </div>
-            </div>
-
-            <div id="canvasContainer">
-                <canvas id="gameCanvas"></canvas>
-                <div class="tooltip" id="tooltip"></div>
-            </div>
-        </div>
-
-        <div id="rightSidebar">
-            <div class="panel">
-                <h3>📚 Technology Tree</h3>
-                <div class="tech-tree" id="techTree"></div>
-            </div>
-
-            <div class="panel">
-                <h3>🌍 Diplomacy</h3>
-                <div id="diplomacyList"></div>
-            </div>
-
-            <div class="panel">
-                <h3>🎯 Victory Progress</h3>
-                <div class="victory-tracker">
-                    <div class="victory-type">
-                        <span>⚔️ Domination</span>
-                        <span class="victory-progress" id="dominationProgress">0/5 kingdoms</span>
+                    <div class="hero-stats">
+                        <div>⚔️ Attack: ${hero.attack}</div>
+                        <div>🛡️ Defense: ${hero.defense}</div>
+                        <div>👑 Leadership: ${hero.leadership}</div>
+                        <div>📈 XP: ${hero.xp}/${hero.maxXp}</div>
                     </div>
-                    <div class="victory-type">
-                        <span>💰 Economic</span>
-                        <span class="victory-progress" id="economicProgress">500/5000 gold</span>
+                    <div class="xp-bar">
+                        <div class="xp-fill" style="width: ${(hero.xp / hero.maxXp) * 100}%"></div>
                     </div>
-                    <div class="victory-type">
-                        <span>👑 Cultural</span>
-                        <span class="victory-progress" id="culturalProgress">100/1000 prestige</span>
+                    <div class="hero-abilities">
+                        ${hero.abilities.map(a => `<div class="hero-ability">${a}</div>`).join('')}
                     </div>
                 </div>
-            </div>
-
-            <div class="panel spy-panel">
-                <h3>🕵️ Spy Network</h3>
-                <div id="spyNetworkPanel">
-                    <div style="text-align: center; padding: 10px; color: #888; font-size: 11px;">
-                        No active spies. Recruit spies to infiltrate enemy kingdoms.
-                    </div>
-                </div>
-                <div id="intelReports"></div>
-            </div>
-
-            <div class="panel">
-                <h3>📜 Event Log</h3>
-                <div id="eventLog">
-                    <div class="event-entry">Welcome to Medieval Kingdom Wars!</div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h3>⚙️ Settings</h3>
-                <div class="fog-toggle">
-                    <span>Auto-Save</span>
-                    <div class="toggle-switch" id="autoSaveToggle"></div>
-                </div>
-                <div class="fog-toggle">
-                    <span>Fog of War</span>
-                    <div class="toggle-switch active" id="fogToggle"></div>
-                </div>
-                <div id="saveStatus" style="text-align: center; font-size: 11px; color: #888; margin-top: 10px;"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hero Modal -->
-    <div class="modal" id="heroModal">
-        <div class="modal-content">
-            <h2>🦸 Heroes of the Realm</h2>
-            <div id="heroList"></div>
-            <button class="btn btn-full" onclick="closeModal('heroModal')">Close</button>
-        </div>
-    </div>
-
-    <!-- Siege Modal -->
-    <div class="modal" id="siegeModal">
-        <div class="modal-content">
-            <h2>⚔️ Siege Warfare</h2>
-            <div id="siegeInfo"></div>
-            <div class="siege-weapon-card">
-                <h4>🏰 Available Siege Weapons</h4>
-                <div id="siegeWeaponsList"></div>
-            </div>
-            <div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 5px;">
-                <button class="btn btn-war" id="attackWalls">⚔️ Attack Walls</button>
-                <button class="btn btn-war" id="useCatapult">🎯 Catapult</button>
-                <button class="btn btn-war" id="useRam">🚪 Battering Ram</button>
-                <button class="btn btn-war" id="useTrebuchet">🏰 Trebuchet</button>
-                <button class="btn" id="starveOut">🍞 Starve Out</button>
-                <button class="btn btn-ally" id="offerSurrender">🏳️ Offer Terms</button>
-                <button class="btn" onclick="closeModal('siegeModal')">Retreat</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Trade Modal -->
-    <div class="modal" id="tradeModal">
-        <div class="modal-content">
-            <h2>💰 Trade Agreement</h2>
-            <div id="tradeInfo"></div>
-            <div class="trade-panel">
-                <h4>Offer Resources</h4>
-                <div id="tradeOfferPanel"></div>
-            </div>
-            <div class="trade-panel">
-                <h4>Request Resources</h4>
-                <div id="tradeRequestPanel"></div>
-            </div>
-            <div style="margin-top: 15px;">
-                <button class="btn btn-ally" id="acceptTrade">🤝 Propose Trade</button>
-                <button class="btn" onclick="closeModal('tradeModal')">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Spy Mission Modal -->
-    <div class="modal" id="spyModal">
-        <div class="modal-content">
-            <h2>🕵️ Spy Operations</h2>
-            <div id="spyTargetInfo"></div>
-            <div class="spy-mission">
-                <h4>Available Missions</h4>
-                <div class="mission-buttons">
-                    <button class="btn btn-spy" id="missionIntel">📊 Gather Intel</button>
-                    <button class="btn btn-spy" id="missionSabotage">🔥 Sabotage</button>
-                    <button class="btn btn-spy" id="missionAssassinate">🗡️ Assassinate</button>
-                    <button class="btn btn-spy" id="missionSteal">💰 Steal Gold</button>
-                </div>
-            </div>
-            <button class="btn btn-full" onclick="closeModal('spyModal')">Close</button>
-        </div>
-    </div>
-
-    <!-- Buildings Modal -->
-    <div class="modal" id="buildingsModal">
-        <div class="modal-content">
-            <h2>🏰 Castle Buildings</h2>
-            <div id="buildingsList"></div>
-            <button class="btn btn-full" onclick="closeModal('buildingsModal')">Close</button>
-        </div>
-    </div>
-
-    <!-- Victory Modal -->
-    <div class="modal" id="victoryModal">
-        <div class="modal-content" style="max-width: 500px;">
-            <h2 id="victoryTitle">👑 Victory!</h2>
-            <div id="victoryContent"></div>
-            <button class="btn btn-full" onclick="location.reload()">Play Again</button>
-        </div>
-    </div>
-
-    <!-- Event Overlay -->
-    <div class="overlay" id="eventOverlay"></div>
-    
-    <!-- Event Popup -->
-    <div class="event-popup" id="eventPopup">
-        <h2 id="eventTitle">Event Title</h2>
-        <p id="eventDescription">Event description goes here...</p>
-        <div id="eventButtons"></div>
-    </div>
-
-    <!-- Music Control Panel -->
-    <div class="music-control" id="musicControl">
-        <button class="music-toggle" id="musicToggle" title="Click to start music">
-            🎵
-        </button>
-        <div class="volume-control">
-            <span class="volume-label">Volume</span>
-            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="15">
-        </div>
-        <div class="music-status" id="musicStatus">Click 🎵 to begin</div>
-    </div>
-
-    <script>
+            `).join('');
+        }
+        
+        function setGameMode(mode) {
+            document.getElementById('turnBasedBtn').classList.toggle('active', mode === 'turn');
+            document.getElementById('realTimeBtn').classList.toggle('active', mode === 'realtime');
+        }
+        
+        function saveGame() {
+            localStorage.setItem('medievalWars_save', JSON.stringify(gameState));
+            document.getElementById('saveStatus').textContent = 'Game saved!';
+            setTimeout(() => document.getElementById('saveStatus').textContent = '', 2000);
+        }
+        
+        function loadGame() {
+            const saved = localStorage.getItem('medievalWars_save');
+            if (saved) {
+                Object.assign(gameState, JSON.parse(saved));
+                updateUI();
+                updateDiplomacy();
+                updateTechTree();
+                drawMap();
+                document.getElementById('saveStatus').textContent = 'Game loaded!';
+                setTimeout(() => document.getElementById('saveStatus').textContent = '', 2000);
+            }
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', drawMap);
+    </script>
+</body>
+</html>

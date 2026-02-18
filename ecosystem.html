@@ -668,18 +668,31 @@
     </div>
 
     <div class="music-start-prompt" id="musicStartPrompt">
-        <div class="music-icon">🎵</div>
-        <h3>Click to Start Experience</h3>
-        <p>Begin your ecosystem journey with ambient nature sounds</p>
+        <div class="music-icon">🌿</div>
+        <h3>Click to Enter the Ecosystem</h3>
+        <p>Experience immersive forest sounds &amp; nature ambience</p>
     </div>
 
     <div class="music-control" id="musicControl" style="display: none;">
         <button class="music-btn" id="musicToggle" title="Toggle Music">🎵</button>
+        <button class="music-btn" id="soundsToggle" title="Toggle Sound FX" style="font-size:1rem;">🔊</button>
         <div class="volume-container">
             <span class="volume-label">Volume</span>
-            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="15">
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="20">
         </div>
-        <span class="music-status" id="musicStatus">Playing</span>
+        <span class="music-status" id="musicStatus">Forest 🌲</span>
+    </div>
+
+    <!-- Keyboard shortcuts help -->
+    <div id="keyHints" style="position:fixed;bottom:80px;left:20px;background:rgba(10,15,25,0.92);border:1px solid rgba(100,150,255,0.25);border-radius:10px;padding:12px 16px;font-size:11px;color:#aaa;display:none;z-index:999;">
+        <div style="color:#00d4ff;font-weight:bold;margin-bottom:8px;">⌨️ Keyboard Shortcuts</div>
+        <div><b>Space</b> – Pause/Resume</div>
+        <div><b>R</b> – Trigger disaster</div>
+        <div><b>W</b> – Toggle rain</div>
+        <div><b>M</b> – Toggle music</div>
+        <div><b>S</b> – Toggle sound FX</div>
+        <div><b>1-4</b> – Select tool (plant/herb/carn/apex)</div>
+        <div><b>?</b> – Toggle this help</div>
     </div>
 
     <script>
@@ -1645,11 +1658,13 @@
 
         document.getElementById('disasterBtn').addEventListener('click', () => {
             ecosystem.triggerDisaster();
+            ambientMusic.playDisaster();
         });
 
         document.getElementById('rainBtn').addEventListener('click', function() {
             ecosystem.raining = !ecosystem.raining;
             this.textContent = ecosystem.raining ? '☀️ Stop Rain' : '🌧️ Toggle Rain';
+            if (ecosystem.raining) ambientMusic.playRain();
         });
 
         // Tool selection
@@ -1753,45 +1768,91 @@
         }
 
         requestAnimationFrame(loop);
+
+        // ---- Keyboard shortcuts ----
+        let keyHintsVisible = false;
+        document.addEventListener('keydown', (e) => {
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT') return;
+            switch(e.key.toLowerCase()) {
+                case ' ':
+                    e.preventDefault();
+                    document.getElementById('pauseBtn').click();
+                    break;
+                case 'r':
+                    ambientMusic.playDisaster();
+                    ecosystem.triggerDisaster();
+                    break;
+                case 'w':
+                    document.getElementById('rainBtn').click();
+                    break;
+                case 'm':
+                    ambientMusic.toggleAmbient();
+                    break;
+                case 's':
+                    ambientMusic.toggleSfx();
+                    break;
+                case '1':
+                    document.querySelector('[data-tool="plant"]').click();
+                    break;
+                case '2':
+                    document.querySelector('[data-tool="herbivore"]').click();
+                    break;
+                case '3':
+                    document.querySelector('[data-tool="carnivore"]').click();
+                    break;
+                case '4':
+                    document.querySelector('[data-tool="apex"]').click();
+                    break;
+                case '?':
+                    keyHintsVisible = !keyHintsVisible;
+                    document.getElementById('keyHints').style.display = keyHintsVisible ? 'block' : 'none';
+                    break;
+            }
+        });
+
+        // ---- Wire sound FX to simulation events ----
+        // Patch ecosystem to emit sounds on key events
+        const _origHandleReproduction = ecosystem.handleReproduction.bind(ecosystem);
+        ecosystem.handleReproduction = function() {
+            const before = this.herbivores.length + this.carnivores.length + this.apex.length;
+            _origHandleReproduction();
+            const after = this.herbivores.length + this.carnivores.length + this.apex.length;
+            if (after > before && Math.random() < 0.15) ambientMusic.playBirth();
+        };
+
+        const _origUpdate = ecosystem.update.bind(ecosystem);
+        let _eatCooldown = 0;
+        ecosystem.update = function() {
+            const hBefore = this.herbivores.length;
+            const cBefore = this.carnivores.length;
+            _origUpdate();
+            const hLost = hBefore - this.herbivores.length;
+            const cLost = cBefore - this.carnivores.length;
+            if ((hLost > 0 || cLost > 0) && Math.random() < 0.08) ambientMusic.playDeath();
+            _eatCooldown--;
+            if (_eatCooldown <= 0 && Math.random() < 0.01) {
+                ambientMusic.playEat();
+                _eatCooldown = 40;
+            }
+        };
     </script>
     <script>
-        // ============== CHILL LOFI HIP-HOP MUSIC SYSTEM ==============
-        class LofiMusic {
+        // ============== FOREST AMBIENT AUDIO SYSTEM ==============
+        class ForestAmbientSystem {
             constructor() {
                 this.audioContext = null;
                 this.masterGain = null;
-                this.compressor = null;
+                this.ambientGain = null;
+                this.sfxGain = null;
                 this.isPlaying = false;
                 this.isMuted = false;
-                this.volume = 0.15; // Default volume 15%
-                this.oscillators = [];
-                this.vinylBuffer = null;
-                this.vinylSource = null;
-                this.vinylGain = null;
-                this.beatInterval = null;
-                this.chordInterval = null;
-                this.nextNoteTime = 0;
-                this.beatIndex = 0;
-                
-                // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
-                // C4 = 261.63 Hz as base
-                this.baseFreq = 261.63; // C4
-                this.chords = [
-                    // Cmaj7: C, E, G, B
-                    [1, 1.2599, 1.4983, 1.8877],
-                    // Am7: A, C, E, G
-                    [1.6818, 2, 2.5198, 3],
-                    // Fmaj7: F, A, C, E
-                    [1.2599, 1.5, 2, 2.5198],
-                    // G7: G, B, D, F
-                    [1.4983, 1.8877, 2.2449, 2.6697]
-                ];
-                this.currentChord = 0;
-                
-                // 75 BPM settings
-                this.bpm = 75;
-                this.beatDuration = 60 / this.bpm; // seconds per beat
-                
+                this.sfxEnabled = true;
+                this.volume = 0.20;
+                this.nodes = []; // track running nodes
+                this.birdTimers = [];
+                this.cricketTimers = [];
+
                 this.initUI();
             }
 
@@ -1799,13 +1860,10 @@
                 const prompt = document.getElementById('musicStartPrompt');
                 const control = document.getElementById('musicControl');
                 const toggle = document.getElementById('musicToggle');
+                const sfxBtn = document.getElementById('soundsToggle');
                 const slider = document.getElementById('volumeSlider');
 
-                // Update prompt text
-                const promptText = prompt.querySelector('p');
-                if (promptText) promptText.textContent = 'Begin your ecosystem journey with chill lofi beats';
-
-                const startMusic = () => {
+                const start = () => {
                     if (!this.audioContext) {
                         this.start();
                         prompt.classList.add('hidden');
@@ -1813,265 +1871,328 @@
                     }
                 };
 
-                prompt.addEventListener('click', startMusic);
+                prompt.addEventListener('click', start);
                 document.addEventListener('click', (e) => {
-                    if (!e.target.closest('.music-control') && !this.audioContext) {
-                        startMusic();
-                    }
+                    if (!e.target.closest('.music-control') && !this.audioContext) start();
                 }, { once: true });
 
-                toggle.addEventListener('click', () => this.toggle());
-                slider.addEventListener('input', (e) => this.setVolume(e.target.value / 100));
-                this.setVolume(slider.value / 100);
+                toggle.addEventListener('click', () => this.toggleAmbient());
+                if (sfxBtn) sfxBtn.addEventListener('click', () => this.toggleSfx());
+                slider.addEventListener('input', (e) => this.setVolume(parseInt(e.target.value) / 100));
             }
 
-            async start() {
+            start() {
                 if (this.audioContext) return;
-                
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Create compressor: threshold -24dB, ratio 4:1
-                this.compressor = this.audioContext.createDynamicsCompressor();
-                this.compressor.threshold.value = -24;
-                this.compressor.knee.value = 30;
-                this.compressor.ratio.value = 4;
-                this.compressor.attack.value = 0.003;
-                this.compressor.release.value = 0.25;
-                
+                if (this.audioContext.state === 'suspended') this.audioContext.resume();
+
+                // Master compressor
+                const compressor = this.audioContext.createDynamicsCompressor();
+                compressor.threshold.value = -18;
+                compressor.ratio.value = 3;
+                compressor.attack.value = 0.005;
+                compressor.release.value = 0.3;
+
                 this.masterGain = this.audioContext.createGain();
                 this.masterGain.gain.value = this.volume;
-                
-                // Chain: master -> compressor -> destination
-                this.masterGain.connect(this.compressor);
-                this.compressor.connect(this.audioContext.destination);
 
-                // Start the lofi elements
-                this.nextNoteTime = this.audioContext.currentTime;
-                this.startVinylCrackle();
-                this.startChordProgression();
-                this.startBeat();
-                
+                this.ambientGain = this.audioContext.createGain();
+                this.ambientGain.gain.value = 0.7;
+
+                this.sfxGain = this.audioContext.createGain();
+                this.sfxGain.gain.value = 0.35;
+
+                this.ambientGain.connect(compressor);
+                this.sfxGain.connect(compressor);
+                compressor.connect(this.masterGain);
+                this.masterGain.connect(this.audioContext.destination);
+
                 this.isPlaying = true;
-                document.getElementById('musicStatus').textContent = 'Playing';
+                this.startForestAmbience();
+                this.scheduleBirds();
+                this.scheduleCrickets();
+                document.getElementById('musicStatus').textContent = 'Forest 🌲';
             }
 
-            // Generate vinyl crackle using brown noise
-            createVinylCrackleBuffer() {
-                const sampleRate = this.audioContext.sampleRate;
-                const length = sampleRate * 2; // 2 seconds loop
-                const buffer = this.audioContext.createBuffer(1, length, sampleRate);
-                const data = buffer.getChannelData(0);
-                
-                // Brown noise algorithm (deeper, warmer crackle)
-                let lastOut = 0;
-                for (let i = 0; i < length; i++) {
-                    const white = Math.random() * 2 - 1;
-                    lastOut = (lastOut + (0.02 * white)) / 1.02;
-                    data[i] = lastOut * 0.5;
-                }
-                
-                return buffer;
-            }
+            // ---- Ambient Layers ----
+            startForestAmbience() {
+                // Wind layer: band-pass filtered pink noise
+                this._makeWindLayer(200, 600, 0.04);
+                this._makeWindLayer(80, 300, 0.025);
 
-            startVinylCrackle() {
-                if (!this.vinylBuffer) {
-                    this.vinylBuffer = this.createVinylCrackleBuffer();
-                }
-                
-                this.vinylGain = this.audioContext.createGain();
-                this.vinylGain.gain.value = 0.008; // Very subtle crackle
-                
-                // Low-pass filter to make crackle softer
-                const filter = this.audioContext.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 4000;
-                
-                this.vinylGain.connect(filter);
-                filter.connect(this.masterGain);
-                
-                this.playVinylLoop();
-            }
-
-            playVinylLoop() {
-                if (!this.isPlaying || this.isMuted) return;
-                
-                this.vinylSource = this.audioContext.createBufferSource();
-                this.vinylSource.buffer = this.vinylBuffer;
-                this.vinylSource.loop = true;
-                this.vinylSource.connect(this.vinylGain);
-                this.vinylSource.start();
-            }
-
-            startChordProgression() {
-                this.playChord();
-                // Change chord every 4 beats (2 bars at 75 BPM)
-                const chordIntervalMs = (this.beatDuration * 4) * 1000;
-                this.chordInterval = setInterval(() => {
-                    if (this.isPlaying && !this.isMuted) {
-                        this.nextChord();
-                    }
-                }, chordIntervalMs);
-            }
-
-            playChord() {
-                const chord = this.chords[this.currentChord];
-                const now = this.audioContext.currentTime;
-                
-                // Create 4 sine wave oscillators for the 7th chord
-                chord.forEach((ratio, idx) => {
+                // Deep forest drone (very low volume nature pad)
+                const droneFreqs = [55, 82.4, 110, 164.8]; // A1-E2-A2-E3
+                droneFreqs.forEach((f, i) => {
                     const osc = this.audioContext.createOscillator();
-                    const gain = this.audioContext.createGain();
-                    
+                    const g = this.audioContext.createGain();
                     osc.type = 'sine';
-                    // Lower octave for chill vibe (C3 range)
-                    osc.frequency.value = (this.baseFreq * ratio) / 2;
-                    
-                    // Very subtle detune for warmth
-                    osc.detune.value = (Math.random() - 0.5) * 3;
-                    
-                    // Very low volumes (0.02-0.03 per oscillator)
-                    const targetVolume = 0.025;
-                    gain.gain.value = 0;
-                    
-                    osc.connect(gain);
-                    gain.connect(this.masterGain);
-                    
-                    osc.start(now);
-                    
-                    // Slow attack envelope (1.5s attack)
-                    gain.gain.linearRampToValueAtTime(targetVolume, now + 1.5);
-                    
-                    this.oscillators.push({ osc, gain });
+                    osc.frequency.value = f;
+                    osc.detune.value = (Math.random() - 0.5) * 8;
+                    g.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    g.gain.linearRampToValueAtTime(0.008, this.audioContext.currentTime + 4);
+                    // Slow breath LFO
+                    const lfo = this.audioContext.createOscillator();
+                    lfo.type = 'sine';
+                    lfo.frequency.value = 0.05 + i * 0.02;
+                    const lfoG = this.audioContext.createGain();
+                    lfoG.gain.value = 0.003;
+                    lfo.connect(lfoG);
+                    lfoG.connect(g.gain);
+                    lfo.start();
+                    osc.connect(g);
+                    g.connect(this.ambientGain);
+                    osc.start();
+                    this.nodes.push(osc, lfo);
                 });
+
+                // Gentle water trickle (higher-freq noise notch)
+                this._makeWindLayer(1200, 2400, 0.012);
             }
 
-            nextChord() {
-                if (!this.audioContext) return;
-                
-                const now = this.audioContext.currentTime;
-                
-                // Slow release (1s release)
-                this.oscillators.forEach(({ gain }) => {
-                    gain.gain.linearRampToValueAtTime(0, now + 1);
-                });
-                
-                // Stop oscillators after release
-                setTimeout(() => {
-                    this.oscillators.forEach(({ osc }) => {
-                        try { osc.stop(); } catch (e) {}
-                    });
-                    this.oscillators = [];
-                }, 1100);
-                
-                // Move to next chord
-                this.currentChord = (this.currentChord + 1) % this.chords.length;
-                
-                // Start new chord after brief pause
-                setTimeout(() => {
-                    this.playChord();
-                }, 1000);
+            _makeWindLayer(freqLow, freqHigh, vol) {
+                const sr = this.audioContext.sampleRate;
+                const buf = this.audioContext.createBuffer(1, sr * 3, sr);
+                const d = buf.getChannelData(0);
+                let lp = 0;
+                for (let i = 0; i < d.length; i++) {
+                    const w = Math.random() * 2 - 1;
+                    lp = (lp + 0.02 * w) / 1.02;
+                    d[i] = lp * 3;
+                }
+                const src = this.audioContext.createBufferSource();
+                src.buffer = buf;
+                src.loop = true;
+
+                const bpf = this.audioContext.createBiquadFilter();
+                bpf.type = 'bandpass';
+                bpf.frequency.value = (freqLow + freqHigh) / 2;
+                bpf.Q.value = freqLow / (freqHigh - freqLow);
+
+                // Slow volume modulation
+                const lfo = this.audioContext.createOscillator();
+                lfo.type = 'sine';
+                lfo.frequency.value = 0.07 + Math.random() * 0.05;
+                const lfoG = this.audioContext.createGain();
+                lfoG.gain.value = vol * 0.3;
+                const g = this.audioContext.createGain();
+                g.gain.value = vol;
+                lfo.connect(lfoG);
+                lfoG.connect(g.gain);
+
+                src.connect(bpf);
+                bpf.connect(g);
+                g.connect(this.ambientGain);
+                lfo.start();
+                src.start();
+                this.nodes.push(src, lfo);
             }
 
-            startBeat() {
-                this.scheduleBeat();
+            // ---- Bird / Cricket Sounds ----
+            scheduleBirds() {
+                if (!this.isPlaying || this.isMuted) return;
+                const chirpTypes = ['chirp', 'trill', 'warble'];
+                const doChirp = () => {
+                    if (this.isPlaying && !this.isMuted && this.sfxEnabled) {
+                        this._birdChirp(chirpTypes[Math.floor(Math.random() * chirpTypes.length)]);
+                    }
+                    const next = 1800 + Math.random() * 7000;
+                    const t = setTimeout(doChirp, next);
+                    this.birdTimers.push(t);
+                };
+                const t = setTimeout(doChirp, 800);
+                this.birdTimers.push(t);
             }
 
-            scheduleBeat() {
+            _birdChirp(type) {
+                if (!this.audioContext || this.isMuted || !this.sfxEnabled) return;
+                const t = this.audioContext.currentTime;
+                if (type === 'chirp') {
+                    const osc = this.audioContext.createOscillator();
+                    const g = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(2800, t);
+                    osc.frequency.exponentialRampToValueAtTime(4200, t + 0.06);
+                    g.gain.setValueAtTime(0.018, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                    osc.connect(g); g.connect(this.sfxGain);
+                    osc.start(t); osc.stop(t + 0.12);
+                    // Second chirp
+                    if (Math.random() > 0.4) {
+                        const o2 = this.audioContext.createOscillator();
+                        const g2 = this.audioContext.createGain();
+                        o2.type = 'sine';
+                        o2.frequency.setValueAtTime(3100, t + 0.14);
+                        o2.frequency.exponentialRampToValueAtTime(4600, t + 0.2);
+                        g2.gain.setValueAtTime(0.014, t + 0.14);
+                        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+                        o2.connect(g2); g2.connect(this.sfxGain);
+                        o2.start(t + 0.14); o2.stop(t + 0.26);
+                    }
+                } else if (type === 'trill') {
+                    for (let i = 0; i < 6; i++) {
+                        const osc = this.audioContext.createOscillator();
+                        const g = this.audioContext.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.value = 3200 + Math.random() * 800;
+                        g.gain.setValueAtTime(0.012, t + i * 0.04);
+                        g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.04 + 0.035);
+                        osc.connect(g); g.connect(this.sfxGain);
+                        osc.start(t + i * 0.04); osc.stop(t + i * 0.04 + 0.05);
+                    }
+                } else { // warble
+                    const osc = this.audioContext.createOscillator();
+                    const g = this.audioContext.createGain();
+                    const vib = this.audioContext.createOscillator();
+                    const vibG = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 2400;
+                    vib.type = 'sine'; vib.frequency.value = 12;
+                    vibG.gain.value = 300;
+                    vib.connect(vibG); vibG.connect(osc.frequency);
+                    g.gain.setValueAtTime(0.016, t);
+                    g.gain.linearRampToValueAtTime(0.02, t + 0.15);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                    osc.connect(g); g.connect(this.sfxGain);
+                    vib.start(t); osc.start(t);
+                    vib.stop(t + 0.5); osc.stop(t + 0.52);
+                }
+            }
+
+            scheduleCrickets() {
                 if (!this.isPlaying) return;
-                
-                const lookahead = 0.1; // seconds
-                const scheduleAhead = 0.1; // seconds
-                
-                while (this.nextNoteTime < this.audioContext.currentTime + scheduleAhead) {
-                    this.playBeat(this.nextNoteTime);
-                    this.nextNoteTime += this.beatDuration;
-                }
-                
-                this.beatInterval = setTimeout(() => this.scheduleBeat(), lookahead * 1000);
+                const doCricket = () => {
+                    if (this.isPlaying && !this.isMuted && this.sfxEnabled && Math.random() > 0.5) {
+                        this._cricket();
+                    }
+                    const next = 3000 + Math.random() * 10000;
+                    const t = setTimeout(doCricket, next);
+                    this.cricketTimers.push(t);
+                };
+                const t = setTimeout(doCricket, 3000);
+                this.cricketTimers.push(t);
             }
 
-            playBeat(time) {
-                if (this.isMuted) return;
-                
-                // Simple downtempo pattern: kick on 1, snare on 3 (out of 4)
-                const beatInMeasure = this.beatIndex % 4;
-                
-                // Soft kick on beats 0 and 2 (kick-snare-kick-snare pattern)
-                if (beatInMeasure === 0 || beatInMeasure === 2) {
-                    this.playKick(time);
-                }
-                // Soft snare on beat 3
-                if (beatInMeasure === 3) {
-                    this.playSnare(time);
-                }
-                
-                this.beatIndex++;
-            }
-
-            playKick(time) {
-                const osc = this.audioContext.createOscillator();
-                const gain = this.audioContext.createGain();
-                
-                osc.frequency.setValueAtTime(150, time);
-                osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
-                
-                gain.gain.setValueAtTime(0.08, time); // Very soft
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-                
-                osc.connect(gain);
-                gain.connect(this.masterGain);
-                
-                osc.start(time);
-                osc.stop(time + 0.15);
-            }
-
-            playSnare(time) {
-                // Create noise for snare
-                const bufferSize = this.audioContext.sampleRate * 0.1;
-                const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
-                const data = buffer.getChannelData(0);
-                
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-                
-                const noise = this.audioContext.createBufferSource();
-                noise.buffer = buffer;
-                
-                const noiseFilter = this.audioContext.createBiquadFilter();
-                noiseFilter.type = 'highpass';
-                noiseFilter.frequency.value = 1000;
-                
-                const gain = this.audioContext.createGain();
-                gain.gain.setValueAtTime(0.04, time); // Very soft
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-                
-                noise.connect(noiseFilter);
-                noiseFilter.connect(gain);
-                gain.connect(this.masterGain);
-                
-                noise.start(time);
-            }
-
-            toggle() {
+            _cricket() {
                 if (!this.audioContext) return;
+                const t = this.audioContext.currentTime;
+                for (let i = 0; i < 8; i++) {
+                    const osc = this.audioContext.createOscillator();
+                    const g = this.audioContext.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = 4200 + Math.random() * 200;
+                    const on = t + i * 0.06;
+                    g.gain.setValueAtTime(0.006, on);
+                    g.gain.exponentialRampToValueAtTime(0.001, on + 0.04);
+                    osc.connect(g); g.connect(this.sfxGain);
+                    osc.start(on); osc.stop(on + 0.05);
+                }
+            }
 
+            // ---- Sound Effects (events) ----
+            playEat() {
+                if (!this.audioContext || !this.sfxEnabled) return;
+                const t = this.audioContext.currentTime;
+                const osc = this.audioContext.createOscillator();
+                const g = this.audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, t);
+                osc.frequency.exponentialRampToValueAtTime(300, t + 0.1);
+                g.gain.setValueAtTime(0.025, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                osc.connect(g); g.connect(this.sfxGain);
+                osc.start(t); osc.stop(t + 0.13);
+            }
+
+            playDeath() {
+                if (!this.audioContext || !this.sfxEnabled) return;
+                const t = this.audioContext.currentTime;
+                const osc = this.audioContext.createOscillator();
+                const g = this.audioContext.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, t);
+                osc.frequency.exponentialRampToValueAtTime(80, t + 0.25);
+                g.gain.setValueAtTime(0.02, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                osc.connect(g); g.connect(this.sfxGain);
+                osc.start(t); osc.stop(t + 0.3);
+            }
+
+            playBirth() {
+                if (!this.audioContext || !this.sfxEnabled) return;
+                const t = this.audioContext.currentTime;
+                [0, 0.05, 0.1].forEach((dt, i) => {
+                    const osc = this.audioContext.createOscillator();
+                    const g = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800 + i * 300, t + dt);
+                    osc.frequency.exponentialRampToValueAtTime(1600 + i * 300, t + dt + 0.12);
+                    g.gain.setValueAtTime(0.018, t + dt);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + dt + 0.15);
+                    osc.connect(g); g.connect(this.sfxGain);
+                    osc.start(t + dt); osc.stop(t + dt + 0.16);
+                });
+            }
+
+            playDisaster() {
+                if (!this.audioContext || !this.sfxEnabled) return;
+                const t = this.audioContext.currentTime;
+                const sr = this.audioContext.sampleRate;
+                const buf = this.audioContext.createBuffer(1, sr * 0.6, sr);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                const src = this.audioContext.createBufferSource();
+                src.buffer = buf;
+                const bpf = this.audioContext.createBiquadFilter();
+                bpf.type = 'bandpass'; bpf.frequency.value = 300; bpf.Q.value = 0.5;
+                const g = this.audioContext.createGain();
+                g.gain.value = 0.07;
+                src.connect(bpf); bpf.connect(g); g.connect(this.sfxGain);
+                src.start(t); src.stop(t + 0.7);
+            }
+
+            playRain() {
+                if (!this.audioContext || !this.sfxEnabled) return;
+                const t = this.audioContext.currentTime;
+                const sr = this.audioContext.sampleRate;
+                const buf = this.audioContext.createBuffer(1, sr * 0.3, sr);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+                const src = this.audioContext.createBufferSource();
+                src.buffer = buf;
+                const hpf = this.audioContext.createBiquadFilter();
+                hpf.type = 'highpass'; hpf.frequency.value = 3000;
+                const g = this.audioContext.createGain();
+                g.gain.value = 0.05;
+                src.connect(hpf); hpf.connect(g); g.connect(this.sfxGain);
+                src.start(t);
+            }
+
+            // ---- Controls ----
+            toggleAmbient() {
+                if (!this.audioContext) return;
                 this.isMuted = !this.isMuted;
                 const toggle = document.getElementById('musicToggle');
                 const status = document.getElementById('musicStatus');
-
+                const t = this.audioContext.currentTime;
                 if (this.isMuted) {
-                    this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
-                    if (this.vinylGain) this.vinylGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
+                    this.masterGain.gain.linearRampToValueAtTime(0, t + 0.5);
                     toggle.classList.add('muted');
                     toggle.textContent = '🔇';
                     status.textContent = 'Muted';
                 } else {
-                    this.masterGain.gain.linearRampToValueAtTime(this.volume, this.audioContext.currentTime + 0.5);
-                    if (this.vinylGain) this.vinylGain.gain.linearRampToValueAtTime(0.008, this.audioContext.currentTime + 0.5);
+                    this.masterGain.gain.linearRampToValueAtTime(this.volume, t + 0.5);
                     toggle.classList.remove('muted');
                     toggle.textContent = '🎵';
-                    status.textContent = 'Playing';
+                    status.textContent = 'Forest 🌲';
+                }
+            }
+
+            toggleSfx() {
+                this.sfxEnabled = !this.sfxEnabled;
+                const btn = document.getElementById('soundsToggle');
+                if (btn) {
+                    btn.classList.toggle('muted', !this.sfxEnabled);
+                    btn.textContent = this.sfxEnabled ? '🔊' : '🔈';
                 }
             }
 
@@ -2084,7 +2205,7 @@
         }
 
         // Initialize music system
-        const ambientMusic = new LofiMusic();
+        const ambientMusic = new ForestAmbientSystem();
     </script>
 </body>
 </html>

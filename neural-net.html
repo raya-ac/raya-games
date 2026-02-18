@@ -39,8 +39,37 @@
         }
 
         @keyframes glow {
-            0%, 100% { filter: brightness(1); }
-            50% { filter: brightness(1.3); }
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 8px rgba(0,212,255,0.4)); }
+            50% { filter: brightness(1.4) drop-shadow(0 0 20px rgba(0,212,255,0.9)); }
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0,212,255,0.5), transparent);
+            animation: scanline 4s linear infinite;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .panel {
+            transition: box-shadow 0.3s ease;
+        }
+        .panel:hover {
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(0,212,255,0.1);
+        }
+        .btn:hover {
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.6), 0 0 40px rgba(0,212,255,0.2) !important;
+        }
+        .stat-box {
+            transition: all 0.3s ease;
+        }
+        .stat-box:hover {
+            box-shadow: 0 0 15px rgba(0,212,255,0.3);
+            transform: translateY(-2px);
         }
 
         .header-buttons {
@@ -979,7 +1008,10 @@
                 if (currentEpoch >= maxEpochs) {
                     stopTraining();
                     document.getElementById('statusValue').textContent = 'Complete';
+                    MusicSystem.playComplete();
                 }
+                // Training tick sound (occasional)
+                if (Math.random() < 0.05) MusicSystem.playTrainingBeep();
             }, 16);
         }
 
@@ -1089,11 +1121,26 @@
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
-                // Glow for active neurons
-                if (activation > 0.3) {
+                // Multi-layer neon glow for active neurons
+                if (activation > 0.1) {
+                    const glowColor = color === '#00d4ff' ? '0, 212, 255' : color === '#7b2cbf' ? '123, 44, 191' : '0, 255, 136';
+                    const intensity = Math.min(1, activation);
+                    // Outer glow
                     ctx.beginPath();
-                    ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-                    ctx.strokeStyle = `rgba(${color === '#00d4ff' ? '0, 212, 255' : color === '#7b2cbf' ? '123, 44, 191' : '0, 255, 136'}, ${activation})`;
+                    ctx.arc(x, y, r + 12 * intensity, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${glowColor}, ${intensity * 0.2})`;
+                    ctx.lineWidth = 8;
+                    ctx.stroke();
+                    // Mid glow
+                    ctx.beginPath();
+                    ctx.arc(x, y, r + 6 * intensity, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${glowColor}, ${intensity * 0.4})`;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    // Inner glow
+                    ctx.beginPath();
+                    ctx.arc(x, y, r + 2, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${glowColor}, ${intensity * 0.9})`;
                     ctx.lineWidth = 2;
                     ctx.stroke();
                 }
@@ -1342,13 +1389,13 @@
 
         function predictDrawing() {
             if (!nn) return;
-            
             const prediction = nn.predict(drawingData);
             updatePredictionGrid(prediction);
-            
-            // Feed forward to update activations
             nn.forward(drawingData);
             updateActivationHeatmap();
+            // Propagation sounds: input → hidden → output
+            MusicSystem.init();
+            [0, 1, 2].forEach(i => MusicSystem.playPropagation(i));
         }
 
         function initPredictionGrid() {
@@ -1410,246 +1457,242 @@
             initPredictionGrid();
         });
 
-        // ==================== Chill Lofi Hip-Hop Music System ====================
+        // ==================== Cyberpunk Synthwave Music System ====================
         const MusicSystem = {
             ctx: null,
             isPlaying: false,
             masterGain: null,
             compressor: null,
-            volume: 0.15, // 15% default
-            bpm: 75,
-            beatInterval: null,
+            volume: 0.15,
+            bpm: 120,
+            beatRAF: null,
             chordInterval: null,
-            vinylNode: null,
-            
-            // Jazz chord frequencies (Cmaj7, Am7, Fmaj7, G7)
+            arpInterval: null,
+            padsNode: null,
+
+            // Synthwave chord progressions (minor/dorian flavor)
             chords: [
-                { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] },  // C4, E4, G4, B4
-                { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },   // A3, C4, E4, G4
-                { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 329.63] }, // F3, A3, C4, E4
-                { name: 'G7', notes: [196.00, 246.94, 293.66, 392.00] }     // G3, B3, D4, G4
+                { name: 'Am', notes: [110.00, 138.59, 164.81, 220.00] },    // A2,C#3,E3,A3
+                { name: 'F', notes:  [87.31,  110.00, 130.81, 174.61] },    // F2,A2,C3,F3
+                { name: 'C', notes:  [65.41,  82.41,  98.00,  130.81] },    // C2,E2,G2,C3
+                { name: 'G', notes:  [98.00,  123.47, 146.83, 196.00] },    // G2,B2,D3,G3
             ],
             currentChord: 0,
             
             init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    
-                    // Master compressor: threshold -24dB, ratio 4:1
-                    this.compressor = this.ctx.createDynamicsCompressor();
-                    this.compressor.threshold.value = -24;
-                    this.compressor.knee.value = 30;
-                    this.compressor.ratio.value = 4;
-                    this.compressor.attack.value = 0.003;
-                    this.compressor.release.value = 0.25;
-                    
-                    // Master gain
-                    this.masterGain = this.ctx.createGain();
-                    this.masterGain.gain.value = this.volume;
-                    
-                    this.compressor.connect(this.masterGain);
-                    this.masterGain.connect(this.ctx.destination);
-                }
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.compressor = this.ctx.createDynamicsCompressor();
+                this.compressor.threshold.value = -18;
+                this.compressor.ratio.value = 6;
+                this.compressor.knee.value = 20;
+                this.compressor.attack.value = 0.003;
+                this.compressor.release.value = 0.2;
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.volume;
+                this.compressor.connect(this.masterGain);
+                this.masterGain.connect(this.ctx.destination);
             },
-            
-            // Create vinyl crackle texture
-            createVinylCrackle() {
-                const bufferSize = 2 * this.ctx.sampleRate;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                
-                // Generate brown noise for vinyl crackle
-                let lastOut = 0;
-                for (let i = 0; i < bufferSize; i++) {
-                    const white = Math.random() * 2 - 1;
-                    // Very low volume crackle
-                    data[i] = (lastOut + (0.02 * white)) / 1.02;
-                    lastOut = data[i];
-                    data[i] *= 0.03; // Very gentle
-                }
-                
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                noise.loop = true;
-                
-                // Filter to make it sound like vinyl crackle
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 1000;
-                
-                const gain = this.ctx.createGain();
-                gain.gain.value = 0.015; // Very low volume
-                
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.compressor);
-                
-                noise.start();
-                return noise;
-            },
-            
-            // Play a chord with sine waves
-            playChord(chordIndex) {
-                const chord = this.chords[chordIndex];
+
+            // Synthwave pad chord
+            playPad(chordIdx) {
                 const now = this.ctx.currentTime;
-                
-                chord.notes.forEach(freq => {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    
-                    osc.type = 'sine';
-                    osc.frequency.value = freq;
-                    
-                    // Slow attack/release: 1.5s attack, 1s release
-                    gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(0.025, now + 1.5); // Attack
-                    gain.gain.setValueAtTime(0.025, now + 4); // Sustain
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 5); // Release
-                    
-                    osc.connect(gain);
-                    gain.connect(this.compressor);
-                    
-                    osc.start(now);
-                    osc.stop(now + 5);
+                const notes = this.chords[chordIdx].notes;
+                notes.forEach((freq, i) => {
+                    const osc1 = this.ctx.createOscillator();
+                    const osc2 = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    const chorus = this.ctx.createDelay(); chorus.delayTime.value = 0.012;
+                    osc1.type = 'sawtooth'; osc1.frequency.value = freq;
+                    osc2.type = 'sawtooth'; osc2.frequency.value = freq * 1.003; // detune for chorus
+                    g.gain.setValueAtTime(0, now);
+                    g.gain.linearRampToValueAtTime(0.015, now + 0.6);
+                    g.gain.setValueAtTime(0.015, now + 3.2);
+                    g.gain.linearRampToValueAtTime(0, now + 4);
+                    osc1.connect(g); osc2.connect(chorus); chorus.connect(g);
+                    g.connect(this.compressor);
+                    osc1.start(now); osc2.start(now);
+                    osc1.stop(now + 4); osc2.stop(now + 4);
                 });
             },
-            
-            // Play soft kick drum
+
+            // 80s-style arpeggiator
+            startArp() {
+                const arpNotes = [220.00, 261.63, 329.63, 392.00, 440.00, 392.00, 329.63, 261.63];
+                let idx = 0;
+                const beatMs = (60 / this.bpm) * 1000 / 2;
+                this.arpInterval = setInterval(() => {
+                    if (!this.isPlaying) return;
+                    const freq = arpNotes[idx % arpNotes.length] * 2;
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = 'square'; osc.frequency.value = freq;
+                    // Filter for a classic synth sound
+                    const flt = this.ctx.createBiquadFilter();
+                    flt.type = 'lowpass'; flt.frequency.value = 1800; flt.Q.value = 4;
+                    g.gain.setValueAtTime(0.018, now);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    osc.connect(flt); flt.connect(g); g.connect(this.compressor);
+                    osc.start(now); osc.stop(now + 0.2);
+                    idx++;
+                }, beatMs);
+            },
+
+            // Heavy electronic kick
             playKick(time) {
                 const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                
-                osc.frequency.setValueAtTime(60, time);
-                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-                
-                gain.gain.setValueAtTime(0.03, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
-                
-                osc.connect(gain);
-                gain.connect(this.compressor);
-                
-                osc.start(time);
-                osc.stop(time + 0.5);
+                const g = this.ctx.createGain();
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.4);
+                g.gain.setValueAtTime(0.07, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+                osc.connect(g); g.connect(this.compressor);
+                osc.start(time); osc.stop(time + 0.4);
             },
-            
-            // Play soft snare
+
+            // Electronic snare clap
             playSnare(time) {
+                const bufSz = Math.floor(this.ctx.sampleRate * 0.15);
+                const buf = this.ctx.createBuffer(1, bufSz, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufSz; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSz, 2);
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const flt = this.ctx.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 2400; flt.Q.value = 0.8;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(0.055, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                src.connect(flt); flt.connect(g); g.connect(this.compressor);
+                src.start(time); src.stop(time + 0.15);
+                // Add a sine punch
+                const punch = this.ctx.createOscillator(); const pg = this.ctx.createGain();
+                punch.frequency.value = 220; pg.gain.setValueAtTime(0.03, time); pg.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+                punch.connect(pg); pg.connect(this.compressor); punch.start(time); punch.stop(time + 0.06);
+            },
+
+            // Synth hi-hat
+            playHihat(time, vol) {
+                const bufSz = Math.floor(this.ctx.sampleRate * 0.03);
+                const buf = this.ctx.createBuffer(1, bufSz, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufSz; i++) d[i] = Math.random() * 2 - 1;
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const flt = this.ctx.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 9000;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+                src.connect(flt); flt.connect(g); g.connect(this.compressor);
+                src.start(time); src.stop(time + 0.03);
+            },
+
+            // Deep bass line
+            playBass(freq, time) {
                 const osc = this.ctx.createOscillator();
-                const noise = this.ctx.createBufferSource();
-                const noiseGain = this.ctx.createGain();
-                const oscGain = this.ctx.createGain();
-                
-                // Create noise buffer for snare
-                const bufferSize = this.ctx.sampleRate * 0.1;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-                noise.buffer = buffer;
-                
-                osc.type = 'triangle';
-                osc.frequency.value = 200;
-                
-                noiseGain.gain.setValueAtTime(0.02, time);
-                noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-                
-                oscGain.gain.setValueAtTime(0.02, time);
-                oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-                
-                osc.connect(oscGain);
-                noise.connect(noiseGain);
-                oscGain.connect(this.compressor);
-                noiseGain.connect(this.compressor);
-                
-                osc.start(time);
-                noise.start(time);
-                osc.stop(time + 0.1);
-                noise.stop(time + 0.1);
+                const g = this.ctx.createGain();
+                const flt = this.ctx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 300;
+                osc.type = 'sawtooth'; osc.frequency.value = freq;
+                g.gain.setValueAtTime(0.06, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.45);
+                osc.connect(flt); flt.connect(g); g.connect(this.compressor);
+                osc.start(time); osc.stop(time + 0.5);
             },
-            
-            // Start the beat at 75 BPM
+
             startBeat() {
-                const beatTime = 60 / this.bpm; // 0.8 seconds per beat
-                let nextNoteTime = this.ctx.currentTime;
-                let beatCount = 0;
-                
-                const scheduler = () => {
-                    while (nextNoteTime < this.ctx.currentTime + 0.1) {
-                        // Kick on beats 1 and 3
-                        if (beatCount % 4 === 0 || beatCount % 4 === 2) {
-                            this.playKick(nextNoteTime);
-                        }
-                        // Snare on beats 2 and 4 (softly)
-                        if (beatCount % 4 === 1 || beatCount % 4 === 3) {
-                            this.playSnare(nextNoteTime);
-                        }
-                        
-                        nextNoteTime += beatTime;
-                        beatCount++;
+                const beat = 60 / this.bpm;
+                let next = this.ctx.currentTime;
+                let cnt = 0;
+                const bassLine = [110, 110, 138.59, 110, 98, 110, 130.81, 110];
+
+                const sched = () => {
+                    while (next < this.ctx.currentTime + 0.15) {
+                        const b = cnt % 4;
+                        if (b === 0 || (b === 2 && Math.random() > 0.3)) this.playKick(next);
+                        if (b === 1 || b === 3) this.playSnare(next);
+                        // 8th-note hihats
+                        this.playHihat(next, 0.025);
+                        this.playHihat(next + beat * 0.5, 0.015);
+                        // Bass every beat
+                        this.playBass(bassLine[cnt % bassLine.length], next);
+                        next += beat; cnt++;
                     }
-                    if (this.isPlaying) {
-                        this.beatInterval = requestAnimationFrame(scheduler);
-                    }
+                    if (this.isPlaying) this.beatRAF = requestAnimationFrame(sched);
                 };
-                scheduler();
+                sched();
             },
-            
-            // Start chord progression
+
             startChords() {
-                // Play first chord immediately
-                this.playChord(0);
-                
+                this.playPad(0);
                 this.chordInterval = setInterval(() => {
                     this.currentChord = (this.currentChord + 1) % this.chords.length;
-                    this.playChord(this.currentChord);
-                }, 8000); // Change chord every 8 seconds
+                    this.playPad(this.currentChord);
+                }, 4000);
             },
-            
+
             play() {
                 this.init();
-                if (this.ctx.state === 'suspended') {
-                    this.ctx.resume();
-                }
-                
+                if (this.ctx.state === 'suspended') this.ctx.resume();
                 this.isPlaying = true;
-                
-                // Start vinyl crackle
-                if (!this.vinylNode) {
-                    this.vinylNode = this.createVinylCrackle();
-                }
-                
-                // Start chords and beat
                 this.startChords();
+                this.startArp();
                 this.startBeat();
             },
-            
+
             stop() {
                 this.isPlaying = false;
-                
-                if (this.beatInterval) {
-                    cancelAnimationFrame(this.beatInterval);
-                    this.beatInterval = null;
-                }
-                
-                if (this.chordInterval) {
-                    clearInterval(this.chordInterval);
-                    this.chordInterval = null;
-                }
-                
-                // Fade out master
+                if (this.beatRAF) { cancelAnimationFrame(this.beatRAF); this.beatRAF = null; }
+                if (this.chordInterval) { clearInterval(this.chordInterval); this.chordInterval = null; }
+                if (this.arpInterval) { clearInterval(this.arpInterval); this.arpInterval = null; }
                 if (this.masterGain) {
                     const now = this.ctx.currentTime;
-                    this.masterGain.gain.setValueAtTime(this.volume, now);
                     this.masterGain.gain.linearRampToValueAtTime(0, now + 0.5);
+                    setTimeout(() => { if (this.masterGain) this.masterGain.gain.value = this.volume; }, 600);
                 }
             },
-            
+
             setVolume(vol) {
                 this.volume = vol;
-                if (this.masterGain) {
-                    this.masterGain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                }
+                if (this.masterGain) this.masterGain.gain.value = vol;
+            },
+
+            // Sound effects
+            playTrainingBeep() {
+                if (!this.ctx || !this.isPlaying) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sine'; o.frequency.value = 880 + Math.random() * 440;
+                g.gain.setValueAtTime(0.025, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                o.connect(g); g.connect(this.masterGain);
+                o.start(now); o.stop(now + 0.05);
+            },
+
+            playPropagation(layerIdx) {
+                if (!this.ctx) return;
+                const freqs = [440, 880, 1320];
+                const now = this.ctx.currentTime + layerIdx * 0.06;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sine'; o.frequency.value = freqs[layerIdx] || 440;
+                o.frequency.linearRampToValueAtTime((freqs[layerIdx] || 440) * 1.5, now + 0.08);
+                g.gain.setValueAtTime(0.03, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                o.start(now); o.stop(now + 0.15);
+            },
+
+            playComplete() {
+                if (!this.ctx) return;
+                [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+                    const now = this.ctx.currentTime + i * 0.07;
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    g.gain.setValueAtTime(0.06, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(now); o.stop(now + 0.35);
+                });
+            },
+
+            playError() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sawtooth'; o.frequency.value = 220;
+                o.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+                g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                o.start(now); o.stop(now + 0.3);
             }
         };
 
@@ -1669,6 +1712,17 @@
         document.getElementById('musicVolume').addEventListener('input', (e) => {
             const vol = parseInt(e.target.value) / 100;
             MusicSystem.setVolume(vol);
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', e => {
+            if (e.target.tagName === 'INPUT') return;
+            switch(e.key) {
+                case ' ': e.preventDefault(); isTraining ? stopTraining() : startTraining(); break;
+                case 'r': case 'R': resetTraining(); break;
+                case 's': case 'S': stepTraining(); break;
+                case 'm': case 'M': document.getElementById('musicToggle').click(); break;
+            }
         });
 
         // Start

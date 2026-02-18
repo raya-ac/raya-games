@@ -245,6 +245,86 @@
             font-size: 12px;
             color: var(--text-muted);
         }
+
+        /* Enhanced glow effects */
+        .canvas-container {
+            position: relative;
+        }
+        .canvas-container::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(168,85,247,0.3), rgba(34,211,238,0.3));
+            filter: blur(8px);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .canvas-container.solving::before {
+            opacity: 1;
+            animation: pulse-border 1.5s ease infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.9; }
+        }
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .btn:hover::after { opacity: 1; }
+        .btn.solving-pulse {
+            animation: btn-pulse 0.6s ease infinite alternate;
+        }
+        @keyframes btn-pulse {
+            from { box-shadow: 0 0 0 rgba(34,211,238,0); }
+            to { box-shadow: 0 0 16px rgba(34,211,238,0.7); }
+        }
+        #music-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #1a0a2e, #2a1a4e);
+            border: 1px solid rgba(168,85,247,0.5);
+            border-radius: 8px;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+        }
+        #music-btn:hover, #music-btn.active {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: white;
+            box-shadow: 0 0 20px rgba(168,85,247,0.5);
+        }
+        .kbd-hint {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            line-height: 1.8;
+        }
+        .kbd {
+            display: inline-block;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-family: monospace;
+            font-size: 10px;
+        }
         
         .legend-color {
             width: 14px;
@@ -410,6 +490,18 @@
                 </div>
             </div>
             
+            <div class="panel">
+                <h3>🎵 Audio</h3>
+                <button id="music-btn" onclick="toggleMazeMusic()">🎵 Dungeon Music: OFF</button>
+                <div class="kbd-hint">
+                    <span class="kbd">G</span> Generate &nbsp;
+                    <span class="kbd">S</span> Solve <br>
+                    <span class="kbd">C</span> Clear &nbsp;
+                    <span class="kbd">M</span> Music <br>
+                    <span class="kbd">+</span>/<span class="kbd">-</span> Speed
+                </div>
+            </div>
+
             <div class="panel">
                 <div class="instructions">
                     <strong>💡 How to Use</strong><br>
@@ -927,6 +1019,261 @@
             });
         });
         
+        // ===================== DUNGEON AMBIENT AUDIO SYSTEM =====================
+        const MazeAudio = {
+            ctx: null, masterGain: null, compressor: null,
+            isPlaying: false, volume: 0.18,
+            droneNodes: [], ambienceTimer: null, beatRAF: null,
+            chordInterval: null,
+
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.compressor = this.ctx.createDynamicsCompressor();
+                this.compressor.threshold.value = -20; this.compressor.ratio.value = 4;
+                this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = this.volume;
+                this.compressor.connect(this.masterGain); this.masterGain.connect(this.ctx.destination);
+            },
+
+            createDrone(freq, vol, type) {
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                const vibrato = this.ctx.createOscillator();
+                const vg = this.ctx.createGain();
+                vibrato.frequency.value = 0.3; vg.gain.value = 1.5;
+                vibrato.connect(vg); vg.connect(osc.frequency);
+                osc.type = type || 'sine'; osc.frequency.value = freq;
+                g.gain.value = 0; g.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 3);
+                osc.connect(g); g.connect(this.compressor);
+                osc.start(); vibrato.start();
+                return { osc, vibrato, gain: g };
+            },
+
+            startDrones() {
+                // Eerie layered drones in Am pentatonic
+                const drones = [
+                    { freq: 55.0,  vol: 0.025, type: 'sine' },       // A1 bass
+                    { freq: 82.41, vol: 0.018, type: 'sine' },       // E2 fifth
+                    { freq: 110.0, vol: 0.015, type: 'triangle' },   // A2 octave
+                    { freq: 164.81,vol: 0.010, type: 'sine' },       // E3 high fifth
+                    { freq: 220.0, vol: 0.007, type: 'sine' },       // A3 shimmer
+                ];
+                drones.forEach(d => {
+                    const node = this.createDrone(d.freq, d.vol, d.type);
+                    this.droneNodes.push(node);
+                });
+            },
+
+            // Random distant drip/echo sound
+            scheduleAmbience() {
+                if (!this.isPlaying) return;
+                const delay = 3000 + Math.random() * 8000;
+                this.ambienceTimer = setTimeout(() => {
+                    if (!this.isPlaying) return;
+                    this.playDrip();
+                    this.scheduleAmbience();
+                }, delay);
+            },
+
+            playDrip() {
+                const now = this.ctx.currentTime;
+                const freq = 800 + Math.random() * 400;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sine'; o.frequency.value = freq;
+                o.frequency.exponentialRampToValueAtTime(freq * 0.5, now + 0.3);
+                g.gain.setValueAtTime(0.035, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                // Add reverb-like echo
+                const delay = this.ctx.createDelay(); delay.delayTime.value = 0.2;
+                const dg = this.ctx.createGain(); dg.gain.value = 0.3;
+                o.connect(g); g.connect(this.compressor);
+                g.connect(delay); delay.connect(dg); dg.connect(this.compressor);
+                o.start(now); o.stop(now + 0.6);
+            },
+
+            // Rhythmic heartbeat-like low pulse
+            startPulse() {
+                let next = this.ctx.currentTime;
+                let cnt = 0;
+                const sched = () => {
+                    while (next < this.ctx.currentTime + 0.2) {
+                        // Slow ominous pulse every 2 seconds
+                        if (cnt % 8 === 0) {
+                            const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                            o.type = 'sine'; o.frequency.value = 40;
+                            g.gain.setValueAtTime(0.04, next); g.gain.exponentialRampToValueAtTime(0.001, next + 0.8);
+                            o.connect(g); g.connect(this.compressor);
+                            o.start(next); o.stop(next + 0.8);
+                        }
+                        // Tension string stab
+                        if (cnt % 16 === 8 && Math.random() < 0.5) {
+                            const stab = this.ctx.createOscillator(); const sg = this.ctx.createGain();
+                            stab.type = 'sawtooth'; stab.frequency.value = 220 + Math.random() * 50;
+                            const flt = this.ctx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 800;
+                            sg.gain.setValueAtTime(0.015, next); sg.gain.exponentialRampToValueAtTime(0.001, next + 1.5);
+                            stab.connect(flt); flt.connect(sg); sg.connect(this.compressor);
+                            stab.start(next); stab.stop(next + 1.5);
+                        }
+                        next += 0.25; cnt++;
+                    }
+                    if (this.isPlaying) this.beatRAF = requestAnimationFrame(sched);
+                };
+                sched();
+            },
+
+            play() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                this.isPlaying = true;
+                this.startDrones();
+                this.startPulse();
+                this.scheduleAmbience();
+            },
+
+            stop() {
+                this.isPlaying = false;
+                if (this.beatRAF) { cancelAnimationFrame(this.beatRAF); this.beatRAF = null; }
+                if (this.ambienceTimer) { clearTimeout(this.ambienceTimer); this.ambienceTimer = null; }
+                this.droneNodes.forEach(n => { try { n.osc.stop(); n.vibrato.stop(); } catch(e){} });
+                this.droneNodes = [];
+                if (this.masterGain) {
+                    const now = this.ctx.currentTime;
+                    this.masterGain.gain.linearRampToValueAtTime(0, now + 1);
+                    setTimeout(() => { if (this.masterGain) this.masterGain.gain.value = this.volume; }, 1100);
+                }
+            },
+
+            // Sound effects
+            playStep() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.05), this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const flt = this.ctx.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 600; flt.Q.value = 2;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(0.03, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                src.connect(flt); flt.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                src.start(now); src.stop(now + 0.07);
+            },
+
+            playSolveComplete() {
+                if (!this.ctx) return;
+                // Triumphant arpeggio
+                [220, 277.18, 329.63, 440, 554.37, 659.25, 880].forEach((f, i) => {
+                    const now = this.ctx.currentTime + i * 0.07;
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    g.gain.setValueAtTime(0.06, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(now); o.stop(now + 0.5);
+                });
+            },
+
+            playGenerate() {
+                if (!this.ctx) return;
+                // Descending mystical sound
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sine'; o.frequency.value = 440;
+                o.frequency.exponentialRampToValueAtTime(110, now + 0.5);
+                g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                o.start(now); o.stop(now + 0.6);
+            },
+
+            playWall() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sawtooth'; o.frequency.value = 150;
+                o.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+                g.gain.setValueAtTime(0.04, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500;
+                o.connect(f); f.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                o.start(now); o.stop(now + 0.2);
+            }
+        };
+
+        let mazeAudioOn = false;
+        function toggleMazeMusic() {
+            mazeAudioOn = !mazeAudioOn;
+            const btn = document.getElementById('music-btn');
+            if (mazeAudioOn) {
+                MazeAudio.play();
+                btn.textContent = '🎵 Dungeon Music: ON';
+                btn.classList.add('active');
+            } else {
+                MazeAudio.stop();
+                btn.textContent = '🎵 Dungeon Music: OFF';
+                btn.classList.remove('active');
+            }
+        }
+
+        // Hook audio into solve steps (every N steps to avoid audio spam)
+        let stepSoundCounter = 0;
+        const _origSleep = sleep;
+        // Override sleep to inject step sounds during solve animation
+        const origDrawCell = drawCell;
+        let lastSolveColor = '';
+        function drawCellWithSound(x, y, color) {
+            origDrawCell(x, y, color);
+            if (color === colors.visited) {
+                stepSoundCounter++;
+                if (stepSoundCounter % 8 === 0 && mazeAudioOn) MazeAudio.playStep();
+            }
+        }
+        // Patch drawCell in solve functions
+        window.drawCell = drawCellWithSound;
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', e => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+            switch(e.key.toLowerCase()) {
+                case 'g': generate(); break;
+                case 's': solve(); break;
+                case 'c': clearSolution(); break;
+                case 'm': toggleMazeMusic(); break;
+                case '+': case '=': {
+                    const sp = document.getElementById('speed');
+                    sp.value = Math.min(100, parseInt(sp.value) + 10);
+                    sp.dispatchEvent(new Event('input'));
+                    break;
+                }
+                case '-': {
+                    const sp = document.getElementById('speed');
+                    sp.value = Math.max(1, parseInt(sp.value) - 10);
+                    sp.dispatchEvent(new Event('input'));
+                    break;
+                }
+            }
+        });
+
+        // Wrap solve to add audio feedback and canvas glow
+        const _origSolve = solve;
+        window.solve = async function() {
+            MazeAudio.init();
+            stepSoundCounter = 0;
+            document.querySelector('.canvas-container').classList.add('solving');
+            document.querySelector('#solve').classList.add('solving-pulse');
+            await _origSolve();
+            document.querySelector('.canvas-container').classList.remove('solving');
+            document.querySelector('#solve').classList.remove('solving-pulse');
+            if (mazeAudioOn) MazeAudio.playSolveComplete();
+        };
+
+        const _origGenerate = generate;
+        window.generate = async function() {
+            MazeAudio.init();
+            await _origGenerate();
+            if (mazeAudioOn) MazeAudio.playGenerate();
+        };
+
+        // Rewire buttons to use wrapped versions
+        document.getElementById('generate').removeEventListener('click', _origGenerate);
+        document.getElementById('solve').removeEventListener('click', _origSolve);
+        document.getElementById('generate').addEventListener('click', window.generate);
+        document.getElementById('solve').addEventListener('click', window.solve);
+
         // Initialize
         generate();
     </script>

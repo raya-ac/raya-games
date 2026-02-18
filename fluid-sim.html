@@ -1161,6 +1161,7 @@
             lastMouseX = pos.x;
             lastMouseY = pos.y;
             drawAt(pos.x, pos.y);
+            lofiMusic.onMouseDown(currentTool);
         });
 
         canvas.addEventListener('mousemove', (e) => {
@@ -1171,6 +1172,7 @@
                 lastMouseX = pos.x;
                 lastMouseY = pos.y;
                 drawAt(pos.x, pos.y, vx, vy);
+                lofiMusic.onDraw(currentTool);
             }
         });
 
@@ -1363,35 +1365,18 @@
         // Mini-games
         const gameModal = document.getElementById('gameModal');
 
-        // ==================== LOFI HIP-HOP MUSIC SYSTEM ====================
-        class LofiMusicSystem {
+        // ==================== WATER AMBIENT AUDIO SYSTEM ====================
+        class WaterAmbientSystem {
             constructor() {
                 this.audioContext = null;
                 this.isPlaying = false;
                 this.masterGain = null;
-                this.compressor = null;
-                this.nextNoteTime = 0;
-                this.beatCount = 0;
-                this.chordIndex = 0;
-                this.vinylBuffer = null;
-                this.vinylSource = null;
-                this.vinylGain = null;
-                this.volume = 0.15; // Default 15%
-                
-                // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
-                this.chords = [
-                    [261.63, 329.63, 392.00, 493.88], // Cmaj7 (C4, E4, G4, B4)
-                    [220.00, 261.63, 329.63, 392.00], // Am7 (A3, C4, E4, G4)
-                    [349.23, 440.00, 523.25, 659.26], // Fmaj7 (F4, A4, C5, E5)
-                    [196.00, 246.94, 293.66, 392.00]  // G7 (G3, B3, D4, G4)
-                ];
-                
-                this.currentChord = 0;
-                this.bpm = 75;
-                this.beatDuration = 60 / this.bpm;
-                this.lookahead = 25.0; // ms
-                this.scheduleAheadTime = 0.1; // s
-                this.timerID = null;
+                this.ambientGain = null;
+                this.sfxGain = null;
+                this.volume = 0.15;
+                this.nodes = [];
+                this.bubbleCooldown = 0;
+                this.lastTool = null;
             }
 
             init() {
@@ -1403,231 +1388,180 @@
                 }
             }
 
-            // Create vinyl crackle noise buffer
-            createVinylCrackle() {
-                const sampleRate = this.audioContext.sampleRate;
-                const length = sampleRate * 4; // 4 seconds of noise
-                const buffer = this.audioContext.createBuffer(1, length, sampleRate);
-                const data = buffer.getChannelData(0);
-                
-                for (let i = 0; i < length; i++) {
-                    // Create sparse crackle noise
-                    const crackleProb = 0.0008;
-                    if (Math.random() < crackleProb) {
-                        // Crackle burst
-                        const burstLen = Math.floor(Math.random() * 30) + 5;
-                        const amplitude = (Math.random() * 0.3 + 0.1) * 0.05; // Very subtle
-                        for (let j = 0; j < burstLen && (i + j) < length; j++) {
-                            data[i + j] = (Math.random() * 2 - 1) * amplitude * (1 - j / burstLen);
-                        }
-                        i += burstLen;
-                    } else {
-                        data[i] = 0;
-                    }
+            // ---- Water Flow (core ambient) ----
+            startWaterFlow() {
+                const sr = this.audioContext.sampleRate;
+                // Flowing water: white noise band-passed in mid-high range
+                const buf = this.audioContext.createBuffer(1, sr * 4, sr);
+                const d = buf.getChannelData(0);
+                let lp = 0;
+                for (let i = 0; i < d.length; i++) {
+                    const w = Math.random() * 2 - 1;
+                    lp = (lp + 0.05 * w) / 1.05;
+                    d[i] = lp * 3;
                 }
-                
-                return buffer;
+                const src = this.audioContext.createBufferSource();
+                src.buffer = buf; src.loop = true;
+
+                const bpf = this.audioContext.createBiquadFilter();
+                bpf.type = 'bandpass'; bpf.frequency.value = 800; bpf.Q.value = 0.3;
+
+                const bpf2 = this.audioContext.createBiquadFilter();
+                bpf2.type = 'bandpass'; bpf2.frequency.value = 3000; bpf2.Q.value = 0.5;
+
+                // Slow volume LFO (simulates water gurgling)
+                const lfo = this.audioContext.createOscillator();
+                lfo.type = 'sine'; lfo.frequency.value = 0.3;
+                const lfoG = this.audioContext.createGain(); lfoG.gain.value = 0.012;
+                const g = this.audioContext.createGain(); g.gain.value = 0.038;
+                lfo.connect(lfoG); lfoG.connect(g.gain);
+
+                src.connect(bpf); bpf.connect(bpf2); bpf2.connect(g);
+                g.connect(this.ambientGain);
+                lfo.start(); src.start();
+                this.nodes.push(src, lfo);
+
+                // Deep rumble layer (low-frequency water body)
+                const buf2 = this.audioContext.createBuffer(1, sr * 3, sr);
+                const d2 = buf2.getChannelData(0);
+                let lp2 = 0;
+                for (let i = 0; i < d2.length; i++) {
+                    const w = Math.random() * 2 - 1;
+                    lp2 = (lp2 + 0.01 * w) / 1.01;
+                    d2[i] = lp2 * 5;
+                }
+                const src2 = this.audioContext.createBufferSource();
+                src2.buffer = buf2; src2.loop = true;
+                const lpf = this.audioContext.createBiquadFilter();
+                lpf.type = 'lowpass'; lpf.frequency.value = 120;
+                const g2 = this.audioContext.createGain(); g2.gain.value = 0.025;
+                src2.connect(lpf); lpf.connect(g2); g2.connect(this.ambientGain);
+                src2.start();
+                this.nodes.push(src2);
             }
 
-            // Create soft kick drum
-            playKick(time) {
+            // ---- Drip / Bubble sounds ----
+            playDrip() {
+                if (!this.audioContext) return;
+                const t = this.audioContext.currentTime;
                 const osc = this.audioContext.createOscillator();
-                const gain = this.audioContext.createGain();
-                
-                osc.frequency.setValueAtTime(60, time);
-                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.15);
-                
-                const vol = 0.025 * this.volume;
-                gain.gain.setValueAtTime(vol, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-                
-                osc.connect(gain);
-                gain.connect(this.compressor);
-                
-                osc.start(time);
-                osc.stop(time + 0.15);
+                const g = this.audioContext.createGain();
+                osc.type = 'sine';
+                const freq = 800 + Math.random() * 600;
+                osc.frequency.setValueAtTime(freq, t);
+                osc.frequency.exponentialRampToValueAtTime(freq * 0.4, t + 0.12);
+                g.gain.setValueAtTime(0.028 * this.volume * 5, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                osc.connect(g); g.connect(this.sfxGain);
+                osc.start(t); osc.stop(t + 0.18);
             }
 
-            // Create soft snare/rim shot
-            playSnare(time) {
-                // Noise component
-                const noiseBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.1, this.audioContext.sampleRate);
-                const noiseData = noiseBuffer.getChannelData(0);
-                for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = Math.random() * 2 - 1;
-                }
-                
-                const noise = this.audioContext.createBufferSource();
-                noise.buffer = noiseBuffer;
-                
-                const noiseFilter = this.audioContext.createBiquadFilter();
-                noiseFilter.type = 'highpass';
-                noiseFilter.frequency.value = 800;
-                
-                const noiseGain = this.audioContext.createGain();
-                const vol = 0.015 * this.volume;
-                noiseGain.gain.setValueAtTime(vol, time);
-                noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-                
-                noise.connect(noiseFilter);
-                noiseFilter.connect(noiseGain);
-                noiseGain.connect(this.compressor);
-                
-                noise.start(time);
-                noise.stop(time + 0.1);
+            playBubble() {
+                if (!this.audioContext) return;
+                const t = this.audioContext.currentTime;
+                const osc = this.audioContext.createOscillator();
+                const g = this.audioContext.createGain();
+                osc.type = 'sine';
+                const baseFreq = 400 + Math.random() * 400;
+                osc.frequency.setValueAtTime(baseFreq, t);
+                osc.frequency.linearRampToValueAtTime(baseFreq * 1.5, t + 0.05);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.3, t + 0.18);
+                g.gain.setValueAtTime(0.022 * this.volume * 5, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                osc.connect(g); g.connect(this.sfxGain);
+                osc.start(t); osc.stop(t + 0.22);
             }
 
-            // Play chord with sine waves
-            playChord(time, frequencies) {
-                frequencies.forEach((freq, index) => {
-                    const osc = this.audioContext.createOscillator();
-                    const gain = this.audioContext.createGain();
-                    
-                    osc.type = 'sine';
-                    osc.frequency.value = freq;
-                    
-                    // Stagger the notes slightly for human feel
-                    const stagger = index * 0.03;
-                    const attack = 1.5;
-                    const release = 1.0;
-                    const duration = this.beatDuration * 4; // 4 beats per chord
-                    
-                    const vol = 0.02 * this.volume; // Very low volume per oscillator
-                    
-                    gain.gain.setValueAtTime(0, time + stagger);
-                    gain.gain.linearRampToValueAtTime(vol, time + stagger + attack);
-                    gain.gain.setValueAtTime(vol, time + duration - release);
-                    gain.gain.linearRampToValueAtTime(0, time + duration);
-                    
-                    osc.connect(gain);
-                    gain.connect(this.compressor);
-                    
-                    osc.start(time + stagger);
-                    osc.stop(time + duration + 0.1);
-                });
+            playSplash() {
+                if (!this.audioContext) return;
+                const t = this.audioContext.currentTime;
+                const sr = this.audioContext.sampleRate;
+                const buf = this.audioContext.createBuffer(1, Math.floor(sr * 0.15), sr);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                const src = this.audioContext.createBufferSource(); src.buffer = buf;
+                const bpf = this.audioContext.createBiquadFilter();
+                bpf.type = 'bandpass'; bpf.frequency.value = 1500; bpf.Q.value = 0.4;
+                const g = this.audioContext.createGain(); g.gain.value = 0.04 * this.volume * 5;
+                src.connect(bpf); bpf.connect(g); g.connect(this.sfxGain);
+                src.start(t);
             }
 
-            // Start vinyl crackle loop
-            startVinylCrackle() {
-                if (!this.vinylBuffer) {
-                    this.vinylBuffer = this.createVinylCrackle();
-                }
-                
-                this.vinylSource = this.audioContext.createBufferSource();
-                this.vinylSource.buffer = this.vinylBuffer;
-                this.vinylSource.loop = true;
-                
-                this.vinylGain = this.audioContext.createGain();
-                this.vinylGain.gain.value = 0.04 * this.volume;
-                
-                // Lowpass filter for warmer vinyl sound
-                const filter = this.audioContext.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 4000;
-                
-                this.vinylSource.connect(filter);
-                filter.connect(this.vinylGain);
-                this.vinylGain.connect(this.compressor);
-                
-                this.vinylSource.start(0);
+            playLavaCrackle() {
+                if (!this.audioContext) return;
+                const t = this.audioContext.currentTime;
+                const sr = this.audioContext.sampleRate;
+                const buf = this.audioContext.createBuffer(1, Math.floor(sr * 0.2), sr);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * 0.7;
+                const src = this.audioContext.createBufferSource(); src.buffer = buf;
+                const lpf = this.audioContext.createBiquadFilter();
+                lpf.type = 'lowpass'; lpf.frequency.value = 400;
+                const g = this.audioContext.createGain(); g.gain.value = 0.035 * this.volume * 5;
+                src.connect(lpf); lpf.connect(g); g.connect(this.sfxGain);
+                src.start(t);
             }
 
-            stopVinylCrackle() {
-                if (this.vinylSource) {
-                    this.vinylSource.stop();
-                    this.vinylSource.disconnect();
-                    this.vinylSource = null;
+            // Called every frame while drawing (rate-limited internally)
+            onDraw(tool) {
+                if (!this.audioContext || !this.isPlaying) return;
+                this.bubbleCooldown--;
+                if (this.bubbleCooldown > 0) return;
+
+                if (tool === 'water' || tool === 'dye-red' || tool === 'dye-blue' || tool === 'dye-green' || tool === 'dye-yellow') {
+                    if (Math.random() < 0.35) this.playDrip();
+                    else this.playBubble();
+                    this.bubbleCooldown = 12 + Math.floor(Math.random() * 15);
+                } else if (tool === 'lava') {
+                    if (Math.random() < 0.4) this.playLavaCrackle();
+                    this.bubbleCooldown = 18 + Math.floor(Math.random() * 10);
+                } else if (tool === 'oil') {
+                    if (Math.random() < 0.25) this.playBubble();
+                    this.bubbleCooldown = 20;
+                } else if (tool === 'smoke') {
+                    // subtle hiss
+                    this.bubbleCooldown = 30;
+                } else {
+                    this.bubbleCooldown = 8;
                 }
             }
 
-            scheduler() {
-                while (this.nextNoteTime < this.audioContext.currentTime + this.scheduleAheadTime) {
-                    this.scheduleNote(this.beatCount, this.nextNoteTime);
-                    this.nextNote();
-                }
-                this.timerID = setTimeout(() => this.scheduler(), this.lookahead);
-            }
-
-            scheduleNote(beatNumber, time) {
-                // Play chord every 4 beats (one chord per measure at 75 BPM)
-                if (beatNumber % 4 === 0) {
-                    this.playChord(time, this.chords[this.currentChord]);
-                    this.currentChord = (this.currentChord + 1) % this.chords.length;
-                }
-                
-                // Downtempo beat pattern: kick on 1 and 3, snare on 2 and 4 (but softer)
-                if (beatNumber % 4 === 0) {
-                    this.playKick(time);
-                } else if (beatNumber % 4 === 2) {
-                    this.playKick(time); // Softer second kick
-                }
-                
-                // Ghost snares on 2 and 4
-                if (beatNumber % 4 === 1 || beatNumber % 4 === 3) {
-                    // Only play snare sometimes for variation
-                    if (Math.random() > 0.3) {
-                        this.playSnare(time);
-                    }
-                }
-            }
-
-            nextNote() {
-                const secondsPerBeat = 60.0 / this.bpm;
-                this.nextNoteTime += secondsPerBeat;
-                this.beatCount++;
+            onMouseDown(tool) {
+                if (!this.audioContext || !this.isPlaying) return;
+                if (tool === 'water' || tool.startsWith('dye')) this.playSplash();
+                else if (tool === 'lava') this.playLavaCrackle();
             }
 
             start() {
                 if (this.isPlaying) return;
-                
                 this.init();
-                
-                // Create master compressor
-                this.compressor = this.audioContext.createDynamicsCompressor();
-                this.compressor.threshold.value = -24;
-                this.compressor.knee.value = 30;
-                this.compressor.ratio.value = 4;
-                this.compressor.attack.value = 0.003;
-                this.compressor.release.value = 0.25;
-                
-                // Master gain
+
+                const compressor = this.audioContext.createDynamicsCompressor();
+                compressor.threshold.value = -18; compressor.ratio.value = 3;
+                compressor.attack.value = 0.005; compressor.release.value = 0.3;
+
                 this.masterGain = this.audioContext.createGain();
                 this.masterGain.gain.value = this.volume;
-                
-                this.compressor.connect(this.masterGain);
+
+                this.ambientGain = this.audioContext.createGain();
+                this.ambientGain.gain.value = 0.7;
+                this.sfxGain = this.audioContext.createGain();
+                this.sfxGain.gain.value = 0.3;
+
+                this.ambientGain.connect(compressor);
+                this.sfxGain.connect(compressor);
+                compressor.connect(this.masterGain);
                 this.masterGain.connect(this.audioContext.destination);
-                
+
                 this.isPlaying = true;
-                this.beatCount = 0;
-                this.currentChord = 0;
-                this.nextNoteTime = this.audioContext.currentTime + 0.1;
-                
-                this.startVinylCrackle();
-                this.scheduler();
+                this.startWaterFlow();
             }
 
             stop() {
                 this.isPlaying = false;
-                if (this.timerID) {
-                    clearTimeout(this.timerID);
-                    this.timerID = null;
-                }
-                this.stopVinylCrackle();
-                
-                // Fade out master
-                if (this.masterGain) {
-                    this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
-                    setTimeout(() => {
-                        if (this.masterGain) {
-                            this.masterGain.disconnect();
-                            this.masterGain = null;
-                        }
-                        if (this.compressor) {
-                            this.compressor.disconnect();
-                            this.compressor = null;
-                        }
-                    }, 600);
-                }
+                this.nodes.forEach(n => { try { n.stop(); n.disconnect(); } catch(e) {} });
+                this.nodes = [];
+                if (this.masterGain) { this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5); }
             }
 
             setVolume(vol) {
@@ -1635,14 +1569,11 @@
                 if (this.masterGain) {
                     this.masterGain.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
                 }
-                if (this.vinylGain) {
-                    this.vinylGain.gain.setValueAtTime(0.04 * this.volume, this.audioContext.currentTime);
-                }
             }
         }
 
-        // Initialize music system
-        const lofiMusic = new LofiMusicSystem();
+        // Initialize water audio system
+        const lofiMusic = new WaterAmbientSystem();
 
         // Music toggle
         document.getElementById('musicToggle').addEventListener('click', () => {
@@ -1765,6 +1696,72 @@
 
         document.getElementById('startGameBtn').addEventListener('click', () => {
             gameModal.classList.remove('active');
+        });
+
+        // ---- Keyboard shortcuts ----
+        document.addEventListener('keydown', (e) => {
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT') return;
+            switch(e.key.toLowerCase()) {
+                case 'm':
+                    document.getElementById('musicToggle').click();
+                    break;
+                case 'c':
+                    document.getElementById('clearBtn').click();
+                    break;
+                case 'p':
+                    document.getElementById('paused').checked = !document.getElementById('paused').checked;
+                    isPaused = document.getElementById('paused').checked;
+                    break;
+                case 'g':
+                    document.getElementById('glowEffect').checked = !document.getElementById('glowEffect').checked;
+                    glowEffect = document.getElementById('glowEffect').checked;
+                    break;
+                case 'v':
+                    document.getElementById('showVelocity').checked = !document.getElementById('showVelocity').checked;
+                    showVelocityField = document.getElementById('showVelocity').checked;
+                    break;
+                case '1':
+                    document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.fluid-btn.water').classList.add('active');
+                    currentTool = 'water';
+                    break;
+                case '2':
+                    document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.fluid-btn.lava').classList.add('active');
+                    currentTool = 'lava';
+                    break;
+                case '3':
+                    document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.fluid-btn.smoke').classList.add('active');
+                    currentTool = 'smoke';
+                    break;
+                case '4':
+                    document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.fluid-btn.oil').classList.add('active');
+                    currentTool = 'oil';
+                    break;
+                case 'e':
+                    document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.fluid-btn.eraser').classList.add('active');
+                    currentTool = 'eraser';
+                    break;
+                case 'w':
+                    document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.fluid-btn.obstacle').classList.add('active');
+                    currentTool = 'obstacle';
+                    break;
+                case 'arrowup':
+                    brushSize = Math.min(20, brushSize + 1);
+                    document.getElementById('brushSlider').value = brushSize;
+                    document.getElementById('brushValue').textContent = brushSize;
+                    break;
+                case 'arrowdown':
+                    brushSize = Math.max(1, brushSize - 1);
+                    document.getElementById('brushSlider').value = brushSize;
+                    document.getElementById('brushValue').textContent = brushSize;
+                    break;
+            }
         });
 
         // Initialize

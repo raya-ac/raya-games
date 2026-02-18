@@ -345,6 +345,7 @@
                     logActivity(this.name, `Promoted to Level ${this.level}! Salary: $${this.salary}/day`, '🆙');
                     this.say('Level up! 🎉');
                     particles.push(new Particle(this.x, this.y - 50, 'star'));
+                    OfficeAudio.playLevelUp();
                 }
             }
             
@@ -939,6 +940,7 @@
                 if (item === 'plant') shopItems.plants++;
                 logActivity('Office', `purchased ${item} for $${cost}`, '🛒');
                 particles.push(new Particle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 'money'));
+                OfficeAudio.playCoin();
                 closeShop();
             } else {
                 alert('Not enough money!');
@@ -1002,7 +1004,288 @@
             }
         }
         
-        function toggleMusic() { musicPlaying = !musicPlaying; const btn = document.querySelector('button[onclick="toggleMusic()"]'); btn.innerHTML = musicPlaying ? '🎵 Lofi ON' : '🎵 Lofi'; btn.style.background = musicPlaying ? '#c084fc' : 'rgba(255,255,255,0.9)'; btn.style.color = musicPlaying ? 'white' : '#667eea'; if (musicPlaying) logActivity('System', 'Lofi beats playing', '🎵'); }
+        // ======================= ENHANCED LOFI MUSIC & OFFICE AMBIENCE =======================
+        const OfficeAudio = {
+            ctx: null, masterGain: null, compressor: null,
+            isPlaying: false, volume: 0.18,
+            chordInterval: null, beatRAF: null, ambienceNodes: [],
+            chords: [
+                [261.63, 329.63, 392.00, 493.88], // Cmaj7
+                [220.00, 261.63, 329.63, 392.00], // Am7
+                [174.61, 220.00, 261.63, 329.63], // Fmaj7
+                [196.00, 246.94, 293.66, 392.00], // G7
+                [233.08, 293.66, 349.23, 440.00], // Bbmaj7
+                [207.65, 261.63, 311.13, 392.00], // Ab7
+            ],
+            currentChord: 0, bpm: 75,
+            melodyNotes: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25],
+            
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.compressor = this.ctx.createDynamicsCompressor();
+                this.compressor.threshold.value = -18;
+                this.compressor.ratio.value = 4;
+                this.compressor.knee.value = 30;
+                this.compressor.attack.value = 0.003;
+                this.compressor.release.value = 0.25;
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.volume;
+                this.compressor.connect(this.masterGain);
+                this.masterGain.connect(this.ctx.destination);
+            },
+
+            createBrownNoise(gainVal, hpFreq) {
+                const sr = this.ctx.sampleRate;
+                const buf = this.ctx.createBuffer(1, sr * 3, sr);
+                const d = buf.getChannelData(0);
+                let last = 0;
+                for (let i = 0; i < d.length; i++) {
+                    const w = Math.random() * 2 - 1;
+                    d[i] = (last + 0.02 * w) / 1.02;
+                    last = d[i];
+                    d[i] *= gainVal;
+                }
+                const src = this.ctx.createBufferSource();
+                src.buffer = buf; src.loop = true;
+                const f = this.ctx.createBiquadFilter();
+                f.type = 'highpass'; f.frequency.value = hpFreq;
+                const g = this.ctx.createGain(); g.gain.value = 1;
+                src.connect(f); f.connect(g); g.connect(this.compressor);
+                src.start();
+                return { src, gain: g };
+            },
+
+            // Vinyl crackle
+            startVinyl() {
+                const node = this.createBrownNoise(0.012, 800);
+                this.ambienceNodes.push(node);
+            },
+
+            // Office ambience: AC hum
+            startACHum() {
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sine'; osc.frequency.value = 60;
+                g.gain.value = 0.008;
+                osc.connect(g); g.connect(this.compressor);
+                osc.start();
+                this.ambienceNodes.push({ src: osc, gain: g });
+            },
+
+            // Typing click sounds (random intervals)
+            scheduleTyping() {
+                if (!this.isPlaying) return;
+                const delay = 200 + Math.random() * 800;
+                setTimeout(() => {
+                    if (!this.isPlaying) return;
+                    this.playClick(0.006 + Math.random() * 0.008);
+                    this.scheduleTyping();
+                }, delay);
+            },
+
+            playClick(vol) {
+                const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.015), this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 3000; f.Q.value = 0.5;
+                const g = this.ctx.createGain(); g.gain.value = vol;
+                src.connect(f); f.connect(g); g.connect(this.compressor);
+                src.start();
+            },
+
+            playKick(time) {
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.frequency.setValueAtTime(55, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                g.gain.setValueAtTime(0.04, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+                osc.connect(g); g.connect(this.compressor);
+                osc.start(time); osc.stop(time + 0.5);
+            },
+
+            playSnare(time) {
+                const bufSz = Math.floor(this.ctx.sampleRate * 0.12);
+                const buf = this.ctx.createBuffer(1, bufSz, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufSz; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSz);
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1800;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(0.022, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+                src.connect(f); f.connect(g); g.connect(this.compressor);
+                src.start(time); src.stop(time + 0.12);
+            },
+
+            playHihat(time, vol) {
+                const bufSz = Math.floor(this.ctx.sampleRate * 0.05);
+                const buf = this.ctx.createBuffer(1, bufSz, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufSz; i++) d[i] = Math.random() * 2 - 1;
+                const src = this.ctx.createBufferSource(); src.buffer = buf;
+                const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+                const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                src.connect(f); f.connect(g); g.connect(this.compressor);
+                src.start(time); src.stop(time + 0.05);
+            },
+
+            playChord(idx) {
+                const notes = this.chords[idx];
+                const now = this.ctx.currentTime;
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = i < 2 ? 'sine' : 'triangle';
+                    osc.frequency.value = freq;
+                    g.gain.setValueAtTime(0, now);
+                    g.gain.linearRampToValueAtTime(0.018, now + 1.2);
+                    g.gain.setValueAtTime(0.018, now + 5.5);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + 8);
+                    osc.connect(g); g.connect(this.compressor);
+                    osc.start(now); osc.stop(now + 8);
+                });
+            },
+
+            // Gentle plucked bass note
+            playBass(freq, time) {
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.value = freq / 2;
+                const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 200;
+                g.gain.setValueAtTime(0.03, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.8);
+                osc.connect(f); f.connect(g); g.connect(this.compressor);
+                osc.start(time); osc.stop(time + 0.8);
+            },
+
+            // Soft melody pluck
+            playMelodyNote(freq, time) {
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sine'; osc.frequency.value = freq * 2;
+                g.gain.setValueAtTime(0.012, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+                osc.connect(g); g.connect(this.compressor);
+                osc.start(time); osc.stop(time + 0.4);
+            },
+
+            startBeat() {
+                const beat = 60 / this.bpm;
+                let nextNote = this.ctx.currentTime;
+                let cnt = 0;
+                const bassRoot = [65.41, 55.00, 43.65, 49.00, 58.27, 51.91];
+                const melodyPattern = [0, 2, 4, 2, 5, 4, 2, 0, 1, 3, 4, 7, 6, 5, 3, 2];
+                let melIdx = 0;
+
+                const sched = () => {
+                    while (nextNote < this.ctx.currentTime + 0.15) {
+                        const b = cnt % 4;
+                        if (b === 0) this.playKick(nextNote);
+                        if (b === 1 || b === 3) this.playSnare(nextNote);
+                        // Hihat pattern
+                        this.playHihat(nextNote, b % 2 === 0 ? 0.015 : 0.008);
+                        // Offbeat hihat
+                        if (Math.random() < 0.5) this.playHihat(nextNote + beat * 0.5, 0.005);
+                        // Bass on 1 and 3
+                        if (b === 0 || b === 2) this.playBass(bassRoot[this.currentChord], nextNote);
+                        // Melody every 2 beats
+                        if (cnt % 2 === 0 && Math.random() < 0.6) {
+                            const mNote = this.melodyNotes[melodyPattern[melIdx % melodyPattern.length]];
+                            this.playMelodyNote(mNote, nextNote + Math.random() * 0.1);
+                            melIdx++;
+                        }
+                        nextNote += beat;
+                        cnt++;
+                    }
+                    if (this.isPlaying) this.beatRAF = requestAnimationFrame(sched);
+                };
+                sched();
+            },
+
+            play() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                this.isPlaying = true;
+                this.startVinyl();
+                this.startACHum();
+                this.scheduleTyping();
+                this.playChord(0);
+                this.chordInterval = setInterval(() => {
+                    this.currentChord = (this.currentChord + 1) % this.chords.length;
+                    this.playChord(this.currentChord);
+                }, 8000);
+                this.startBeat();
+            },
+
+            stop() {
+                this.isPlaying = false;
+                if (this.beatRAF) { cancelAnimationFrame(this.beatRAF); this.beatRAF = null; }
+                if (this.chordInterval) { clearInterval(this.chordInterval); this.chordInterval = null; }
+                this.ambienceNodes.forEach(n => { try { n.src.stop(); } catch(e){} });
+                this.ambienceNodes = [];
+                if (this.masterGain) {
+                    const now = this.ctx.currentTime;
+                    this.masterGain.gain.linearRampToValueAtTime(0, now + 0.5);
+                    setTimeout(() => { if (this.masterGain) this.masterGain.gain.value = this.volume; }, 600);
+                }
+            },
+
+            setVolume(v) { this.volume = v; if (this.masterGain) this.masterGain.gain.value = v; },
+
+            // Sound effects
+            playNotif() {
+                if (!this.ctx) return;
+                [523.25, 659.25].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    const t = this.ctx.currentTime + i * 0.1;
+                    g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                    o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(t); o.stop(t + 0.3);
+                });
+            },
+
+            playLevelUp() {
+                if (!this.ctx) return;
+                [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+                    const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    const t = this.ctx.currentTime + i * 0.08;
+                    g.gain.setValueAtTime(0.07, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+                    o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                    o.start(t); o.stop(t + 0.25);
+                });
+            },
+
+            playCoin() {
+                if (!this.ctx) return;
+                const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                o.type = 'sine'; o.frequency.value = 988.0;
+                o.frequency.setValueAtTime(988, this.ctx.currentTime);
+                o.frequency.exponentialRampToValueAtTime(1480, this.ctx.currentTime + 0.08);
+                g.gain.setValueAtTime(0.07, this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+                o.connect(g); g.connect(this.masterGain || this.ctx.destination);
+                o.start(); o.stop(this.ctx.currentTime + 0.2);
+            }
+        };
+
+        function toggleMusic() {
+            musicPlaying = !musicPlaying;
+            const btn = document.querySelector('button[onclick="toggleMusic()"]');
+            if (musicPlaying) {
+                OfficeAudio.play();
+                btn.innerHTML = '🎵 Lofi ON ♪';
+                btn.style.background = 'linear-gradient(135deg, #c084fc, #a855f7)';
+                btn.style.color = 'white';
+                btn.style.boxShadow = '0 0 12px rgba(192,132,252,0.6)';
+                logActivity('System', 'Lofi beats + office ambience playing', '🎵');
+            } else {
+                OfficeAudio.stop();
+                btn.innerHTML = '🎵 Lofi';
+                btn.style.background = 'rgba(255,255,255,0.9)';
+                btn.style.color = '#667eea';
+                btn.style.boxShadow = '';
+            }
+        }
         
         function triggerEvent() {
             const events = [
@@ -1126,6 +1409,19 @@
         });
         
         window.addEventListener('beforeunload', saveStats);
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', e => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            switch(e.key) {
+                case 'm': case 'M': toggleMusic(); break;
+                case 'e': case 'E': triggerEvent(); break;
+                case 's': case 'S': openShop(); break;
+                case 'Escape': closeModal(); closeShop(); break;
+                case '+': case '=': timeSpeed = Math.min(10, timeSpeed + 0.5); break;
+                case '-': case '_': timeSpeed = Math.max(0.5, timeSpeed - 0.5); break;
+            }
+        });
         setInterval(() => { if (Math.random() < 0.1) { const w = ['sunny', 'cloudy', 'rain', 'snow']; weather = w[Math.floor(Math.random() * w.length)]; } }, 30000);
         updateUI();
     </script>

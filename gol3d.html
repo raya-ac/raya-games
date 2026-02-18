@@ -487,7 +487,11 @@
             <p>Ultimate Cellular Automaton Simulation</p>
         </div>
         
-        <div style="pointer-events: auto;">
+        <div style="pointer-events: auto; display: flex; gap: 10px; align-items: center;">
+            <button id="space-music-btn" onclick="SpaceAudio.toggle()" title="Toggle Music [M]"
+                style="background: rgba(0,0,0,0.7); border: 1px solid #00f5ff; color: #00f5ff; padding: 8px 14px; border-radius: 4px; font-family: 'Rajdhani',sans-serif; font-size: 13px; cursor: pointer; letter-spacing: 1px; transition: all 0.3s;">
+                🎵 MUSIC
+            </button>
             <a href="/games" style="background: rgba(0,0,0,0.7); border: 1px solid #00f5ff; color: #00f5ff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; display: inline-block;">🎮 Games</a>
         </div>
     </div>
@@ -1569,6 +1573,211 @@
         
         // Start
         init();
+
+        // ============================================
+        // SPACE AMBIENT MUSIC SYSTEM
+        // ============================================
+        const SpaceAudio = {
+            ctx: null, masterGain: null, musicGain: null, sfxGain: null,
+            isPlaying: false, isMuted: false, volume: 0.15,
+            oscillators: [], intervals: [],
+            // Mystical space scale (whole tone flavour)
+            scale: [65.41, 73.42, 82.41, 92.50, 110.00, 123.47, 130.81, 146.83, 164.81],
+
+            init() {
+                if (this.ctx) return;
+                const AC = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AC();
+                const comp = this.ctx.createDynamicsCompressor();
+                comp.threshold.value = -20; comp.ratio.value = 5;
+                comp.attack.value = 0.01; comp.release.value = 0.5;
+                this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = this.volume;
+                this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0.8;
+                this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.9;
+                this.musicGain.connect(comp); this.sfxGain.connect(comp);
+                comp.connect(this.masterGain); this.masterGain.connect(this.ctx.destination);
+            },
+
+            resume() { if (this.ctx?.state === 'suspended') this.ctx.resume(); },
+
+            // Deep space drone — very slow evolving
+            createSpaceDrone(freq, gainVal) {
+                const osc1 = this.ctx.createOscillator();
+                const osc2 = this.ctx.createOscillator();
+                const lfo = this.ctx.createOscillator();
+                const lfoGain = this.ctx.createGain();
+                const filt = this.ctx.createBiquadFilter();
+                const g = this.ctx.createGain();
+
+                // Two slightly detuned oscillators for "space" thickness
+                osc1.type = 'sine'; osc1.frequency.value = freq;
+                osc2.type = 'sine'; osc2.frequency.value = freq * 1.002; // Very slight detune
+
+                // Slow LFO tremolo
+                lfo.frequency.value = 0.04; lfoGain.gain.value = gainVal * 0.3;
+                lfo.connect(lfoGain); lfoGain.connect(g.gain);
+
+                filt.type = 'lowpass'; filt.frequency.value = freq * 4; filt.Q.value = 2;
+
+                g.gain.value = 0;
+                g.gain.linearRampToValueAtTime(gainVal, this.ctx.currentTime + 5);
+
+                osc1.connect(filt); osc2.connect(filt); filt.connect(g); g.connect(this.musicGain);
+                osc1.start(); osc2.start(); lfo.start();
+                this.oscillators.push(osc1, osc2, lfo);
+            },
+
+            // Cosmic pad chord
+            createCosmicPad(freqs, gainVal, attackTime = 6) {
+                freqs.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    const pan = this.ctx.createStereoPanner();
+                    osc.type = 'sine'; osc.frequency.value = freq;
+                    pan.pan.value = (i / freqs.length - 0.5) * 0.6;
+                    g.gain.value = 0;
+                    g.gain.linearRampToValueAtTime(gainVal, this.ctx.currentTime + attackTime + i * 0.5);
+                    osc.connect(g); g.connect(pan); pan.connect(this.musicGain);
+                    osc.start();
+                    this.oscillators.push(osc);
+                });
+            },
+
+            // Slow evolving harmonic shimmer
+            startShimmer() {
+                let phase = 0;
+                const harmonics = [1, 2, 3, 5, 7];
+                const id = setInterval(() => {
+                    if (!this.isPlaying || this.isMuted) return;
+                    const baseFreq = this.scale[Math.floor(phase) % this.scale.length];
+                    const harmonic = harmonics[Math.floor(Math.random() * harmonics.length)];
+                    const freq = baseFreq * harmonic;
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    const pan = this.ctx.createStereoPanner();
+                    pan.pan.value = (Math.random() - 0.5) * 0.8;
+                    osc.type = 'sine'; osc.frequency.value = freq;
+                    const now = this.ctx.currentTime;
+                    g.gain.setValueAtTime(0, now);
+                    g.gain.linearRampToValueAtTime(0.015, now + 1.5);
+                    g.gain.linearRampToValueAtTime(0, now + 4);
+                    osc.connect(g); g.connect(pan); pan.connect(this.musicGain);
+                    osc.start(now); osc.stop(now + 4.5);
+                    phase += 0.3;
+                }, 2500);
+                this.intervals.push(id);
+            },
+
+            // Space noise for texture
+            createSpaceNoise() {
+                const bufLen = this.ctx.sampleRate * 4;
+                const buf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * 0.01;
+                const src = this.ctx.createBufferSource();
+                src.buffer = buf; src.loop = true;
+                const filt = this.ctx.createBiquadFilter();
+                filt.type = 'bandpass'; filt.frequency.value = 200; filt.Q.value = 0.5;
+                const g = this.ctx.createGain(); g.gain.value = 0.02;
+                src.connect(filt); filt.connect(g); g.connect(this.musicGain);
+                src.start();
+                this.oscillators.push(src);
+            },
+
+            startMusic() {
+                this.init(); this.resume(); this.isPlaying = true;
+                // Deep bass drones
+                this.createSpaceDrone(32.70, 0.08);   // C1
+                this.createSpaceDrone(48.999, 0.05);  // G1
+                this.createSpaceDrone(65.41, 0.04);   // C2
+                // Mid-range cosmic pads (Cmaj9 voicing)
+                this.createCosmicPad([130.81, 164.81, 196.00, 246.94, 329.63], 0.03, 8);
+                // High shimmer
+                this.startShimmer();
+                // Space texture
+                this.createSpaceNoise();
+                this.updateUI();
+            },
+
+            stopMusic() {
+                this.isPlaying = false;
+                this.oscillators.forEach(o => { try { o.stop(); } catch(e) {} });
+                this.oscillators = []; this.intervals.forEach(clearInterval); this.intervals = [];
+                this.updateUI();
+            },
+
+            toggle() {
+                if (!this.isPlaying) { this.startMusic(); return; }
+                this.isMuted = !this.isMuted;
+                if (this.masterGain) this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : this.volume, this.ctx.currentTime, 0.5);
+                this.updateUI();
+            },
+
+            updateUI() {
+                const btn = document.getElementById('space-music-btn');
+                if (!btn) return;
+                if (!this.isPlaying) { btn.textContent = '🎵 MUSIC'; btn.style.borderColor='#00f5ff'; btn.style.color='#00f5ff'; btn.style.boxShadow=''; }
+                else if (this.isMuted) { btn.textContent = '🔇 MUTED'; btn.style.borderColor='#555'; btn.style.color='#555'; btn.style.boxShadow=''; }
+                else { btn.textContent = '🔊 AMBIENT'; btn.style.borderColor='#00f5ff'; btn.style.color='#00f5ff'; btn.style.boxShadow='0 0 15px rgba(0,245,255,0.5)'; }
+            },
+
+            // Sound effects
+            playGenTick() {
+                if (!this.ctx || !this.isPlaying || this.isMuted) return;
+                const osc = this.ctx.createOscillator(), g = this.ctx.createGain(), now = this.ctx.currentTime;
+                osc.type = 'sine'; osc.frequency.value = 440;
+                g.gain.setValueAtTime(0.02, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.connect(g); g.connect(this.sfxGain); osc.start(now); osc.stop(now + 0.09);
+            },
+
+            playCellBorn() {
+                if (!this.ctx || !this.isPlaying || this.isMuted) return;
+                const freq = 440 + Math.random() * 440;
+                const osc = this.ctx.createOscillator(), g = this.ctx.createGain(), now = this.ctx.currentTime;
+                osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now); osc.frequency.linearRampToValueAtTime(freq * 1.5, now + 0.1);
+                g.gain.setValueAtTime(0.025, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.connect(g); g.connect(this.sfxGain); osc.start(now); osc.stop(now + 0.16);
+            },
+
+            playCellDied() {
+                if (!this.ctx || !this.isPlaying || this.isMuted) return;
+                const freq = 180 + Math.random() * 80;
+                const osc = this.ctx.createOscillator(), g = this.ctx.createGain(), now = this.ctx.currentTime;
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now); osc.frequency.exponentialRampToValueAtTime(freq * 0.5, now + 0.12);
+                g.gain.setValueAtTime(0.02, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.connect(g); g.connect(this.sfxGain); osc.start(now); osc.stop(now + 0.13);
+            }
+        };
+
+        // Hook generation sounds into computeNextGeneration
+        const _origCompute = computeNextGeneration;
+        let _lastBorn = 0, _lastDied = 0;
+        computeNextGeneration = function() {
+            const prevBorn = stats.born, prevDied = stats.died;
+            _origCompute();
+            if (stats.born > prevBorn && generation % 3 === 0) SpaceAudio.playCellBorn();
+            if (stats.died > prevDied && generation % 5 === 0) SpaceAudio.playCellDied();
+            if (generation % 10 === 0) SpaceAudio.playGenTick();
+        };
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.key === 'm' || e.key === 'M') SpaceAudio.toggle();
+            if (e.key === ' ' && !e.target.matches('input,select,textarea')) { e.preventDefault(); togglePlay(); }
+            if (e.key === 'r' || e.key === 'R') loadPreset('random');
+            if (e.key === 'c' || e.key === 'C') clearGrid();
+        });
+
+        // Auto-start on first interaction
+        let _spaceAudioReady = false;
+        function _initSpaceAudio() {
+            if (_spaceAudioReady) return; _spaceAudioReady = true;
+            SpaceAudio.startMusic();
+            document.removeEventListener('click', _initSpaceAudio);
+            document.removeEventListener('keydown', _initSpaceAudio);
+        }
+        document.addEventListener('click', _initSpaceAudio);
+        document.addEventListener('keydown', _initSpaceAudio);
     </script>
 </body>
 </html>
