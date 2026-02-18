@@ -327,7 +327,12 @@
         
         canvas.width = WIDTH * SCALE;
         canvas.height = HEIGHT * SCALE;
-        ctx.scale(SCALE, SCALE);
+        
+        // Offscreen canvas for pixel manipulation
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = WIDTH;
+        offCanvas.height = HEIGHT;
+        const offCtx = offCanvas.getContext('2d', { alpha: false });
         
         // Element types
         const EMPTY = 0;
@@ -560,7 +565,7 @@
         }
         
         function draw() {
-            const imageData = ctx.createImageData(WIDTH, HEIGHT);
+            const imageData = offCtx.createImageData(WIDTH, HEIGHT);
             const data = imageData.data;
             
             for (let i = 0; i < WIDTH * HEIGHT; i++) {
@@ -577,7 +582,11 @@
                 data[idx + 3] = 255;
             }
             
-            ctx.putImageData(imageData, 0, 0);
+            offCtx.putImageData(imageData, 0, 0);
+            
+            // Scale up to main canvas
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(offCanvas, 0, 0, WIDTH * SCALE, HEIGHT * SCALE);
         }
         
         // Mouse handling
