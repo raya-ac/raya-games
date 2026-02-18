@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-02-18
+
+### Enhanced
+- life-simulator: Ambient music, achievement sounds, visual polish
+- life2d: Electronic ambient + birth/death particle sounds
+- boids: Refined nature flocking music
+- gol4d: Ethereal 4D ambient music
+- medieval-wars: Epic orchestral + detailed battle sounds
+- particles: Space ambient refinements
+- snake-ai: Retro arcade music + movement sounds
+- zombie-sim: Horror ambient + zombie sounds
+- games.html: Portal ambient music
+
+## [1.2.0] - 2026-02-18
+
+### Enhanced
+- ai-office: Lofi office ambience + coworker sounds
+- ant-sim: Nature ambient + pheromone audio feedback
+- battleroyale: Action/tension music + combat sounds
+- boids: Peaceful flocking music + wing sounds
+- disease-sim: Ominous outbreak ambience + alarm sounds
+- ecosystem: Forest/nature ambient + animal sounds
+- falling-sand: Particle ambient + element reaction sounds
+- fluid-sim: Flowing water sounds + splash effects
+- gol3d: Space ambient + cell evolution sounds
+- life2d: Electronic ambient + visual glow enhancements
+- maze: Dungeon ambient + footstep/solve sounds
+- medieval-wars: Epic orchestral with detailed battle sounds
+- neural-net: Cyberpunk synthwave + training sounds
+- particles: Space ambient + collision sounds
+- prison-tycoon: Industrial ambience + alarm/riot sounds
+- traffic: City ambient + car/horn sounds
+
+### Added for all games
+- Web Audio API procedural music generation (no external files)
+- Themed sound effects for interactions
+- Music toggle button with visual feedback
+- Keyboard shortcuts: M=mute/unmute, Space=pause
+- Enhanced visual effects and animations
+
 ## [1.1.0] - 2026-02-18
 
 ### Added
