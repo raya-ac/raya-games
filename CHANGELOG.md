@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-18
+
+### Added
+- **Falling Sand** - Physics sandbox with 12+ elements (sand, water, fire, acid, lava, etc.)
+- **Snake AI** - Watch BFS, A*, and Hamiltonian algorithms play Snake
+- **Maze Generator** - 4 generation algorithms + 4 solvers with visualization
+- Total games now 24
+
 ## [1.0.0] - 2026-02-18
 
 ### Added
@@ -38,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `battleroyale.html` - 100 AI battle royale
 - `disease-sim.html` - Disease outbreak simulator
 - `zombie-sim.html` - Zombie outbreak simulator
+- `falling-sand.html` - Physics sandbox with elements
+- `snake-ai.html` - AI pathfinding Snake
+- `maze.html` - Maze generator and solver
 - `neural-net.html` - Neural network visualizer
 - `ai-office.html` - AI agent office simulator
 - `traffic.html` - Traffic simulation

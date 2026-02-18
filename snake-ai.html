@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake AI - Neural Pathfinding</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-hover: #1a1a25;
+            --border: #2a2a3a;
+            --primary: #22c55e;
+            --primary-dark: #16a34a;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+        
+        body {
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #22c55e, #4ade80);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        header p {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+        
+        .game-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .board-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(20, 25px);
+            grid-template-rows: repeat(20, 25px);
+            gap: 1px;
+            background: var(--bg-card);
+            padding: 10px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        .cell {
+            width: 25px;
+            height: 25px;
+            background: var(--bg-hover);
+            border-radius: 4px;
+            transition: all 0.1s;
+        }
+        
+        .cell.snake { 
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+        
+        .cell.snake-head { 
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.8);
+            position: relative;
+        }
+        
+        .cell.food { 
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+        
+        .cell.path {
+            background: rgba(99, 102, 241, 0.3);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.9); }
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        
+        .stat-card {
+            background: var(--bg-hover);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .mode-btns {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .mode-btn:hover, .mode-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 14px;
+            background: var(--primary);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        .action-btn.secondary {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        
+        .action-btn.secondary:hover {
+            background: var(--border);
+        }
+        
+        .algorithm-info {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--bg-hover);
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+        
+        .algorithm-info strong {
+            color: var(--text);
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .speed-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: var(--bg-hover);
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .speed-value {
+            font-size: 14px;
+            color: var(--primary);
+            font-weight: 600;
+            min-width: 50px;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        .legend-color.snake { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .legend-color.food { background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 50%; }
+        .legend-color.path { background: rgba(99, 102, 241, 0.5); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🐍 Snake AI</h1>
+        <p>Watch AI algorithms solve Snake perfectly</p>
+    </header>
+    
+    <div class="game-container">
+        <div class="board-section">
+            <div class="board" id="board"></div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color snake"></div>
+                    <span>Snake</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color food"></div>
+                    <span>Food</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color path"></div>
+                    <span>AI Path</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="stat-card">
+                <div class="stat-value" id="score">0</div>
+                <div class="stat-label">Score</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-value" id="high-score">0</div>
+                <div class="stat-label">High Score</div>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label>AI Algorithm</label>
+                    <div class="mode-btns">
+                        <button class="mode-btn active" data-mode="bfs">BFS</button>
+                        <button class="mode-btn" data-mode="astar">A*</button>
+                        <button class="mode-btn" data-mode="hamilton">Hamilton</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Game Speed</label>
+                    <div class="speed-control">
+                        <input type="range" class="speed-slider" id="speed" min="10" max="200" value="100">
+                        <span class="speed-value" id="speed-display">100ms</span>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Controls</label>
+                    <div class="action-btns">
+                        <button class="action-btn" id="start">▶ Start</button>
+                        <button class="action-btn secondary" id="reset">↺ Reset</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="algorithm-info" id="algo-info">
+                <strong>Breadth-First Search (BFS)</strong>
+                Explores all possible paths level by level to find the shortest route to food. Guarantees shortest path but can trap itself in tight spaces.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 20;
+        const board = document.getElementById('board');
+        const cells = [];
+        
+        // Create grid
+        for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            board.appendChild(cell);
+            cells.push(cell);
+        }
+        
+        let snake = [{x: 10, y: 10}];
+        let food = {x: 15, y: 15};
+        let direction = {x: 1, y: 0};
+        let score = 0;
+        let highScore = localStorage.getItem('snake-high-score') || 0;
+        let gameLoop = null;
+        let isRunning = false;
+        let currentAlgo = 'bfs';
+        let gameSpeed = 100;
+        let showPath = false;
+        
+        document.getElementById('high-score').textContent = highScore;
+        
+        function getIndex(x, y) {
+            return y * GRID_SIZE + x;
+        }
+        
+        function isValid(x, y) {
+            return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+        }
+        
+        function isSnake(x, y) {
+            return snake.some(s => s.x === x && s.y === y);
+        }
+        
+        function placeFood() {
+            do {
+                food = {
+                    x: Math.floor(Math.random() * GRID_SIZE),
+                    y: Math.floor(Math.random() * GRID_SIZE)
+                };
+            } while (isSnake(food.x, food.y));
+        }
+        
+        function render() {
+            // Clear board
+            cells.forEach(c => c.className = 'cell');
+            
+            // Draw path if enabled
+            if (showPath && isRunning) {
+                const path = findPath(currentAlgo, true);
+                if (path) {
+                    path.forEach(p => {
+                        if (!isSnake(p.x, p.y)) {
+                            cells[getIndex(p.x, p.y)].classList.add('path');
+                        }
+                    });
+                }
+            }
+            
+            // Draw snake
+            snake.forEach((s, i) => {
+                const idx = getIndex(s.x, s.y);
+                cells[idx].classList.add(i === 0 ? 'snake-head' : 'snake');
+            });
+            
+            // Draw food
+            cells[getIndex(food.x, food.y)].classList.add('food');
+        }
+        
+        // BFS algorithm
+        function bfs(start, goal, ignoreTail = false) {
+            const queue = [[start]];
+            const visited = new Set([`${start.x},${start.y}`]);
+            
+            while (queue.length > 0) {
+                const path = queue.shift();
+                const current = path[path.length - 1];
+                
+                if (current.x === goal.x && current.y === goal.y) {
+                    return path.slice(1); // Exclude start
+                }
+                
+                const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+                for (const d of dirs) {
+                    const next = {x: current.x + d.x, y: current.y + d.y};
+                    const key = `${next.x},${next.y}`;
+                    
+                    if (!isValid(next.x, next.y) || visited.has(key)) continue;
+                    
+                    // Check collision (ignore tail if specified)
+                    const isTail = snake[snake.length - 1].x === next.x && 
+                                   snake[snake.length - 1].y === next.y;
+                    if (isSnake(next.x, next.y) && !(ignoreTail && isTail)) continue;
+                    
+                    visited.add(key);
+                    queue.push([...path, next]);
+                }
+            }
+            
+            return null;
+        }
+        
+        // A* algorithm
+        function astar(start, goal) {
+            const openSet = [{...start, f: 0, g: 0}];
+            const closedSet = new Set();
+            const cameFrom = new Map();
+            
+            while (openSet.length > 0) {
+                // Get node with lowest f score
+                let currentIdx = 0;
+                for (let i = 1; i < openSet.length; i++) {
+                    if (openSet[i].f < openSet[currentIdx].f) currentIdx = i;
+                }
+                
+                const current = openSet[currentIdx];
+                
+                if (current.x === goal.x && current.y === goal.y) {
+                    // Reconstruct path
+                    const path = [];
+                    let curr = `${current.x},${current.y}`;
+                    while (cameFrom.has(curr)) {
+                        const [x, y] = curr.split(',').map(Number);
+                        path.unshift({x, y});
+                        curr = cameFrom.get(curr);
+                    }
+                    return path;
+                }
+                
+                openSet.splice(currentIdx, 1);
+                closedSet.add(`${current.x},${current.y}`);
+                
+                const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+                for (const d of dirs) {
+                    const next = {x: current.x + d.x, y: current.y + d.y};
+                    const nextKey = `${next.x},${next.y}`;
+                    
+                    if (!isValid(next.x, next.y) || closedSet.has(nextKey)) continue;
+                    if (isSnake(next.x, next.y)) continue;
+                    
+                    const g = current.g + 1;
+                    const h = Math.abs(next.x - goal.x) + Math.abs(next.y - goal.y);
+                    const f = g + h;
+                    
+                    const existing = openSet.find(n => n.x === next.x && n.y === next.y);
+                    if (!existing || g < existing.g) {
+                        cameFrom.set(nextKey, `${current.x},${current.y}`);
+                        if (!existing) {
+                            openSet.push({...next, f, g});
+                        } else {
+                            existing.f = f;
+                            existing.g = g;
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        // Hamiltonian cycle (guaranteed completion)
+        function hamiltonian(start) {
+            // Simple row-by-row traversal
+            const path = [];
+            let {x, y} = start;
+            
+            // Determine direction based on row parity
+            const goingRight = y % 2 === 0;
+            
+            if (goingRight) {
+                // Go right to edge
+                while (x < GRID_SIZE - 1) {
+                    x++;
+                    path.push({x, y});
+                }
+            } else {
+                // Go left to edge
+                while (x > 0) {
+                    x--;
+                    path.push({x, y});
+                }
+            }
+            
+            // Go down one if not at bottom
+            if (y < GRID_SIZE - 1) {
+                y++;
+                path.push({x, y});
+            }
+            
+            return path;
+        }
+        
+        function findPath(algo, forDisplay = false) {
+            const head = snake[0];
+            
+            switch(algo) {
+                case 'bfs':
+                    return bfs(head, food);
+                case 'astar':
+                    return astar(head, food);
+                case 'hamilton':
+                    const path = hamiltonian(head);
+                    // Find if food is on path
+                    const foodIdx = path.findIndex(p => p.x === food.x && p.y === food.y);
+                    if (foodIdx !== -1) {
+                        return path.slice(0, foodIdx + 1);
+                    }
+                    return path.slice(0, 1); // Just move
+                default:
+                    return bfs(head, food);
+            }
+        }
+        
+        function getNextMove() {
+            // First try to find path to food
+            let path = findPath(currentAlgo);
+            
+            // If no path exists, try to survive
+            if (!path || path.length === 0) {
+                // Try any valid move
+                const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+                for (const d of dirs) {
+                    const next = {x: snake[0].x + d.x, y: snake[0].y + d.y};
+                    if (isValid(next.x, next.y) && !isSnake(next.x, next.y)) {
+                        return next;
+                    }
+                }
+                return null; // Game over
+            }
+            
+            return path[0];
+        }
+        
+        function update() {
+            const nextMove = getNextMove();
+            
+            if (!nextMove) {
+                gameOver();
+                return;
+            }
+            
+            // Check collision with self
+            if (isSnake(nextMove.x, nextMove.y)) {
+                gameOver();
+                return;
+            }
+            
+            // Move snake
+            snake.unshift(nextMove);
+            
+            // Check food
+            if (nextMove.x === food.x && nextMove.y === food.y) {
+                score++;
+                document.getElementById('score').textContent = score;
+                placeFood();
+                
+                // Check win condition
+                if (snake.length === GRID_SIZE * GRID_SIZE) {
+                    gameOver(true);
+                }
+            } else {
+                snake.pop();
+            }
+            
+            render();
+        }
+        
+        function gameOver(win = false) {
+            isRunning = false;
+            clearInterval(gameLoop);
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snake-high-score', highScore);
+                document.getElementById('high-score').textContent = highScore;
+            }
+            
+            const msg = win ? '🎉 PERFECT GAME!' : `💀 Game Over! Score: ${score}`;
+            setTimeout(() => alert(msg), 100);
+        }
+        
+        function reset() {
+            snake = [{x: 10, y: 10}];
+            direction = {x: 1, y: 0};
+            score = 0;
+            document.getElementById('score').textContent = score;
+            placeFood();
+            render();
+        }
+        
+        function start() {
+            if (isRunning) return;
+            isRunning = true;
+            document.getElementById('start').textContent = '⏸ Pause';
+            gameLoop = setInterval(update, gameSpeed);
+        }
+        
+        function stop() {
+            isRunning = false;
+            clearInterval(gameLoop);
+            document.getElementById('start').textContent = '▶ Start';
+        }
+        
+        // Event listeners
+        document.getElementById('start').addEventListener('click', () => {
+            if (isRunning) stop();
+            else start();
+        });
+        
+        document.getElementById('reset').addEventListener('click', () => {
+            stop();
+            reset();
+        });
+        
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAlgo = btn.dataset.mode;
+                
+                const info = {
+                    'bfs': {
+                        title: 'Breadth-First Search (BFS)',
+                        desc: 'Explores all possible paths level by level to find the shortest route to food. Guarantees shortest path but can trap itself in tight spaces.'
+                    },
+                    'astar': {
+                        title: 'A* Pathfinding',
+                        desc: 'Uses heuristics to intelligently search toward the goal. Faster than BFS and finds optimal paths, but can still get trapped.'
+                    },
+                    'hamilton': {
+                        title: 'Hamiltonian Cycle',
+                        desc: 'Follows a predetermined path that visits every cell exactly once. Guaranteed to never die, but slower to reach food.'
+                    }
+                };
+                
+                const algo = info[currentAlgo];
+                document.getElementById('algo-info').innerHTML = `
+                    <strong>${algo.title}</strong>
+                    ${algo.desc}
+                `;
+            });
+        });
+        
+        document.getElementById('speed').addEventListener('input', (e) => {
+            gameSpeed = 210 - parseInt(e.target.value); // Invert so higher = faster
+            document.getElementById('speed-display').textContent = `${gameSpeed}ms`;
+            
+            if (isRunning) {
+                clearInterval(gameLoop);
+                gameLoop = setInterval(update, gameSpeed);
+            }
+        });
+        
+        // Initialize
+        reset();
+    </script>
+</body>
+</html>

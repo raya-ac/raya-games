@@ -31,7 +31,8 @@
   "games": {
     "featured": ["life-simulator"],
     "cellular": ["life2d", "gol3d", "gol4d"],
-    "simulation": ["ecosystem", "fluid-sim", "boids", "particles", "ant-sim"],
+    "simulation": ["ecosystem", "fluid-sim", "boids", "particles", "ant-sim", "falling-sand"],
+    "algorithms": ["neural-net", "maze", "snake-ai"],
     "tycoon": ["prison-tycoon", "stock-tycoon", "city-builder", "space-colony"],
     "strategy": ["medieval-wars", "battleroyale", "disease-sim", "zombie-sim"],
     "ai": ["neural-net", "ai-office"],
