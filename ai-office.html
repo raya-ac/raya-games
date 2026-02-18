@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Office - Complete Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #4a5568; font-family: 'Nunito', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; padding: 6px;
+        }
+        .header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; }
+        h1 { font-size: 20px; font-weight: 800; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .control-btn { 
+            background: rgba(255,255,255,0.9); border: none; padding: 5px 10px;
+            border-radius: 12px; cursor: pointer; font-family: 'Nunito', sans-serif;
+            font-weight: 600; font-size: 10px; transition: all 0.2s;
+        }
+        .control-btn:hover { transform: scale(1.05); }
+        .main-container { display: flex; gap: 8px; max-width: 1800px; width: 100%; }
+        .canvas-wrapper { position: relative; flex: 1; }
+        #office-canvas { border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); cursor: grab; max-width: 100%; }
+        .side-panel { display: flex; flex-direction: column; gap: 6px; width: 240px; height: calc(100vh - 60px); overflow-y: auto; }
+        .panel { background: rgba(255,255,255,0.95); border-radius: 12px; padding: 10px; }
+        .panel-title { font-size: 9px; color: #718096; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; display: flex; justify-content: space-between; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .stat-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 6px; border-radius: 8px; text-align: center; color: white; }
+        .stat-value { font-size: 16px; font-weight: 800; }
+        .stat-label { font-size: 7px; opacity: 0.9; }
+        .currency { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); padding: 6px; border-radius: 8px; text-align: center; color: white; margin-bottom: 6px; }
+        .currency-value { font-size: 18px; font-weight: 800; }
+        .agent-card { display: flex; align-items: center; gap: 5px; background: #f7fafc; padding: 5px; border-radius: 8px; margin-bottom: 3px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; position: relative; }
+        .agent-card:hover { border-color: #cbd5e0; }
+        .agent-card.sick { opacity: 0.6; background: #fee2e2; }
+        .agent-card.vacation { opacity: 0.6; background: #dbeafe; }
+        .agent-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .agent-name { font-weight: 700; font-size: 10px; }
+        .agent-status { font-size: 8px; color: #718096; }
+        .happiness-bar { width: 100%; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 3px; }
+        .happiness-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .activity-item { padding: 2px 0; border-bottom: 1px solid #e2e8f0; font-size: 9px; }
+        .badge { display: inline-block; background: #fbbf24; color: #92400e; padding: 1px 4px; border-radius: 8px; font-size: 8px; font-weight: 700; margin-left: 3px; }
+        .badge-new { background: #22c55e; color: white; }
+        .badge-sick { background: #ef4444; color: white; }
+        .badge-vacation { background: #3b82f6; color: white; }
+        .quest-box { background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 6px; margin-bottom: 4px; font-size: 9px; }
+        .quest-progress { width: 100%; height: 4px; background: #fde68a; border-radius: 2px; margin-top: 3px; }
+        .quest-fill { height: 100%; background: #f59e0b; border-radius: 2px; }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; padding: 4px; background: #f0fdf4; border-radius: 6px; margin-bottom: 3px; font-size: 9px; }
+        .buy-btn { background: #22c55e; color: white; border: none; padding: 2px 6px; border-radius: 4px; font-size: 8px; cursor: pointer; }
+        .buy-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 16px; max-width: 400px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .modal-avatar { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; position: relative; }
+        .relationship-heart { position: absolute; bottom: -5px; right: -5px; font-size: 16px; }
+        .modal-title { font-size: 18px; font-weight: 800; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .tab { padding: 6px 12px; border-radius: 8px; background: #f3f4f6; cursor: pointer; font-size: 10px; font-weight: 600; }
+        .tab.active { background: #667eea; color: white; }
+        .speech-bubble { 
+            position: absolute; background: white; padding: 8px 12px; border-radius: 12px; 
+            font-size: 11px; max-width: 150px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            pointer-events: none; z-index: 100;
+        }
+        .speech-bubble::after { 
+            content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+            border-width: 8px 8px 0; border-style: solid; border-color: white transparent transparent;
+        }
+        .graph-container { height: 60px; background: #f8fafc; border-radius: 8px; position: relative; overflow: hidden; margin-top: 6px; }
+        .graph-line { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✨ AI Agent Office ✨</h1>
+        <div style="display: flex; gap: 6px;">
+            <div class="control-btn" id="time-display">🌅 Day 1 09:00</div>
+            <div class="control-btn" id="weather-display">☀️ Sunny</div>
+            <button class="control-btn" onclick="toggleMusic()">🎵 Lofi</button>
+            <button class="control-btn" onclick="triggerEvent()">🎲 Event</button>
+            <button class="control-btn" onclick="openShop()">🛒 Shop</button>
+            <button class="control-btn" onclick="forceSave()">💾 Save</button>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="canvas-wrapper">
+            <canvas id="office-canvas" width="2000" height="1400"></canvas>
+            <div id="speech-bubbles"></div>
+        </div>
+        
+        <div class="side-panel">
+            <div class="currency">
+                <div class="currency-value" id="office-money">💰 $0</div>
+                <div style="font-size: 8px;">Office Budget</div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">🏆 Office Stats</div>
+                <div style="font-size: 20px; font-weight: 800; color: #667eea; text-align: center;" id="office-happiness">85%</div>
+                <div class="happiness-bar">
+                    <div class="happiness-fill" id="happiness-fill" style="width: 85%; background: linear-gradient(90deg, #22c55e, #4ade80);"></div>
+                </div>
+                <div class="graph-container" id="productivity-graph">
+                    <div class="graph-line" style="background: linear-gradient(180deg, rgba(102,126,234,0.3) 0%, transparent 100%);"></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">📊 Live Stats</div>
+                <div class="stats-grid">
+                    <div class="stat-box"><div class="stat-value" id="working-count">0</div><div class="stat-label">Working</div></div>
+                    <div class="stat-box"><div class="stat-value" id="break-count">0</div><div class="stat-label">Break</div></div>
+                    <div class="stat-box"><div class="stat-value" id="meeting-count">0</div><div class="stat-label">Meeting</div></div>
+                    <div class="stat-box"><div class="stat-value" id="idle-count">0</div><div class="stat-label">Idle</div></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">🎯 Active Quests</div>
+                <div id="quest-list"></div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">
+                    👥 Team (<span id="agent-count">0</span>)
+                    <button class="control-btn" style="padding: 2px 6px; font-size: 8px;" onclick="hireAgent()">+Hire ($500)</button>
+                </div>
+                <div id="agent-list"></div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">🏅 Leaderboard</div>
+                <div id="leaderboard"></div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">📰 Activity Log</div>
+                <div id="activity-feed" style="max-height: 80px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Agent Modal -->
+    <div class="modal-overlay" id="agent-modal" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-avatar" id="modal-avatar">🎀</div>
+                <div>
+                    <div class="modal-title" id="modal-name">Toy</div>
+                    <div style="font-size: 10px; color: #718096;">Level <span id="modal-level">1</span> • <span id="modal-role">Assistant</span></div>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('stats')">Stats</div>
+                <div class="tab" onclick="switchTab('relationships')">Relationships</div>
+                <div class="tab" onclick="switchTab('actions')">Actions</div>
+            </div>
+            
+            <div id="tab-stats">
+                <div class="panel" style="margin-bottom: 10px;">
+                    <div style="font-size: 11px; margin-bottom: 4px;">XP Progress</div>
+                    <div class="happiness-bar"><div class="happiness-fill" id="modal-xp-bar" style="width: 0%; background: linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>
+                    <div style="font-size: 9px; color: #718096; margin-top: 2px;"><span id="modal-xp">0</span> / <span id="modal-xp-next">100</span> XP</div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+                    <div>💚 Energy: <span id="modal-energy">100%</span></div>
+                    <div>😊 Happiness: <span id="modal-happiness">70%</span></div>
+                    <div>☕ Coffee: <span id="modal-coffee">Latte</span></div>
+                    <div>✅ Tasks: <span id="modal-tasks">0</span></div>
+                    <div>💰 Salary: $<span id="modal-salary">50</span>/day</div>
+                    <div>📅 Status: <span id="modal-status">Active</span></div>
+                </div>
+                
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 10px; font-weight: 700; margin-bottom: 6px;">Skills</div>
+                    <div id="modal-skills"></div>
+                </div>
+                
+                <div style="margin-top: 12px; font-size: 10px; color: #4a5568; line-height: 1.4;" id="modal-personality"></div>
+            </div>
+            
+            <div id="tab-relationships" style="display: none;">
+                <div style="font-size: 10px; color: #718096; margin-bottom: 8px;">Friendship levels with other agents:</div>
+                <div id="modal-relationships"></div>
+            </div>
+            
+            <div id="tab-actions" style="display: none;">
+                <button class="control-btn" style="width: 100%; margin-bottom: 6px; background: #3b82f6; color: white;" onclick="giveRaise()">💰 Give Raise (+$10/day)</button>
+                <button class="control-btn" style="width: 100%; margin-bottom: 6px; background: #22c55e; color: white;" onclick="sendOnVacation()">🏖️ Send on Vacation</button>
+                <button class="control-btn" style="width: 100%; margin-bottom: 6px; background: #f59e0b; color: white;" onclick="prankAgent()">😈 Play Prank</button>
+                <button class="control-btn" style="width: 100%; background: #ef4444; color: white;" onclick="fireAgent()">🔥 Fire Agent</button>
+            </div>
+            
+            <button class="control-btn" style="width: 100%; margin-top: 12px;" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+    
+    <!-- Shop Modal -->
+    <div class="modal-overlay" id="shop-modal" onclick="if(event.target===this)closeShop()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">🛒 Office Shop</div>
+            </div>
+            
+            <div id="shop-items">
+                <div class="shop-item">
+                    <span>☕ Premium Coffee Machine (+5 happiness)</span>
+                    <button class="buy-btn" onclick="buyItem('coffee', 300)">$300</button>
+                </div>
+                <div class="shop-item">
+                    <span>🌿 Office Plant (+2 happiness)</span>
+                    <button class="buy-btn" onclick="buyItem('plant', 50)">$50</button>
+                </div>
+                <div class="shop-item">
+                    <span>🎮 Arcade Machine (+10 fun)</span>
+                    <button class="buy-btn" onclick="buyItem('arcade', 500)">$500</button>
+                </div>
+                <div class="shop-item">
+                    <span>🏋️‍♀️ Gym Equipment (+energy regen)</span>
+                    <button class="buy-btn" onclick="buyItem('gym', 800)">$800</button>
+                </div>
+                <div class="shop-item">
+                    <span>🛋️ Comfy Couch (+break quality)</span>
+                    <button class="buy-btn" onclick="buyItem('couch', 400)">$400</button>
+                </div>
+                <div class="shop-item">
+                    <span>🎨 Office Decor (visual only)</span>
+                    <button class="buy-btn" onclick="buyItem('decor', 200)">$200</button>
+                </div>
+            </div>
+            
+            <button class="control-btn" style="width: 100%; margin-top: 12px;" onclick="closeShop()">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        const CANVAS_WIDTH = 2000, CANVAS_HEIGHT = 1400;
+        let gameTime = 9 * 60, timeSpeed = 2, day = 1;
+        let weather = 'sunny', officeHappiness = 85, activeEvent = null;
+        let musicPlaying = false, selectedAgent = null, draggedAgent = null, isDragging = false;
+        let agents = [], particles = [], activityLog = [], speechBubbles = [];
+        let officeMoney = 500, productivityHistory = [];
+        let shopItems = { coffee: false, plants: 0, arcade: false, gym: false, couch: false, decor: false };
+        let activeQuests = [];
+        let currentTab = 'stats';
+        
+        const canvas = document.getElementById('office-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // All agents including new ones - NOW 18 AGENTS!
+        const AGENT_PRESETS = [
+            { id: 'toy', name: 'Toy', color: '#ec4899', emoji: '🎀', role: 'Assistant', skills: ['Organizing', 'Scheduling', 'Team Morale'], coffee: 'Vanilla Latte', desc: 'Always bubbly and helpful! Known for bringing treats.', x: 157, y: 762, salary: 50 },
+            { id: 'eva', name: 'Eva', color: '#3b82f6', emoji: '💙', role: 'Lead Dev', skills: ['Coding', 'Debugging', 'Architecture'], coffee: 'Triple Espresso', desc: 'Coding wizard. Best debugger in the office.', x: 327, y: 762, salary: 80 },
+            { id: 'mochi', name: 'Mochi', color: '#8b5cf6', emoji: '💜', role: 'Designer', skills: ['UI/UX', 'Illustration', 'Branding'], coffee: 'Matcha Latte', desc: 'Sees beauty in everything. Always sketching.', x: 497, y: 762, salary: 70 },
+            { id: 'pixie', name: 'Pixie', color: '#f59e0b', emoji: '🧡', role: 'Writer', skills: ['Copywriting', 'SEO', 'Storytelling'], coffee: 'Earl Grey', desc: 'Wordsmith who writes poetry during lunch.', x: 667, y: 762, salary: 60 },
+            { id: 'lulu', name: 'Lulu', color: '#10b981', emoji: '💚', role: 'Researcher', skills: ['Data Analysis', 'Research', 'Trends'], coffee: 'Herbal Tea', desc: 'Asks "why?" about everything. 47 browser tabs open.', x: 157, y: 902, salary: 65 },
+            { id: 'mimi', name: 'Mimi', color: '#ef4444', emoji: '❤️', role: 'Video Lead', skills: ['Editing', 'Animation', 'Directing'], coffee: 'Caramel Macchiato', desc: 'Boundless energy. Has the best playlists.', x: 327, y: 902, salary: 75 },
+            { id: 'kiki', name: 'Kiki', color: '#06b6d4', emoji: '🩵', role: 'Motion Artist', skills: ['Motion Graphics', 'VFX', '3D'], coffee: 'Cold Brew', desc: 'Life of the party. Makes everything fun.', x: 497, y: 902, salary: 70 },
+            { id: 'zoe', name: 'Zoe', color: '#f472b6', emoji: '💖', role: 'Marketer', skills: ['Social Media', 'Campaigns', 'Analytics'], coffee: 'Pink Latte', desc: 'Social media guru. Knows trends before they happen.', x: 667, y: 902, salary: 65 },
+            { id: 'leo', name: 'Leo', color: '#84cc16', emoji: '💛', role: 'QA Tester', skills: ['Testing', 'Bug Hunting', 'Automation'], coffee: 'Green Tea', desc: 'Nothing escapes his watchful eye. Breaks things to fix them.', x: 157, y: 1042, salary: 60 },
+            { id: 'maya', name: 'Maya', color: '#6366f1', emoji: '💜', role: 'Data Scientist', skills: ['ML', 'Statistics', 'Python'], coffee: 'Oat Latte', desc: 'Numbers whisper secrets to her. Data into insights.', x: 327, y: 1042, salary: 85 },
+            { id: 'ruby', name: 'Ruby', color: '#e11d48', emoji: '❤️', role: 'HR Manager', skills: ['Recruiting', 'Culture', 'Events'], coffee: 'Hot Chocolate', desc: 'The heart of the office. Organizes all the fun.', x: 497, y: 1042, salary: 70 },
+            { id: 'sage', name: 'Sage', color: '#14b8a6', emoji: '💚', role: 'DevOps', skills: ['AWS', 'Docker', 'CI/CD'], coffee: 'Black Coffee', desc: 'Keeps the servers running. Master of deployments.', x: 667, y: 1042, salary: 90 },
+            // NEW AGENTS!
+            { id: 'nina', name: 'Nina', color: '#c026d3', emoji: '💗', role: 'Product Manager', skills: ['Roadmapping', 'User Research', 'Strategy'], coffee: 'Chai Latte', desc: 'Bridges the gap between users and developers.', x: 837, y: 762, salary: 95 },
+            { id: 'oscar', name: 'Oscar', color: '#0284c7', emoji: '💙', role: 'Security Engineer', skills: ['Pen Testing', 'Compliance', 'Auditing'], coffee: 'Espresso', desc: 'Paranoid in a good way. Keeps the bad guys out.', x: 837, y: 902, salary: 88 },
+            { id: 'penny', name: 'Penny', color: '#db2777', emoji: '💕', role: 'Sales Lead', skills: ['Negotiation', 'CRM', 'Closing'], coffee: 'Cortado', desc: 'Could sell ice to a penguin. Charm personified.', x: 837, y: 1042, salary: 82 },
+            { id: 'quinn', name: 'Quinn', color: '#7c3aed', emoji: '💜', role: 'AI Researcher', skills: ['LLMs', 'Neural Networks', 'Python'], coffee: 'Bulletproof Coffee', desc: 'Living in 2030. Always experimenting with new models.', x: 1007, y: 762, salary: 110 },
+            { id: 'riley', name: 'Riley', color: '#059669', emoji: '💚', role: 'Customer Success', skills: ['Support', 'Retention', 'Training'], coffee: 'Mocha', desc: 'Makes angry customers happy. Superpower: patience.', x: 1007, y: 902, salary: 62 },
+            { id: 'ava', name: 'Ava', color: '#f97316', emoji: '👑', role: 'CEO', skills: ['Leadership', 'Strategy', 'Vision'], coffee: 'Black', desc: 'Natural born leader. Remembers everyone\'s birthday.', x: 1440, y: 330, isBoss: true, salary: 200 }
+        ];
+        
+        const INTERN_NAMES = ['Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Quinn', 'Avery'];
+        const SPEECH_LINES = {
+            working: ['Typing away...', 'So much code!', 'Almost done!', 'Focus mode activated', 'Crushing it!'],
+            break: ['Need coffee!', 'Taking a breather', 'That\'s enough for now', 'Break time!'],
+            meeting: ['Good point!', 'I agree', 'Let\'s discuss', 'Meeting time'],
+            chatting: ['Did you hear?', 'That\'s hilarious!', 'No way!', 'Tell me more!'],
+            happy: ['Great day!', 'Love this office!', 'Best job ever!', 'Feeling good!'],
+            tired: ['So sleepy...', 'Need more coffee', 'Long day...', 'Zzz...']
+        };
+        
+        class Particle {
+            constructor(x, y, type) { this.x = x; this.y = y; this.type = type; this.life = 100; this.vx = (Math.random() - 0.5); this.vy = -0.5; }
+            update() { this.x += this.vx; this.y += this.vy; this.life--; }
+            draw() { ctx.globalAlpha = this.life / 100; ctx.font = '12px Arial'; ctx.fillText({ heart: '💖', sparkle: '✨', coffee: '☕', music: '♪', star: '⭐', money: '💰' }[this.type] || '✨', this.x, this.y); ctx.globalAlpha = 1; }
+        }
+        
+        class SpeechBubble {
+            constructor(agent, text) { this.agent = agent; this.text = text; this.life = 180; this.x = agent.x; this.y = agent.y - 50; }
+            update() { this.life--; this.x = this.agent.x; this.y = this.agent.y - 55; }
+        }
+        
+        class Agent {
+            constructor(config) {
+                this.id = config.id; this.name = config.name; this.color = config.color; this.emoji = config.emoji;
+                this.role = config.role; this.skills = config.skills; this.coffee = config.coffee; this.desc = config.desc;
+                this.isBoss = config.isBoss || false; this.isIntern = config.isIntern || false;
+                this.salary = config.salary || 40; this.hireDate = day;
+                this.deskX = config.x; this.deskY = config.y;
+                this.x = config.x; this.y = config.y;
+                this.targetX = config.x; this.targetY = config.y;
+                this.level = 1; this.xp = 0; this.xpToNext = 100;
+                this.energy = 100; this.happiness = 70; this.stress = 0;
+                this.tasksCompleted = 0; this.totalEarnings = 0;
+                this.activity = 'idle'; this.mood = 'normal'; this.facing = 'right';
+                this.bounce = 0; this.isBlinking = false; this.blinkTimer = 0;
+                this.wanderTimer = 0; this.nextWander = 100; this.workTimer = 0;
+                this.speechCooldown = 0;
+                this.status = 'active'; // active, sick, vacation, fired
+                this.sickDays = 0; this.vacationDays = 0;
+                this.relationships = {}; // Will be filled with other agents
+                this.romance = null; // Special someone
+                this.romanceLevel = 0; // 0-100 romance progression
+                this.isDating = false; // Officially dating?
+                this.heartbreaks = 0; // Drama counter
+                this.outfit = 'default';
+            }
+            
+            say(line) {
+                if (this.speechCooldown <= 0) {
+                    speechBubbles.push(new SpeechBubble(this, line));
+                    this.speechCooldown = 200;
+                }
+            }
+            
+            gainXP(amount) {
+                if (this.status !== 'active') return;
+                this.xp += amount;
+                if (this.xp >= this.xpToNext) {
+                    this.level++;
+                    this.xp -= this.xpToNext;
+                    this.xpToNext = Math.floor(this.xpToNext * 1.2);
+                    this.happiness = Math.min(100, this.happiness + 15);
+                    this.salary += 10;
+                    logActivity(this.name, `Promoted to Level ${this.level}! Salary: $${this.salary}/day`, '🆙');
+                    this.say('Level up! 🎉');
+                    particles.push(new Particle(this.x, this.y - 50, 'star'));
+                }
+            }
+            
+            update() {
+                if (this.status !== 'active') return;
+                
+                this.blinkTimer++; if (this.blinkTimer > 150) this.isBlinking = true; if (this.blinkTimer > 155) { this.isBlinking = false; this.blinkTimer = 0; }
+                this.speechCooldown = Math.max(0, this.speechCooldown - 1);
+                this.bounce = this.activity === 'walking' ? Math.sin(Date.now() / 150) * 3 : Math.sin(Date.now() / 1000) * 1;
+                
+                const dx = this.targetX - this.x, dy = this.targetY - this.y, dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 5) {
+                    this.activity = 'walking';
+                    const speed = this.isBoss ? 1 : (this.isIntern ? 1.8 : 1.5);
+                    this.x += (dx / dist) * speed; this.y += (dy / dist) * speed;
+                    this.facing = dx < 0 ? 'left' : 'right';
+                } else {
+                    this.x = this.targetX; this.y = this.targetY;
+                    if (this.activity === 'walking') {
+                        const atDesk = Math.abs(this.x - this.deskX) < 20 && Math.abs(this.y - this.deskY) < 20;
+                        this.activity = atDesk ? 'working' : 'idle';
+                    }
+                }
+                
+                if (this.activity !== 'walking') {
+                    this.wanderTimer++;
+                    if (this.wanderTimer > this.nextWander) {
+                        this.wanderTimer = 0; this.nextWander = 80 + Math.random() * 150;
+                        const hour = Math.floor(gameTime / 60);
+                        const isWork = (hour >= 9 && hour < 12) || (hour >= 13 && hour < 17);
+                        
+                        if (Math.random() < (isWork ? 0.1 : 0.7)) {
+                            if (!isWork || Math.random() < 0.25) {
+                                const dests = this.isBoss ? 
+                                    [[1440, 330], [1500, 280], [600, 120], [950, 400], [430, 575], [440, 320], [160, 320], [1070, 100], [1790, 800], [1700, 150]] : 
+                                    [[600, 120], [950, 400], [1137, 1052], [430, 575], [440, 320], [160, 320], [1070, 100], [1790, 800], [1700, 150], [160, 1200], [this.deskX, this.deskY]];
+                                const dest = dests[Math.floor(Math.random() * dests.length)];
+                                this.targetX = dest[0] + (Math.random() - 0.5) * 40; 
+                                this.targetY = dest[1] + (Math.random() - 0.5) * 40;
+                            } else {
+                                this.targetX = this.deskX; this.targetY = this.deskY;
+                            }
+                        } else {
+                            this.targetX = this.deskX; this.targetY = this.deskY;
+                        }
+                    }
+                    
+                    if (this.activity === 'working') {
+                        this.workTimer++;
+                        if (this.workTimer > 20) { 
+                            this.gainXP(5); 
+                            this.workTimer = 0; 
+                            this.tasksCompleted++;
+                            this.totalEarnings += Math.floor(this.salary / 8);
+                            this.energy = Math.max(0, this.energy - 1);
+                            if (Math.random() < 0.1) this.say(SPEECH_LINES.working[Math.floor(Math.random() * SPEECH_LINES.working.length)]);
+                        }
+                    } else {
+                        this.workTimer = 0;
+                        if (this.activity === 'idle') {
+                            // SHOP ITEM EFFECTS - passive bonuses
+                            let energyRegen = 0.3;
+                            let happinessRegen = 0.15;
+                            
+                            if (shopItems.coffee) { energyRegen += 0.1; happinessRegen += 0.05; }
+                            if (shopItems.gym) { energyRegen += 0.15; }
+                            if (shopItems.arcade) { happinessRegen += 0.1; }
+                            if (shopItems.couch) { energyRegen += 0.1; happinessRegen += 0.08; }
+                            if (shopItems.decor) { happinessRegen += 0.05; }
+                            if (shopItems.plants > 0) { happinessRegen += shopItems.plants * 0.02; }
+                            
+                            this.energy = Math.min(100, this.energy + energyRegen);
+                            this.happiness = Math.min(100, this.happiness + happinessRegen);
+                            if (Math.random() < 0.005) this.say(SPEECH_LINES.break[Math.floor(Math.random() * SPEECH_LINES.break.length)]);
+                        }
+                    }
+                    
+                    // Random sickness
+                    if (Math.random() < 0.0001 && this.energy < 30) {
+                        this.status = 'sick';
+                        this.sickDays = 1 + Math.floor(Math.random() * 3);
+                        logActivity(this.name, 'called in sick 🤒', '🤒');
+                    }
+                }
+                
+                // ROMANCE SYSTEM
+                if (this.status === 'active' && !this.isBoss) {
+                    // Check for nearby agents to develop romance
+                    const nearby = agents.find(a => 
+                        a !== this && a.status === 'active' && !a.isBoss &&
+                        Math.abs(a.x - this.x) < 60 && Math.abs(a.y - this.y) < 60
+                    );
+                    
+                    if (nearby && !this.romance && Math.random() < 0.002) {
+                        // Develop a crush!
+                        this.romance = nearby;
+                        this.romanceLevel = 20;
+                        logActivity(this.name, `has a crush on ${nearby.name} 😍`, '💕');
+                        this.say(`I like ${nearby.name}... 💕`);
+                    }
+                    
+                    // Romance progression
+                    if (this.romance && this.romance.status === 'active') {
+                        // If near crush, increase romance
+                        if (Math.abs(this.romance.x - this.x) < 80 && Math.abs(this.romance.y - this.y) < 80) {
+                            if (Math.random() < 0.02) {
+                                this.romanceLevel = Math.min(100, this.romanceLevel + 1);
+                                // Mutual feelings?
+                                if (this.romanceLevel > 50 && !this.romance.romance) {
+                                    this.romance.romance = this;
+                                    this.romance.romanceLevel = 30;
+                                }
+                                // Start dating!
+                                if (this.romanceLevel >= 80 && this.romance.romance === this && !this.isDating) {
+                                    this.isDating = true;
+                                    this.romance.isDating = true;
+                                    logActivity('Office', `${this.name} and ${this.romance.name} are officially dating! 💑`, '💑');
+                                    this.say(`We're dating! 💑`);
+                                    this.happiness = 100;
+                                    this.romance.happiness = 100;
+                                }
+                            }
+                        }
+                        
+                        // Show hearts when near crush
+                        if (this.romanceLevel > 30 && Math.random() < 0.05) {
+                            particles.push(new Particle(this.x, this.y - 40, 'heart'));
+                        }
+                    }
+                }
+                
+                // Mood based on multiple factors
+                if (this.happiness > 80 && this.energy > 50) this.mood = 'happy';
+                else if (this.energy < 25 || this.stress > 80) this.mood = 'tired';
+                else if (this.happiness < 30) this.mood = 'sad';
+                else this.mood = 'normal';
+                
+                if (this.mood === 'happy' && Math.random() < 0.02) {
+                    particles.push(new Particle(this.x, this.y - 40, 'heart'));
+                    if (Math.random() < 0.3) this.say(SPEECH_LINES.happy[Math.floor(Math.random() * SPEECH_LINES.happy.length)]);
+                }
+            }
+            
+            getMoodEmoji() { return { happy: '😊', tired: '😴', normal: '😐', sad: '😢' }[this.mood] || '😐'; }
+        }
+        
+        function drawHair(agent, bounce) {
+            const colors = { toy: '#ec4899', eva: '#1e40af', mochi: '#7c3aed', pixie: '#d97706', lulu: '#059669', mimi: '#dc2626', kiki: '#0891b2', zoe: '#f472b6', leo: '#84cc16', maya: '#6366f1', ruby: '#e11d48', sage: '#14b8a6', ava: '#c2410c' };
+            ctx.fillStyle = colors[agent.id] || agent.color;
+            
+            if (agent.id === 'toy') {
+                ctx.beginPath(); ctx.ellipse(-16, -5 + bounce, 7, 20, -0.3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(16, -5 + bounce, 7, 20, 0.3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, -14 + bounce, 22, Math.PI, 0); ctx.fill();
+            } else if (agent.id === 'eva') {
+                ctx.beginPath(); ctx.ellipse(0, -32 + bounce, 9, 25, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, -10 + bounce, 23, Math.PI, 0); ctx.fill();
+            } else if (agent.id === 'mochi') {
+                for (let i = -18; i <= 18; i += 9) { ctx.beginPath(); ctx.ellipse(i, 6 + bounce, 7, 16 + Math.sin(i) * 3, 0, 0, Math.PI * 2); ctx.fill(); }
+                ctx.beginPath(); ctx.arc(0, -10 + bounce, 24, Math.PI, 0); ctx.fill();
+            } else if (agent.id === 'pixie') {
+                ctx.beginPath(); ctx.arc(0, -5 + bounce, 24, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffe4c4'; ctx.beginPath(); ctx.arc(0, -20 + bounce, 20, 0, Math.PI * 2); ctx.fill();
+            } else if (agent.id === 'lulu') {
+                for (let i = 0; i < 3; i++) { ctx.fillStyle = colors.lulu; ctx.beginPath(); ctx.arc(-14, -5 + i * 10 + bounce, 5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(14, -5 + i * 10 + bounce, 5, 0, Math.PI * 2); ctx.fill(); }
+                ctx.beginPath(); ctx.arc(0, -12 + bounce, 22, Math.PI, 0); ctx.fill();
+            } else if (agent.id === 'mimi') {
+                for (let angle = 0; angle < Math.PI; angle += 0.35) { const px = Math.cos(angle) * 26; const py = Math.sin(angle) * 26 - 10; ctx.beginPath(); ctx.arc(px, py + bounce, 9, 0, Math.PI * 2); ctx.fill(); }
+            } else if (agent.id === 'kiki') {
+                ctx.beginPath(); ctx.arc(0, -6 + bounce, 24, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ec4899'; ctx.beginPath(); ctx.ellipse(-10, -26 + bounce, 9, 7, -0.5, 0, Math.PI * 2); ctx.ellipse(10, -26 + bounce, 9, 7, 0.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(0, -26 + bounce, 4, 0, Math.PI * 2); ctx.fill();
+            } else if (agent.id === 'zoe') {
+                ctx.beginPath(); ctx.arc(0, -8 + bounce, 23, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fbcfe8'; ctx.beginPath(); ctx.arc(-12, -28 + bounce, 6, 0, Math.PI * 2); ctx.arc(12, -28 + bounce, 6, 0, Math.PI * 2); ctx.fill();
+            } else if (agent.id === 'leo') {
+                ctx.beginPath(); ctx.arc(0, -10 + bounce, 22, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(0, -32 + bounce, 8, 0, Math.PI * 2); ctx.fill();
+            } else if (agent.id === 'maya') {
+                ctx.beginPath(); ctx.moveTo(-20, -10 + bounce); ctx.lineTo(-25, -35 + bounce); ctx.lineTo(-15, -30 + bounce); ctx.lineTo(0, -40 + bounce); ctx.lineTo(15, -30 + bounce); ctx.lineTo(25, -35 + bounce); ctx.lineTo(20, -10 + bounce); ctx.fill();
+            } else if (agent.id === 'ruby') {
+                ctx.beginPath(); ctx.arc(0, -2 + bounce, 25, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fecaca'; ctx.beginPath(); ctx.arc(0, -22 + bounce, 18, 0, Math.PI * 2); ctx.fill();
+            } else if (agent.id === 'sage') {
+                ctx.beginPath(); ctx.arc(0, -10 + bounce, 22, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#5eead4'; ctx.beginPath(); ctx.arc(-15, -30 + bounce, 6, 0, Math.PI * 2); ctx.arc(15, -30 + bounce, 6, 0, Math.PI * 2); ctx.fill();
+            } else if (agent.id === 'ava') {
+                ctx.fillStyle = '#c2410c'; ctx.beginPath(); ctx.ellipse(-12, 15 + bounce, 10, 30, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(12, 15 + bounce, 10, 30, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(0, -14 + bounce, 24, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(-18, -38 + bounce); ctx.lineTo(-18, -55 + bounce); ctx.lineTo(-8, -45 + bounce); ctx.lineTo(0, -60 + bounce); ctx.lineTo(8, -45 + bounce); ctx.lineTo(18, -55 + bounce); ctx.lineTo(18, -38 + bounce); ctx.fill();
+            }
+        }
+        
+        function drawChibi(agent) {
+            const x = agent.x, y = agent.y, bounce = agent.bounce;
+            ctx.save(); ctx.translate(x, y); if (agent.facing === 'left') ctx.scale(-1, 1);
+            
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.beginPath(); ctx.ellipse(0, 40, 16, 4, 0, 0, Math.PI * 2); ctx.fill();
+            
+            // Legs
+            ctx.fillStyle = '#374151';
+            if (agent.activity === 'walking') { ctx.beginPath(); ctx.roundRect(-8, 26 + Math.sin(Date.now() / 150) * 4, 5, 12, 2); ctx.roundRect(3, 26 - Math.sin(Date.now() / 150) * 4, 5, 12, 2); ctx.fill(); }
+            else { ctx.beginPath(); ctx.roundRect(-7, 28, 5, 10, 2); ctx.roundRect(2, 28, 5, 10, 2); ctx.fill(); }
+            
+            // Body
+            ctx.fillStyle = agent.color; ctx.beginPath(); ctx.roundRect(-13, 8 + bounce, 26, 22, 8); ctx.fill();
+            ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.moveTo(-13, 24 + bounce); ctx.lineTo(-15, 34 + bounce); ctx.lineTo(15, 34 + bounce); ctx.lineTo(13, 24 + bounce); ctx.fill(); ctx.globalAlpha = 1;
+            
+            // Head
+            ctx.fillStyle = '#ffe4c4'; ctx.beginPath(); ctx.arc(0, -10 + bounce, 19, 0, Math.PI * 2); ctx.fill();
+            drawHair(agent, bounce);
+            
+            // Blush
+            ctx.fillStyle = 'rgba(255,160,170,0.5)'; ctx.beginPath(); ctx.arc(-9, -6 + bounce, 4, 0, Math.PI * 2); ctx.arc(9, -6 + bounce, 4, 0, Math.PI * 2); ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#1f2937';
+            if (agent.isBlinking) { ctx.lineWidth = 2; ctx.strokeStyle = '#1f2937'; ctx.beginPath(); ctx.moveTo(-10, -10 + bounce); ctx.lineTo(-4, -10 + bounce); ctx.stroke(); ctx.beginPath(); ctx.moveTo(4, -10 + bounce); ctx.lineTo(10, -10 + bounce); ctx.stroke(); }
+            else { ctx.beginPath(); ctx.ellipse(-7, -10 + bounce, 3, 4.5, 0, 0, Math.PI * 2); ctx.ellipse(7, -10 + bounce, 3, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-5, -12 + bounce, 1.5, 0, Math.PI * 2); ctx.arc(9, -12 + bounce, 1.5, 0, Math.PI * 2); ctx.fill(); }
+            
+            // Mouth
+            ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0 + bounce, 3.5, 0.2, Math.PI - 0.2); ctx.stroke();
+            
+            // Arms
+            ctx.fillStyle = agent.color;
+            if (agent.activity === 'walking') { ctx.beginPath(); ctx.roundRect(-16, 11 + Math.sin(Date.now() / 150) * 4, 5, 9, 2); ctx.roundRect(11, 11 - Math.sin(Date.now() / 150) * 4, 5, 9, 2); ctx.fill(); }
+            else { ctx.beginPath(); ctx.roundRect(-14, 13 + bounce, 4, 8, 2); ctx.roundRect(10, 13 + bounce, 4, 8, 2); ctx.fill(); }
+            
+            ctx.restore();
+        }
+        
+        function drawOffice() {
+            const hour = Math.floor(gameTime / 60);
+            const timeOfDay = hour < 6 ? 'night' : hour < 9 ? 'morning' : hour < 17 ? 'day' : hour < 20 ? 'sunset' : 'night';
+            const bg = { night: ['#1a202c', '#2d3748'], morning: ['#fff7ed', '#ffedd5'], day: ['#f9fafb', '#f3f4f6'], sunset: ['#fef3c7', '#fed7aa'] }[timeOfDay];
+            const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT); grad.addColorStop(0, bg[0]); grad.addColorStop(1, bg[1]); ctx.fillStyle = grad; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // PARKING LOT (Left side)
+            ctx.fillStyle = timeOfDay === 'night' ? '#1f2937' : '#9ca3af'; ctx.fillRect(20, 1100, 280, 280); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(80 + i * 60, 1100); ctx.lineTo(80 + i * 60, 1380); ctx.stroke(); }
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Nunito'; ctx.fillText('🚗 Parking', 130, 1130);
+            ['🚗', '🚙', '🛵'].forEach((car, i) => { ctx.font = '24px Arial'; ctx.fillText(car, 50 + i * 70, 1200 + (i % 2) * 80); });
+            
+            // GYM (Right side)
+            ctx.fillStyle = timeOfDay === 'night' ? '#1f2937' : '#dbeafe'; ctx.fillRect(1620, 600, 360, 400); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.strokeRect(1620, 600, 360, 400);
+            ctx.fillStyle = '#1e40af'; ctx.font = 'bold 14px Nunito'; ctx.fillText('🏋️‍♀️ Gym', 1770, 635);
+            ctx.fillStyle = '#64748b'; ctx.fillRect(1680, 680, 80, 40); ctx.fillRect(1680, 740, 80, 40); ctx.fillRect(1800, 700, 120, 20);
+            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(1750, 850, 30, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#b91c1c'; ctx.beginPath(); ctx.arc(1750, 850, 20, 0, Math.PI * 2); ctx.fill();
+            
+            // NAP ROOM (Top right)
+            ctx.fillStyle = timeOfDay === 'night' ? '#1e1b4b' : '#ede9fe'; ctx.fillRect(1620, 30, 360, 250); ctx.strokeStyle = '#8b5cf6'; ctx.lineWidth = 3; ctx.strokeRect(1620, 30, 360, 250);
+            ctx.fillStyle = '#5b21b6'; ctx.font = 'bold 14px Nunito'; ctx.fillText('😴 Nap Room', 1760, 60);
+            ctx.fillStyle = '#c4b5fd'; for (let i = 0; i < 3; i++) { ctx.fillRect(1680 + i * 90, 100, 70, 100); ctx.fillStyle = '#a78bfa'; ctx.fillRect(1680 + i * 90, 100, 70, 20); ctx.fillStyle = '#c4b5fd'; }
+            
+            // ROOFTOP GARDEN (Top of building)
+            ctx.fillStyle = timeOfDay === 'night' ? '#14532d' : '#86efac'; ctx.fillRect(820, 10, 500, 180); ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3; ctx.strokeRect(820, 10, 500, 180);
+            ctx.fillStyle = '#166534'; ctx.font = 'bold 14px Nunito'; ctx.fillText('🌻 Rooftop Garden', 1000, 40);
+            ctx.fillStyle = '#65a30d'; ctx.beginPath(); ctx.arc(920, 100, 40, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(1100, 80, 50, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(1220, 120, 35, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#a16207'; ctx.fillRect(900, 140, 25, 20); ctx.fillRect(1080, 130, 30, 25); ctx.fillRect(1200, 155, 25, 20);
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(1050, 50, 25, 0, Math.PI * 2); ctx.fill();
+            
+            // AVA'S EXECUTIVE OFFICE
+            ctx.fillStyle = timeOfDay === 'night' ? '#2d3748' : '#fffbeb'; ctx.fillRect(1280, 220, 320, 220); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 4; ctx.strokeRect(1280, 220, 320, 220);
+            ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 14px Nunito'; ctx.fillText('👑 EXECUTIVE OFFICE', 1320, 250);
+            ctx.fillStyle = '#d4a574'; ctx.fillRect(1320, 300, 130, 80); ctx.fillStyle = '#e6c9a8'; ctx.fillRect(1325, 305, 120, 70);
+            ctx.fillStyle = '#7c3aed'; ctx.beginPath(); ctx.arc(1500, 360, 28, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#d4a574'; ctx.fillRect(1520, 260, 50, 110); ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'].forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(1525, 265 + i * 24, 40, 18); });
+            const winColor = { day: '#bfdbfe', sunset: '#fdba74', night: '#1e2937' }[timeOfDay]; ctx.fillStyle = winColor; ctx.fillRect(1320, 270, 85, 45); ctx.strokeStyle = '#60a5fa'; ctx.strokeRect(1320, 270, 85, 45);
+            
+            // RECEPTION AREA
+            ctx.fillStyle = timeOfDay === 'night' ? '#2d3748' : '#fef3c7'; ctx.fillRect(320, 220, 280, 200); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.strokeRect(320, 220, 280, 200);
+            ctx.fillStyle = '#b45309'; ctx.font = 'bold 14px Nunito'; ctx.fillText('🛎️ Reception', 420, 250);
+            ctx.fillStyle = '#d4a574'; ctx.fillRect(380, 300, 120, 60); ctx.fillStyle = '#a16207'; ctx.fillRect(520, 340, 15, 30);
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(430, 290, 15, 0, Math.PI * 2); ctx.fill();
+            
+            // OUTDOOR PATIO
+            ctx.fillStyle = timeOfDay === 'night' ? '#14532d' : '#86efac'; ctx.fillRect(20, 220, 280, 200); ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3; ctx.strokeRect(20, 220, 280, 200);
+            ctx.fillStyle = '#166534'; ctx.font = 'bold 14px Nunito'; ctx.fillText('🌿 Outdoor Patio', 100, 250);
+            ctx.fillStyle = '#65a30d'; ctx.beginPath(); ctx.arc(80, 320, 35, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(200, 300, 45, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#a16207'; ctx.fillRect(60, 360, 25, 20); ctx.fillRect(180, 350, 30, 25);
+            ctx.fillStyle = '#92400e'; ctx.fillRect(130, 340, 70, 40); ctx.fillRect(130, 375, 6, 20); ctx.fillRect(194, 375, 6, 20);
+            
+            // MAIN FLOOR
+            ctx.fillStyle = timeOfDay === 'night' ? '#4a5568' : '#fef3c7'; ctx.fillRect(0, 460, 1600, CANVAS_HEIGHT - 460);
+            
+            // MEETING ROOM
+            ctx.fillStyle = timeOfDay === 'night' ? '#2d3748' : '#fff'; ctx.fillRect(350, 480, 300, 180); ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 3; ctx.strokeRect(350, 480, 300, 180); ctx.fillStyle = '#6b7280'; ctx.font = 'bold 12px Nunito'; ctx.fillText('🗣️ Meeting Room', 450, 510);
+            ctx.fillStyle = '#d6d3d1'; ctx.beginPath(); ctx.ellipse(500, 575, 70, 45, 0, 0, Math.PI * 2); ctx.fill(); [[500, 520], [430, 550], [430, 600], [500, 630], [570, 600], [570, 550]].forEach(([cx, cy]) => { ctx.fillStyle = '#9ca3af'; ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill(); });
+            
+            // SERVER ROOM
+            ctx.fillStyle = timeOfDay === 'night' ? '#1e1b4b' : '#e0e7ff'; ctx.fillRect(680, 480, 200, 180); ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 3; ctx.strokeRect(680, 480, 200, 180); ctx.fillStyle = '#4338ca'; ctx.font = 'bold 12px Nunito'; ctx.fillText('🖥️ Servers', 740, 510);
+            ctx.fillStyle = '#1e1b4b'; for (let i = 0; i < 4; i++) { ctx.fillRect(700 + i * 40, 530, 32, 100); ctx.fillStyle = '#22c55e'; for (let j = 0; j < 5; j++) { ctx.fillRect(704 + i * 40, 536 + j * 18, 5, 10); ctx.fillRect(712 + i * 40, 536 + j * 18, 5, 10); } ctx.fillStyle = '#1e1b4b'; }
+            
+            // KITCHEN
+            ctx.fillStyle = timeOfDay === 'night' ? '#2d3748' : '#eff6ff'; ctx.fillRect(900, 480, 400, 180); ctx.strokeStyle = '#dbeafe'; ctx.strokeRect(900, 480, 400, 180); ctx.fillStyle = '#1e40af'; ctx.fillText('☕ Kitchen', 1050, 510);
+            ctx.fillStyle = '#fff'; ctx.fillRect(920, 530, 70, 95); ctx.strokeStyle = '#d1d5db'; ctx.strokeRect(920, 530, 70, 95);
+            ctx.fillStyle = '#374151'; ctx.fillRect(1010, 540, 60, 45);
+            ctx.fillStyle = '#8b4513'; ctx.beginPath(); ctx.arc(1120, 575, 16, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#d6d3d1'; ctx.fillRect(1060, 610, 100, 40);
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(1220, 610, 22, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(1220, 605, 14, 0, Math.PI * 2); ctx.fill();
+            
+            // LOUNGE AREA
+            ctx.fillStyle = timeOfDay === 'night' ? '#1f2937' : '#faf5ff'; ctx.fillRect(820, 700, 480, 420); ctx.strokeStyle = '#e9d5ff'; ctx.strokeRect(820, 700, 480, 420); ctx.fillStyle = '#7c3aed'; ctx.fillText('🛋️ Lounge', 1030, 730);
+            ctx.fillStyle = '#c084fc'; ctx.fillRect(860, 760, 170, 60); ctx.fillStyle = '#a855f7'; ctx.fillRect(860, 752, 170, 18);
+            ctx.fillStyle = '#fca5a5'; ctx.beginPath(); ctx.ellipse(1130, 800, 35, 30, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#93c5fd'; ctx.beginPath(); ctx.ellipse(1220, 830, 35, 30, 0.2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#86efac'; ctx.beginPath(); ctx.ellipse(1170, 880, 35, 30, -0.1, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#4ade80'; ctx.fillRect(880, 980, 150, 75); ctx.fillStyle = '#22c55e'; ctx.fillRect(885, 985, 140, 65); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(955, 985); ctx.lineTo(955, 1050); ctx.stroke();
+            ctx.fillStyle = '#ec4899'; ctx.beginPath(); ctx.roundRect(1100, 1000, 75, 105, 8); ctx.fill(); ctx.fillStyle = '#1f2937'; ctx.fillRect(1108, 1018, 59, 52); ctx.fillStyle = '#10b981'; ctx.font = '20px Arial'; ctx.fillText('🎮', 1125, 1052);
+            ctx.fillStyle = '#fbbf24'; ctx.fillRect(1200, 1020, 8, 80); ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(1204, 1015, 28, 0, Math.PI * 2); ctx.fill();
+            
+            // CUBICLES - 12 of them (3 rows of 4)
+            for (let row = 0; row < 3; row++) { 
+                for (let col = 0; col < 4; col++) { 
+                    const x = 80 + col * 170, y = 700 + row * 140; 
+                    ctx.fillStyle = timeOfDay === 'night' ? '#2d3748' : '#fff'; 
+                    ctx.fillRect(x, y, 155, 125); 
+                    ctx.strokeStyle = '#e5e7eb'; 
+                    ctx.strokeRect(x, y, 155, 125); 
+                    ctx.fillStyle = '#d4a574'; 
+                    ctx.fillRect(x + 12, y + 42, 80, 48); 
+                    ctx.fillStyle = '#1f2937'; 
+                    ctx.fillRect(x + 20, y + 22, 52, 26); 
+                    ctx.fillStyle = '#9ca3af'; 
+                    ctx.beginPath(); 
+                    ctx.arc(x + 100, y + 90, 13, 0, Math.PI * 2); 
+                    ctx.fill(); 
+                    const idx = row * 4 + col; 
+                    if (AGENT_PRESETS[idx] && !AGENT_PRESETS[idx].isBoss) { 
+                        ctx.fillStyle = '#374151'; 
+                        ctx.font = 'bold 9px Nunito'; 
+                        ctx.fillText(AGENT_PRESETS[idx].name, x + 10, y + 14); 
+                    } 
+                } 
+            }
+            
+            // Plants everywhere
+            [[30, 460], [800, 700], [30, 700], [800, 680], [1580, 1050], [1500, 460], [300, 1120], [800, 1120], [1200, 1120], [1580, 250], [900, 10]].forEach(([px, py]) => { ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.arc(px, py, 18, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#b45309'; ctx.fillRect(px - 12, py + 4, 24, 20); });
+            
+            // SHOP ITEMS - Draw purchased items
+            // Premium Coffee Machine (in kitchen)
+            if (shopItems.coffee) {
+                ctx.fillStyle = '#374151';
+                ctx.fillRect(1180, 540, 50, 70);
+                ctx.fillStyle = '#1f2937';
+                ctx.beginPath(); ctx.arc(1205, 575, 15, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#6b7280';
+                ctx.fillRect(1185, 555, 15, 8);
+                ctx.fillStyle = '#22c55e';
+                ctx.fillRect(1195, 585, 20, 5); // Steam light
+                ctx.font = '12px Nunito';
+                ctx.fillStyle = '#fff';
+                ctx.fillText('☕', 1195, 565);
+            }
+            
+            // Extra plants from shop
+            if (shopItems.plants > 0) {
+                const plantPositions = [[1100, 480], [1150, 490], [1200, 480], [1250, 490], [1300, 480]];
+                for (let i = 0; i < shopItems.plants && i < plantPositions.length; i++) {
+                    const [px, py] = plantPositions[i];
+                    ctx.fillStyle = '#4ade80';
+                    ctx.beginPath(); ctx.arc(px, py, 15, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#b45309';
+                    ctx.fillRect(px - 8, py + 5, 16, 15);
+                }
+            }
+            
+            // Arcade Machine (in lounge)
+            if (shopItems.arcade) {
+                ctx.fillStyle = '#1f2937';
+                ctx.fillRect(1260, 680, 80, 100);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(1270, 690, 60, 45);
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(1270, 690, 60, 45);
+                ctx.fillStyle = '#a855f7';
+                ctx.font = 'bold 20px Nunito';
+                ctx.fillText('👾', 1285, 720);
+                // Buttons
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath(); ctx.arc(1310, 765, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath(); ctx.arc(1325, 760, 6, 0, Math.PI * 2); ctx.fill();
+            }
+            
+            // Gym Equipment (in gym area)
+            if (shopItems.gym) {
+                // Treadmill
+                ctx.fillStyle = '#374151';
+                ctx.fillRect(1740, 720, 80, 40);
+                ctx.fillStyle = '#1f2937';
+                ctx.fillRect(1750, 725, 60, 30);
+                ctx.fillStyle = '#22c55e';
+                ctx.font = '14px Nunito';
+                ctx.fillText('🏃', 1765, 745);
+                // Weights
+                ctx.fillStyle = '#4b5563';
+                ctx.fillRect(1750, 800, 60, 15);
+                ctx.fillStyle = '#1f2937';
+                ctx.fillRect(1740, 795, 15, 25);
+                ctx.fillRect(1805, 795, 15, 25);
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillRect(1745, 797, 10, 21);
+                ctx.fillRect(1810, 797, 10, 21);
+            }
+            
+            // Comfy Couch (in lounge)
+            if (shopItems.couch) {
+                ctx.fillStyle = '#7c3aed';
+                ctx.fillRect(1060, 680, 140, 60);
+                ctx.fillStyle = '#6d28d9';
+                ctx.fillRect(1060, 680, 140, 25);
+                ctx.fillStyle = '#8b5cf6';
+                ctx.beginPath(); ctx.arc(1060, 710, 15, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(1200, 710, 15, 0, Math.PI * 2); ctx.fill();
+            }
+            
+            // Decor (paintings/posters)
+            if (shopItems.decor) {
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(250, 530, 40, 50);
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(250, 530, 40, 50);
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath(); ctx.arc(270, 555, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fcd34d';
+                ctx.fillRect(255, 580, 30, 15);
+                
+                ctx.fillStyle = '#e0e7ff';
+                ctx.fillRect(940, 250, 40, 50);
+                ctx.strokeStyle = '#4338ca';
+                ctx.strokeRect(940, 250, 40, 50);
+                ctx.fillStyle = '#6366f1';
+                ctx.beginPath(); ctx.moveTo(960, 260); ctx.lineTo(975, 290); ctx.lineTo(945, 290); ctx.fill();
+            }
+            
+            // Weather effects
+            if (weather === 'rain') { ctx.strokeStyle = 'rgba(100, 150, 255, 0.4)'; ctx.lineWidth = 1; for (let i = 0; i < 100; i++) { const rx = Math.random() * CANVAS_WIDTH, ry = Math.random() * CANVAS_HEIGHT; ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 3, ry + 12); ctx.stroke(); } }
+            if (weather === 'snow') { ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; for (let i = 0; i < 60; i++) { ctx.beginPath(); ctx.arc(Math.random() * CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT, 3, 0, Math.PI * 2); ctx.fill(); } }
+            
+            // Update and draw agents
+            agents.forEach(agent => { agent.update(); drawChibi(agent); });
+            
+            // Particles
+            particles = particles.filter(p => p.life > 0); particles.forEach(p => { p.update(); p.draw(); });
+            
+            // Speech bubbles
+            speechBubbles = speechBubbles.filter(s => s.life > 0);
+            
+            // Event banner
+            if (activeEvent) { ctx.fillStyle = 'rgba(245, 158, 11, 0.95)'; ctx.fillRect(CANVAS_WIDTH / 2 - 200, 30, 400, 45); ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Nunito'; ctx.textAlign = 'center'; ctx.fillText(activeEvent, CANVAS_WIDTH / 2, 58); ctx.textAlign = 'left'; }
+            
+            // Day and Time display on canvas
+            const timeIcon = hour < 6 ? '🌙' : hour < 9 ? '🌄' : hour < 17 ? '☀️' : hour < 20 ? '🌅' : '🌙';
+            const timeStr = formatTime();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(20, 20, 180, 50);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(20, 20, 180, 50);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Nunito';
+            ctx.fillText(`${timeIcon} Day ${day}`, 35, 42);
+            ctx.font = 'bold 18px Nunito';
+            ctx.fillText(timeStr, 35, 62);
+        }
+        
+        function logActivity(who, what, emoji) { activityLog.unshift({ time: `Day ${day} ${formatTime()}`, who, what, emoji }); if (activityLog.length > 15) activityLog.pop(); }
+        function formatTime() { const h = Math.floor(gameTime / 60), m = Math.floor(gameTime % 60); return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`; }
+        
+        function updateUI() {
+            const hour = Math.floor(gameTime / 60);
+            if (hour >= 24) { gameTime = 0; day++; officeMoney += Math.floor(agents.filter(a => a.status === 'active').reduce((s, a) => s + a.salary, 0) / 2); logActivity('System', `Day ${day} started! +$${Math.floor(agents.filter(a => a.status === 'active').reduce((s, a) => s + a.salary, 0) / 2)} revenue`, '💰'); generateQuests(); }
+            
+            document.getElementById('time-display').textContent = `${hour < 6 ? '🌙' : hour < 9 ? '🌄' : hour < 17 ? '☀️' : hour < 20 ? '🌅' : '🌙'} Day ${day} ${formatTime()}`;
+            document.getElementById('weather-display').textContent = `${{ sunny: '☀️', cloudy: '☁️', rain: '🌧️', snow: '❄️' }[weather]} ${weather.charAt(0).toUpperCase() + weather.slice(1)}`;
+            document.getElementById('office-money').textContent = `💰 $${officeMoney}`;
+            
+            const list = document.getElementById('agent-list'); list.innerHTML = '';
+            let working = 0, onBreak = 0, meeting = 0, idle = 0;
+            
+            agents.forEach(agent => {
+                if (agent.status === 'active') {
+                    if (agent.activity === 'working') working++; else if (['break', 'coffee', 'lunch'].includes(agent.activity)) onBreak++; else if (agent.activity === 'meeting') meeting++; else idle++;
+                }
+                
+                const div = document.createElement('div'); 
+                div.className = 'agent-card' + (agent.status !== 'active' ? ` ${agent.status}` : '');
+                const emojis = { working: '💻', walking: '🚶', idle: '💤', meeting: '🗣️' };
+                const statusBadge = agent.status === 'sick' ? '<span class="badge badge-sick">SICK</span>' : agent.status === 'vacation' ? '<span class="badge badge-vacation">OFF</span>' : agent.level > 3 ? '<span class="badge">⭐</span>' : '';
+                
+                div.innerHTML = `<div class="agent-avatar" style="background: ${agent.color}30;">${agent.emoji}</div>
+                    <div style="flex: 1;">
+                        <div class="agent-name" style="color: ${agent.color};">${agent.name} ${agent.isBoss ? '👑' : ''}${statusBadge}</div>
+                        <div class="agent-status">${agent.status === 'active' ? (emojis[agent.activity] || '💤') + ' ' + agent.activity : agent.status.toUpperCase()} • Lv${agent.level}</div>
+                    </div>`;
+                div.onclick = () => openModal(agent);
+                list.appendChild(div);
+            });
+            
+            document.getElementById('agent-count').textContent = agents.length;
+            document.getElementById('working-count').textContent = working; document.getElementById('break-count').textContent = onBreak;
+            document.getElementById('meeting-count').textContent = meeting; document.getElementById('idle-count').textContent = idle;
+            
+            const activeAgents = agents.filter(a => a.status === 'active');
+            officeHappiness = activeAgents.length > 0 ? Math.round(activeAgents.reduce((s, a) => s + a.happiness, 0) / activeAgents.length) : 0;
+            document.getElementById('office-happiness').textContent = officeHappiness + '%';
+            document.getElementById('happiness-fill').style.width = officeHappiness + '%';
+            document.getElementById('happiness-fill').style.background = officeHappiness > 70 ? 'linear-gradient(90deg, #22c55e, #4ade80)' : officeHappiness > 40 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #ef4444, #f87171)';
+            
+            // Productivity graph
+            productivityHistory.push(working); if (productivityHistory.length > 20) productivityHistory.shift();
+            
+            // Leaderboard
+            const lb = document.getElementById('leaderboard');
+            const sorted = [...agents].sort((a, b) => b.xp - a.xp).slice(0, 3);
+            lb.innerHTML = sorted.map((a, i) => `
+                <div style="display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 10px;">
+                    <span style="font-weight: 800; color: #667eea;">#${i+1}</span>
+                    <span>${a.emoji} ${a.name}</span>
+                    <span style="margin-left: auto; font-weight: 700;">Lv${a.level}</span>
+                </div>`).join('');
+            
+            // Quests
+            const questList = document.getElementById('quest-list');
+            questList.innerHTML = activeQuests.map(q => `
+                <div class="quest-box">
+                    <div style="font-weight: 700;">${q.name}</div>
+                    <div style="font-size: 8px; color: #718096;">Reward: $${q.reward}</div>
+                    <div class="quest-progress"><div class="quest-fill" style="width: ${(q.progress / q.target) * 100}%"></div></div>
+                </div>`).join('');
+            if (activeQuests.length === 0) questList.innerHTML = '<div style="font-size: 10px; color: #718096;">No active quests</div>';
+            
+            const feed = document.getElementById('activity-feed'); feed.innerHTML = activityLog.slice(0, 8).map(item => `
+                <div class="activity-item"><span>${item.emoji}</span> <strong>${item.who}</strong> ${item.what}
+                <span style="color: #a0aec0; font-size: 8px; float: right;">${item.time}</span></div>`).join('');
+        }
+        
+        function generateQuests() {
+            const quests = [
+                { name: 'Complete 10 tasks', target: 10, progress: 0, reward: 100 },
+                { name: 'Have a team meeting', target: 1, progress: 0, reward: 50 },
+                { name: 'Keep happiness above 80%', target: 80, progress: officeHappiness, reward: 150 },
+                { name: 'Level up an agent', target: 1, progress: 0, reward: 200 }
+            ];
+            activeQuests = [quests[Math.floor(Math.random() * quests.length)]];
+        }
+        
+        function openModal(agent) {
+            selectedAgent = agent; currentTab = 'stats'; updateModal();
+            document.getElementById('agent-modal').classList.add('active');
+        }
+        
+        function updateModal() {
+            const agent = selectedAgent;
+            document.getElementById('modal-avatar').textContent = agent.emoji; document.getElementById('modal-avatar').style.background = agent.color + '30';
+            document.getElementById('modal-name').textContent = agent.name; document.getElementById('modal-name').style.color = agent.color;
+            document.getElementById('modal-level').textContent = agent.level; document.getElementById('modal-role').textContent = agent.role;
+            document.getElementById('modal-xp').textContent = Math.floor(agent.xp); document.getElementById('modal-xp-next').textContent = agent.xpToNext;
+            document.getElementById('modal-xp-bar').style.width = (agent.xp / agent.xpToNext * 100) + '%';
+            document.getElementById('modal-energy').textContent = Math.round(agent.energy) + '%';
+            document.getElementById('modal-happiness').textContent = Math.round(agent.happiness) + '%';
+            document.getElementById('modal-coffee').textContent = agent.coffee;
+            document.getElementById('modal-tasks').textContent = agent.tasksCompleted;
+            document.getElementById('modal-salary').textContent = agent.salary;
+            document.getElementById('modal-status').textContent = agent.status.toUpperCase();
+            document.getElementById('modal-skills').innerHTML = agent.skills.map(s => `<span class="skill-tag">${s}</span>`).join('');
+            document.getElementById('modal-personality').textContent = agent.desc;
+            
+            // Show/hide tabs
+            document.getElementById('tab-stats').style.display = currentTab === 'stats' ? 'block' : 'none';
+            document.getElementById('tab-relationships').style.display = currentTab === 'relationships' ? 'block' : 'none';
+            document.getElementById('tab-actions').style.display = currentTab === 'actions' ? 'block' : 'none';
+            
+            // Update tab styles
+            document.querySelectorAll('.tab').forEach((tab, i) => {
+                tab.className = 'tab' + (['stats', 'relationships', 'actions'][i] === currentTab ? ' active' : '');
+            });
+        }
+        
+        function switchTab(tab) { currentTab = tab; updateModal(); }
+        function closeModal() { document.getElementById('agent-modal').classList.remove('active'); selectedAgent = null; }
+        
+        function openShop() { document.getElementById('shop-modal').classList.add('active'); }
+        function closeShop() { document.getElementById('shop-modal').classList.remove('active'); }
+        
+        function buyItem(item, cost) {
+            if (officeMoney >= cost) {
+                officeMoney -= cost;
+                shopItems[item] = true;
+                if (item === 'plant') shopItems.plants++;
+                logActivity('Office', `purchased ${item} for $${cost}`, '🛒');
+                particles.push(new Particle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 'money'));
+                closeShop();
+            } else {
+                alert('Not enough money!');
+            }
+        }
+        
+        function hireAgent() {
+            if (officeMoney >= 500 && agents.length < 20) {
+                officeMoney -= 500;
+                const name = INTERN_NAMES[Math.floor(Math.random() * INTERN_NAMES.length)];
+                const colors = ['#ec4899', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#f472b6'];
+                const newAgent = new Agent({
+                    id: 'intern_' + Date.now(), name: name, color: colors[Math.floor(Math.random() * colors.length)],
+                    emoji: ['🎓', '👶', '🌱', '✨'][Math.floor(Math.random() * 4)], role: 'Intern',
+                    skills: ['Learning', 'Eager', 'New'], coffee: 'Water', desc: 'Fresh intern ready to learn!',
+                    x: 152 + Math.random() * 500, y: 690 + Math.random() * 300, isIntern: true, salary: 30
+                });
+                agents.push(newAgent);
+                logActivity(name, 'joined the team as an intern!', '🎓');
+                updateUI();
+            } else if (agents.length >= 20) {
+                alert('Office is at capacity!');
+            } else {
+                alert('Not enough money! Need $500');
+            }
+        }
+        
+        function giveRaise() {
+            if (selectedAgent && officeMoney >= 100) {
+                officeMoney -= 100;
+                selectedAgent.salary += 10;
+                selectedAgent.happiness = Math.min(100, selectedAgent.happiness + 20);
+                logActivity('Office', `gave ${selectedAgent.name} a raise!`, '💰');
+                updateModal();
+            }
+        }
+        
+        function sendOnVacation() {
+            if (selectedAgent && selectedAgent.status === 'active') {
+                selectedAgent.status = 'vacation';
+                selectedAgent.vacationDays = 2;
+                logActivity(selectedAgent.name, 'went on vacation! 🏖️', '🏖️');
+                closeModal(); updateUI();
+            }
+        }
+        
+        function prankAgent() {
+            if (selectedAgent) {
+                selectedAgent.happiness = Math.max(0, selectedAgent.happiness - 10);
+                selectedAgent.say('Hey! 😠');
+                logActivity('Office', `played a prank on ${selectedAgent.name}!`, '😈');
+                particles.push(new Particle(selectedAgent.x, selectedAgent.y - 30, 'sparkle'));
+            }
+        }
+        
+        function fireAgent() {
+            if (selectedAgent && !selectedAgent.isBoss && confirm(`Fire ${selectedAgent.name}?`)) {
+                logActivity(selectedAgent.name, 'was fired 😢', '🔥');
+                agents = agents.filter(a => a !== selectedAgent);
+                closeModal(); updateUI();
+            }
+        }
+        
+        function toggleMusic() { musicPlaying = !musicPlaying; const btn = document.querySelector('button[onclick="toggleMusic()"]'); btn.innerHTML = musicPlaying ? '🎵 Lofi ON' : '🎵 Lofi'; btn.style.background = musicPlaying ? '#c084fc' : 'rgba(255,255,255,0.9)'; btn.style.color = musicPlaying ? 'white' : '#667eea'; if (musicPlaying) logActivity('System', 'Lofi beats playing', '🎵'); }
+        
+        function triggerEvent() {
+            const events = [
+                { name: '🍕 PIZZA PARTY!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 1050 + Math.random() * 120; a.targetY = 580 + Math.random() * 50; a.happiness = Math.min(100, a.happiness + 20); }) },
+                { name: '📢 TEAM MEETING!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 500 + (Math.random() - 0.5) * 80; a.targetY = 575 + (Math.random() - 0.5) * 50; a.activity = 'meeting'; }) },
+                { name: '🔥 FIRE DRILL!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 900 + Math.random() * 300; a.targetY = 400 + Math.random() * 200; }) },
+                { name: '🎮 GAME TOURNAMENT!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 1137 + Math.random() * 60; a.targetY = 1050 + Math.random() * 40; a.happiness = Math.min(100, a.happiness + 15); }) },
+                { name: '☕ COFFEE BREAK!', effect: () => agents.filter(a => a.status === 'active').forEach((a, i) => { a.targetX = 1090 + (i % 5) * 25; a.targetY = 590; }) },
+                { name: '🌿 OUTDOOR BREAK!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 120 + Math.random() * 150; a.targetY = 320 + Math.random() * 80; a.happiness = Math.min(100, a.happiness + 25); }) },
+                { name: '👑 BOSS CHECK!', effect: () => { const ava = agents.find(a => a.isBoss); if (ava) { ava.targetX = 600; ava.targetY = 800; } agents.filter(a => !a.isBoss && a.status === 'active').forEach(a => { a.targetX = a.deskX; a.targetY = a.deskY; }); } },
+                { name: '🏋️‍♀️ GYM TIME!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 1700 + Math.random() * 200; a.targetY = 750 + Math.random() * 150; a.energy = Math.min(100, a.energy + 30); }) },
+                { name: '😴 NAP TIME!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 1700 + Math.random() * 200; a.targetY = 150 + Math.random() * 100; a.energy = Math.min(100, a.energy + 50); a.happiness = Math.min(100, a.happiness + 10); }) },
+                { name: '🌻 ROOFTOP PARTY!', effect: () => agents.filter(a => a.status === 'active').forEach(a => { a.targetX = 920 + Math.random() * 300; a.targetY = 80 + Math.random() * 100; a.happiness = Math.min(100, a.happiness + 30); }) },
+                { name: '💻 CODE SPRINT!', effect: () => agents.filter(a => ['eva', 'sage', 'maya', 'leo', 'quinn'].includes(a.id) && a.status === 'active').forEach(a => { a.targetX = a.deskX; a.targetY = a.deskY; a.activity = 'working'; a.gainXP(50); }) },
+                { name: '💕 SPEED DATING!', effect: () => { logActivity('Event', 'Office speed dating! 💕', '💕'); agents.filter(a => a.status === 'active' && !a.isBoss && !a.romance).forEach(a => { a.targetX = 950 + Math.random() * 200; a.targetY = 400 + Math.random() * 150; a.happiness = Math.min(100, a.happiness + 10); }); } },
+                { name: '💔 BREAKUP DRAMA!', effect: () => { const couples = agents.filter(a => a.isDating); if (couples.length > 0) { const unlucky = couples[Math.floor(Math.random() * couples.length)]; if (unlucky.romance) { logActivity('Drama', `${unlucky.name} and ${unlucky.romance.name} broke up! 💔`, '💔'); unlucky.isDating = false; unlucky.romance.isDating = false; unlucky.romance.romance = null; unlucky.romance = null; unlucky.happiness = 30; unlucky.romanceLevel = 0; } } } }
+            ];
+            const event = events[Math.floor(Math.random() * events.length)]; activeEvent = event.name; event.effect(); logActivity('Event', event.name, '🎲');
+            const btn = document.querySelector('button[onclick="triggerEvent()"]'); const orig = btn.innerHTML; btn.innerHTML = event.name; btn.style.background = '#f59e0b'; btn.style.color = 'white';
+            setTimeout(() => { activeEvent = null; btn.innerHTML = orig; btn.style.background = 'rgba(255,255,255,0.9)'; btn.style.color = '#667eea'; }, 5000);
+        }
+        
+        function forceSave() {
+            saveStats();
+            logActivity('System', 'Manually saved to database', '💾');
+            const btn = document.querySelector('button[onclick="forceSave()"]');
+            const orig = btn.innerHTML; btn.innerHTML = '✓ Saved!';
+            setTimeout(() => btn.innerHTML = orig, 1500);
+        }
+        
+        // Mouse handlers
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const clicked = agents.find(a => { const dx = a.x - x, dy = a.y - y; return Math.sqrt(dx * dx + dy * dy) < 35; });
+            if (clicked) { isDragging = false; dragStartTime = Date.now(); draggedAgent = clicked; }
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (draggedAgent) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (canvas.width / rect.width), y = (e.clientY - rect.top) * (canvas.height / rect.height);
+                if (!isDragging) { const dx = x - draggedAgent.x, dy = y - draggedAgent.y; if (Math.sqrt(dx * dx + dy * dy) > 5) isDragging = true; }
+                if (isDragging) { draggedAgent.x = x; draggedAgent.y = y; draggedAgent.targetX = x; draggedAgent.targetY = y; }
+            }
+        });
+        canvas.addEventListener('mouseup', () => { if (draggedAgent && !isDragging) openModal(draggedAgent); draggedAgent = null; isDragging = false; });
+        canvas.addEventListener('mouseleave', () => { draggedAgent = null; isDragging = false; });
+        
+        function animate() { gameTime += timeSpeed / 60; if (gameTime >= 24 * 60) { gameTime = 0; day++; } drawOffice(); requestAnimationFrame(animate); }
+        
+        async function loadSavedStats() {
+            try {
+                // Load agent stats
+                const response = await fetch('/api/load-agent-stats');
+                const data = await response.json();
+                if (data.success && data.agents) {
+                    let loadedCount = 0;
+                    agents.forEach(agent => {
+                        const saved = data.agents[agent.id];
+                        if (saved) {
+                            agent.level = saved.level || 1; agent.xp = saved.xp || 0;
+                            agent.energy = saved.energy || 100; agent.happiness = saved.happiness || 70;
+                            loadedCount++;
+                        }
+                    });
+                    if (loadedCount > 0) logActivity('System', `Loaded ${loadedCount} agents from database 💾`, '💾');
+                }
+                
+                // Load office state (day, time, money)
+                const stateResponse = await fetch('/api/load-office-state');
+                const stateData = await stateResponse.json();
+                if (stateData.success) {
+                    day = stateData.day || 1;
+                    gameTime = stateData.game_time || 540;
+                    officeMoney = stateData.money || 500;
+                    logActivity('System', `Loaded office state: Day ${day}, ${formatTime()}`, '💾');
+                }
+                
+                // Load shop items
+                const shopResponse = await fetch('/api/load-shop-items');
+                const shopData = await shopResponse.json();
+                if (shopData.success && shopData.shop_items) {
+                    shopItems = shopData.shop_items;
+                    logActivity('System', `Loaded ${Object.entries(shopItems).filter(([k,v]) => v && (typeof v !== 'number' || v > 0)).length} shop items 💾`, '🛒');
+                }
+            } catch (err) { console.log('No saved stats found'); }
+        }
+        
+        async function saveStats() {
+            try {
+                // Save agent stats
+                const agentData = agents.map(a => ({ id: a.id, name: a.name, level: a.level, xp: a.xp, energy: a.energy, happiness: a.happiness }));
+                await fetch('/api/save-agent-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agents: agentData }) });
+                
+                // Save office state (day, time, money)
+                await fetch('/api/save-office-state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ day, game_time: Math.floor(gameTime), money: officeMoney }) });
+                
+                // Save shop items
+                await fetch('/api/save-shop-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shop_items: shopItems }) });
+            } catch (err) { console.error('Failed to save:', err); }
+        }
+        
+        // Initialize relationships
+        function initRelationships() {
+            agents.forEach(agent => {
+                agents.forEach(other => {
+                    if (agent !== other) {
+                        agent.relationships[other.id] = 50 + Math.random() * 30;
+                    }
+                });
+            });
+        }
+        
+        agents = AGENT_PRESETS.map(p => new Agent(p));
+        initRelationships();
+        generateQuests();
+        
+        loadSavedStats().then(() => {
+            animate(); setInterval(updateUI, 1000); setInterval(saveStats, 30000);
+        });
+        
+        window.addEventListener('beforeunload', saveStats);
+        setInterval(() => { if (Math.random() < 0.1) { const w = ['sunny', 'cloudy', 'rain', 'snow']; weather = w[Math.floor(Math.random() * w.length)]; } }, 30000);
+        updateUI();
+    </script>
+</body>
+</html>

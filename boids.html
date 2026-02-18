@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids Flocking Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-music {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-music:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(56, 239, 125, 0.4);
+        }
+
+        .btn-music.muted {
+            background: linear-gradient(135deg, #636363 0%, #a8a8a8 100%);
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 10px;
+        }
+
+        .volume-control input[type="range"] {
+            width: 100px;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #1a1a2e, #16213e);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .volume-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+        }
+
+        .volume-label {
+            font-size: 12px;
+            color: #b0b0b0;
+            min-width: 35px;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        .control-section h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #b0b0b0;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #1a1a2e, #16213e);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            transition: transform 0.2s;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .control-group .value-display {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        .visual-mode {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .mode-btn:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .mode-btn.active {
+            border-color: #00d4ff;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(123, 44, 191, 0.3));
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .btn-spawn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-predator {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+        }
+
+        .btn-obstacle {
+            background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+            color: white;
+        }
+
+        .btn-food {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #636363 0%, #a8a8a8 100%);
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .save-load {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-load {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: #1a1a2e;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .stat-label {
+            color: #888;
+            margin-top: 3px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(ellipse at center, rgba(26, 26, 46, 0.5) 0%, rgba(10, 10, 10, 0.9) 100%);
+        }
+
+        canvas {
+            box-shadow: 0 0 50px rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #888;
+            pointer-events: none;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.2);
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+        }
+
+        .toggle input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #00d4ff, #7b2cbf);
+            border-radius: 4px;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🐦 Boids Flocking Simulator</h1>
+            <div class="header-buttons">
+                <button class="btn btn-music" id="musicToggle">
+                    🎵 Music On
+                </button>
+                <div class="volume-control">
+                    <span class="volume-label" id="volumeLabel">15%</span>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="15">
+                </div>
+                <a href="/games" class="btn btn-back">
+                    🎮 Games
+                </a>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <div class="control-section">
+                    <h3>🎨 Visual Mode</h3>
+                    <div class="visual-mode">
+                        <button class="mode-btn active" data-mode="birds">🐦 Birds</button>
+                        <button class="mode-btn" data-mode="fish">🐠 Fish</button>
+                        <button class="mode-btn" data-mode="fireflies">✨ Fireflies</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>📊 Boid Rules</h3>
+                    <div class="control-group">
+                        <label>
+                            <span>Separation (Avoid crowding)</span>
+                            <span class="value-display" id="sepValue">1.5</span>
+                        </label>
+                        <input type="range" id="separation" min="0" max="5" step="0.1" value="1.5">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span>Alignment (Match velocity)</span>
+                            <span class="value-display" id="aliValue">1.0</span>
+                        </label>
+                        <input type="range" id="alignment" min="0" max="5" step="0.1" value="1.0">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span>Cohesion (Stay together)</span>
+                            <span class="value-display" id="cohValue">1.0</span>
+                        </label>
+                        <input type="range" id="cohesion" min="0" max="5" step="0.1" value="1.0">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>⚙️ Parameters</h3>
+                    <div class="control-group">
+                        <label>
+                            <span>Perception Radius</span>
+                            <span class="value-display" id="radValue">50</span>
+                        </label>
+                        <input type="range" id="perception" min="20" max="150" step="5" value="50">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span>Max Speed</span>
+                            <span class="value-display" id="speedValue">4</span>
+                        </label>
+                        <input type="range" id="maxSpeed" min="1" max="10" step="0.5" value="4">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span>Max Force</span>
+                            <span class="value-display" id="forceValue">0.1</span>
+                        </label>
+                        <input type="range" id="maxForce" min="0.01" max="0.5" step="0.01" value="0.1">
+                    </div>
+                    <div class="toggle-container">
+                        <span>Show Trails</span>
+                        <label class="toggle">
+                            <input type="checkbox" id="showTrails" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>🎮 Actions</h3>
+                    <div class="action-buttons">
+                        <button class="action-btn btn-spawn" id="spawnBoids">Spawn Boids</button>
+                        <button class="action-btn btn-predator" id="spawnPredator">Add Predator</button>
+                        <button class="action-btn btn-obstacle" id="spawnObstacle">Add Obstacle</button>
+                        <button class="action-btn btn-food" id="spawnFood">Add Food</button>
+                        <button class="action-btn btn-clear" id="clearAll">Clear All</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>💾 Save/Load</h3>
+                    <div class="save-load">
+                        <button class="action-btn btn-save" id="saveState">Save State</button>
+                        <button class="action-btn btn-load" id="loadState">Load State</button>
+                    </div>
+                    <input type="file" id="fileInput" class="hidden-file-input" accept=".json">
+                </div>
+
+                <div class="control-section">
+                    <h3>📈 Stats</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="boidCount">0</div>
+                            <div class="stat-label">Boids</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="predatorCount">0</div>
+                            <div class="stat-label">Predators</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="foodCount">0</div>
+                            <div class="stat-label">Food</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="obstacleCount">0</div>
+                            <div class="stat-label">Obstacles</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+                <div class="instructions">
+                    Click anywhere to spawn boids • Shift+Click for food • Ctrl+Click for predator
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth - 40;
+            canvas.height = container.clientHeight - 40;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Visual mode
+        let visualMode = 'birds';
+        const modeButtons = document.querySelectorAll('.mode-btn');
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                visualMode = btn.dataset.mode;
+            });
+        });
+
+        // Parameters
+        let params = {
+            separation: 1.5,
+            alignment: 1.0,
+            cohesion: 1.0,
+            perception: 50,
+            maxSpeed: 4,
+            maxForce: 0.1,
+            showTrails: true
+        };
+
+        // UI controls
+        document.getElementById('separation').addEventListener('input', (e) => {
+            params.separation = parseFloat(e.target.value);
+            document.getElementById('sepValue').textContent = params.separation.toFixed(1);
+        });
+
+        document.getElementById('alignment').addEventListener('input', (e) => {
+            params.alignment = parseFloat(e.target.value);
+            document.getElementById('aliValue').textContent = params.alignment.toFixed(1);
+        });
+
+        document.getElementById('cohesion').addEventListener('input', (e) => {
+            params.cohesion = parseFloat(e.target.value);
+            document.getElementById('cohValue').textContent = params.cohesion.toFixed(1);
+        });
+
+        document.getElementById('perception').addEventListener('input', (e) => {
+            params.perception = parseFloat(e.target.value);
+            document.getElementById('radValue').textContent = params.perception;
+        });
+
+        document.getElementById('maxSpeed').addEventListener('input', (e) => {
+            params.maxSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = params.maxSpeed;
+        });
+
+        document.getElementById('maxForce').addEventListener('input', (e) => {
+            params.maxForce = parseFloat(e.target.value);
+            document.getElementById('forceValue').textContent = params.maxForce.toFixed(2);
+        });
+
+        document.getElementById('showTrails').addEventListener('change', (e) => {
+            params.showTrails = e.target.checked;
+        });
+
+        // Vector utility class
+        class Vector {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+
+            add(v) {
+                this.x += v.x;
+                this.y += v.y;
+                return this;
+            }
+
+            sub(v) {
+                this.x -= v.x;
+                this.y -= v.y;
+                return this;
+            }
+
+            mult(n) {
+                this.x *= n;
+                this.y *= n;
+                return this;
+            }
+
+            div(n) {
+                this.x /= n;
+                this.y /= n;
+                return this;
+            }
+
+            mag() {
+                return Math.sqrt(this.x * this.x + this.y * this.y);
+            }
+
+            setMag(n) {
+                return this.normalize().mult(n);
+            }
+
+            normalize() {
+                const m = this.mag();
+                if (m !== 0) {
+                    this.div(m);
+                }
+                return this;
+            }
+
+            limit(max) {
+                if (this.mag() > max) {
+                    this.normalize().mult(max);
+                }
+                return this;
+            }
+
+            static dist(v1, v2) {
+                return Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2);
+            }
+
+            copy() {
+                return new Vector(this.x, this.y);
+            }
+        }
+
+        // Boid class
+        class Boid {
+            constructor(x, y, isPredator = false) {
+                this.position = new Vector(x, y);
+                this.velocity = new Vector(Math.random() * 2 - 1, Math.random() * 2 - 1);
+                this.velocity.setMag(Math.random() * 2 + 2);
+                this.acceleration = new Vector(0, 0);
+                this.isPredator = isPredator;
+                this.maxSpeed = isPredator ? params.maxSpeed * 1.3 : params.maxSpeed;
+                this.maxForce = isPredator ? params.maxForce * 1.2 : params.maxForce;
+                this.history = [];
+                this.historyLength = 20;
+                this.color = this.getColor();
+                this.size = isPredator ? 10 : 6;
+                this.angle = 0;
+            }
+
+            getColor() {
+                if (this.isPredator) {
+                    return '#ff416c';
+                }
+                const hue = Math.random() * 60 + 170; // Cyan to purple range
+                return `hsl(${hue}, 80%, 60%)`;
+            }
+
+            edges() {
+                if (this.position.x > canvas.width) this.position.x = 0;
+                else if (this.position.x < 0) this.position.x = canvas.width;
+                if (this.position.y > canvas.height) this.position.y = 0;
+                else if (this.position.y < 0) this.position.y = canvas.height;
+            }
+
+            align(boids) {
+                const perceptionRadius = params.perception;
+                const steering = new Vector(0, 0);
+                let total = 0;
+
+                for (const other of boids) {
+                    const d = Vector.dist(this.position, other.position);
+                    if (other !== this && d < perceptionRadius && !other.isPredator) {
+                        steering.add(other.velocity);
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    steering.div(total);
+                    steering.setMag(this.maxSpeed);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce);
+                }
+                return steering;
+            }
+
+            cohesion(boids) {
+                const perceptionRadius = params.perception;
+                const steering = new Vector(0, 0);
+                let total = 0;
+
+                for (const other of boids) {
+                    const d = Vector.dist(this.position, other.position);
+                    if (other !== this && d < perceptionRadius && !other.isPredator) {
+                        steering.add(other.position);
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    steering.div(total);
+                    steering.sub(this.position);
+                    steering.setMag(this.maxSpeed);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce);
+                }
+                return steering;
+            }
+
+            separation(boids) {
+                const perceptionRadius = params.perception * 0.8;
+                const steering = new Vector(0, 0);
+                let total = 0;
+
+                for (const other of boids) {
+                    const d = Vector.dist(this.position, other.position);
+                    if (other !== this && d < perceptionRadius) {
+                        const diff = this.position.copy().sub(other.position);
+                        diff.div(d * d);
+                        steering.add(diff);
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    steering.div(total);
+                    steering.setMag(this.maxSpeed);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce);
+                }
+                return steering;
+            }
+
+            avoidPredators(predators) {
+                const perceptionRadius = params.perception * 2;
+                const steering = new Vector(0, 0);
+                let total = 0;
+
+                for (const predator of predators) {
+                    const d = Vector.dist(this.position, predator.position);
+                    if (d < perceptionRadius) {
+                        const diff = this.position.copy().sub(predator.position);
+                        diff.div(d);
+                        steering.add(diff);
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    steering.div(total);
+                    steering.setMag(this.maxSpeed * 1.5);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce * 2);
+                }
+                return steering;
+            }
+
+            seekFood(foods) {
+                const perceptionRadius = params.perception * 3;
+                let closestFood = null;
+                let closestDist = perceptionRadius;
+
+                for (const food of foods) {
+                    const d = Vector.dist(this.position, food.position);
+                    if (d < closestDist) {
+                        closestDist = d;
+                        closestFood = food;
+                    }
+                }
+
+                if (closestFood) {
+                    const desired = closestFood.position.copy().sub(this.position);
+                    desired.setMag(this.maxSpeed * 1.2);
+                    const steering = desired.sub(this.velocity);
+                    steering.limit(this.maxForce * 1.5);
+                    return steering;
+                }
+                return new Vector(0, 0);
+            }
+
+            avoidObstacles(obstacles) {
+                const perceptionRadius = params.perception * 1.5;
+                const steering = new Vector(0, 0);
+                let total = 0;
+
+                for (const obstacle of obstacles) {
+                    const d = Vector.dist(this.position, obstacle.position);
+                    if (d < perceptionRadius + obstacle.radius) {
+                        const diff = this.position.copy().sub(obstacle.position);
+                        diff.normalize();
+                        steering.add(diff);
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    steering.div(total);
+                    steering.setMag(this.maxSpeed * 1.5);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce * 2);
+                }
+                return steering;
+            }
+
+            hunt(boids) {
+                let closestBoid = null;
+                let closestDist = Infinity;
+
+                for (const boid of boids) {
+                    if (!boid.isPredator) {
+                        const d = Vector.dist(this.position, boid.position);
+                        if (d < closestDist) {
+                            closestDist = d;
+                            closestBoid = boid;
+                        }
+                    }
+                }
+
+                if (closestBoid) {
+                    const desired = closestBoid.position.copy().sub(this.position);
+                    desired.setMag(this.maxSpeed * 1.5);
+                    const steering = desired.sub(this.velocity);
+                    steering.limit(this.maxForce * 1.5);
+                    return steering;
+                }
+                return new Vector(0, 0);
+            }
+
+            flock(boids, predators, foods, obstacles) {
+                let alignment = this.align(boids);
+                let cohesion = this.cohesion(boids);
+                let separation = this.separation(boids);
+                let avoidPredators = this.avoidPredators(predators);
+                let seekFood = this.seekFood(foods);
+                let avoidObstacles = this.avoidObstacles(obstacles);
+
+                if (this.isPredator) {
+                    let hunt = this.hunt(boids);
+                    hunt.mult(2);
+                    this.acceleration.add(hunt);
+                    this.acceleration.add(avoidObstacles);
+                } else {
+                    alignment.mult(params.alignment);
+                    cohesion.mult(params.cohesion);
+                    separation.mult(params.separation);
+                    avoidPredators.mult(3);
+                    seekFood.mult(1.5);
+                    avoidObstacles.mult(2);
+
+                    this.acceleration.add(alignment);
+                    this.acceleration.add(cohesion);
+                    this.acceleration.add(separation);
+                    this.acceleration.add(avoidPredators);
+                    this.acceleration.add(seekFood);
+                    this.acceleration.add(avoidObstacles);
+                }
+            }
+
+            update() {
+                this.position.add(this.velocity);
+                this.velocity.add(this.acceleration);
+                this.velocity.limit(this.maxSpeed);
+                this.acceleration.mult(0);
+                this.angle = Math.atan2(this.velocity.y, this.velocity.x);
+
+                // Update history for trails
+                if (params.showTrails) {
+                    this.history.push(this.position.copy());
+                    if (this.history.length > this.historyLength) {
+                        this.history.shift();
+                    }
+                } else {
+                    this.history = [];
+                }
+
+                this.edges();
+            }
+
+            drawBird() {
+                ctx.save();
+                ctx.translate(this.position.x, this.position.y);
+                ctx.rotate(this.angle);
+
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+
+                // Bird body
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(this.size * 1.5, 0);
+                ctx.lineTo(-this.size, -this.size * 0.6);
+                ctx.lineTo(-this.size * 0.5, 0);
+                ctx.lineTo(-this.size, this.size * 0.6);
+                ctx.closePath();
+                ctx.fill();
+
+                // Wing animation
+                const wingFlap = Math.sin(Date.now() * 0.02) * 0.3;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 0.3, -this.size * 0.3);
+                ctx.lineTo(-this.size * 0.8, -this.size * (0.8 + wingFlap));
+                ctx.lineTo(-this.size * 0.5, 0);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 0.3, this.size * 0.3);
+                ctx.lineTo(-this.size * 0.8, this.size * (0.8 + wingFlap));
+                ctx.lineTo(-this.size * 0.5, 0);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            drawFish() {
+                ctx.save();
+                ctx.translate(this.position.x, this.position.y);
+                ctx.rotate(this.angle);
+
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+
+                // Fish body
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size * 1.2, this.size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail
+                ctx.beginPath();
+                ctx.moveTo(-this.size, 0);
+                ctx.lineTo(-this.size * 1.8, -this.size * 0.5);
+                ctx.lineTo(-this.size * 1.8, this.size * 0.5);
+                ctx.closePath();
+                ctx.fill();
+
+                // Fin
+                const finWave = Math.sin(Date.now() * 0.015) * 0.2;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(0, -this.size * 0.3);
+                ctx.lineTo(-this.size * 0.5, -this.size * (0.8 + finWave));
+                ctx.lineTo(this.size * 0.3, -this.size * 0.3);
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(this.size * 0.5, -this.size * 0.15, this.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(this.size * 0.55, -this.size * 0.15, this.size * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            drawFirefly() {
+                ctx.save();
+                ctx.translate(this.position.x, this.position.y);
+
+                // Pulsing glow
+                const pulse = 0.7 + Math.sin(Date.now() * 0.005 + this.position.x * 0.01) * 0.3;
+                ctx.shadowBlur = 20 * pulse;
+                ctx.shadowColor = this.color;
+
+                // Core
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Outer glow
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 1.5);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.globalAlpha = 0.6 * pulse;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                // Tiny wings
+                const wingFlutter = Math.sin(Date.now() * 0.05) * 3;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(-this.size * 0.3, -this.size * 0.5, this.size * 0.4, this.size * 0.2, Math.PI / 4 + wingFlutter * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(-this.size * 0.3, this.size * 0.5, this.size * 0.4, this.size * 0.2, -Math.PI / 4 - wingFlutter * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            drawTrail() {
+                if (!params.showTrails || this.history.length < 2) return;
+
+                ctx.save();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.isPredator ? 2 : 1;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                for (let i = 1; i < this.history.length; i++) {
+                    const alpha = i / this.history.length * 0.5;
+                    ctx.globalAlpha = alpha;
+                    ctx.beginPath();
+                    ctx.moveTo(this.history[i - 1].x, this.history[i - 1].y);
+                    ctx.lineTo(this.history[i].x, this.history[i].y);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            draw() {
+                this.drawTrail();
+
+                switch (visualMode) {
+                    case 'birds':
+                        this.drawBird();
+                        break;
+                    case 'fish':
+                        this.drawFish();
+                        break;
+                    case 'fireflies':
+                        this.drawFirefly();
+                        break;
+                }
+            }
+        }
+
+        // Food class
+        class Food {
+            constructor(x, y) {
+                this.position = new Vector(x, y);
+                this.pulse = 0;
+            }
+
+            draw() {
+                this.pulse += 0.05;
+                const glowSize = 15 + Math.sin(this.pulse) * 5;
+
+                ctx.save();
+                ctx.shadowBlur = glowSize;
+                ctx.shadowColor = '#38ef7d';
+
+                const gradient = ctx.createRadialGradient(
+                    this.position.x, this.position.y, 0,
+                    this.position.x, this.position.y, 10
+                );
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(0.5, '#38ef7d');
+                gradient.addColorStop(1, 'transparent');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // Obstacle class
+        class Obstacle {
+            constructor(x, y, radius = 30) {
+                this.position = new Vector(x, y);
+                this.radius = radius;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#8e2de2';
+
+                const gradient = ctx.createRadialGradient(
+                    this.position.x, this.position.y, 0,
+                    this.position.x, this.position.y, this.radius
+                );
+                gradient.addColorStop(0, 'rgba(142, 45, 226, 0.8)');
+                gradient.addColorStop(0.7, 'rgba(74, 0, 224, 0.5)');
+                gradient.addColorStop(1, 'rgba(74, 0, 224, 0.2)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(142, 45, 226, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        // Simulation state
+        let boids = [];
+        let predators = [];
+        let foods = [];
+        let obstacles = [];
+
+        // Initialize with some boids
+        for (let i = 0; i < 50; i++) {
+            boids.push(new Boid(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height
+            ));
+        }
+
+        // Animation loop
+        function animate() {
+            // Clear with fade effect for trails
+            ctx.fillStyle = 'rgba(10, 10, 20, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw obstacles
+            obstacles.forEach(obstacle => obstacle.draw());
+
+            // Draw food
+            foods.forEach(food => food.draw());
+
+            // Update and draw boids
+            const allBoids = [...boids, ...predators];
+            allBoids.forEach(boid => {
+                boid.flock(allBoids, predators, foods, obstacles);
+                boid.update();
+                boid.draw();
+            });
+
+            // Update stats
+            document.getElementById('boidCount').textContent = boids.length;
+            document.getElementById('predatorCount').textContent = predators.length;
+            document.getElementById('foodCount').textContent = foods.length;
+            document.getElementById('obstacleCount').textContent = obstacles.length;
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Canvas click handling
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (e.shiftKey) {
+                // Add food
+                foods.push(new Food(x, y));
+            } else if (e.ctrlKey || e.metaKey) {
+                // Add predator
+                predators.push(new Boid(x, y, true));
+            } else {
+                // Add boids
+                for (let i = 0; i < 5; i++) {
+                    boids.push(new Boid(
+                        x + Math.random() * 20 - 10,
+                        y + Math.random() * 20 - 10
+                    ));
+                }
+            }
+        });
+
+        // Action buttons
+        document.getElementById('spawnBoids').addEventListener('click', () => {
+            for (let i = 0; i < 10; i++) {
+                boids.push(new Boid(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+        });
+
+        document.getElementById('spawnPredator').addEventListener('click', () => {
+            predators.push(new Boid(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height,
+                true
+            ));
+        });
+
+        document.getElementById('spawnObstacle').addEventListener('click', () => {
+            obstacles.push(new Obstacle(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height,
+                20 + Math.random() * 30
+            ));
+        });
+
+        document.getElementById('spawnFood').addEventListener('click', () => {
+            foods.push(new Food(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height
+            ));
+        });
+
+        document.getElementById('clearAll').addEventListener('click', () => {
+            boids = [];
+            predators = [];
+            foods = [];
+            obstacles = [];
+        });
+
+        // Save/Load functionality
+        document.getElementById('saveState').addEventListener('click', () => {
+            const state = {
+                boids: boids.map(b => ({
+                    x: b.position.x,
+                    y: b.position.y,
+                    vx: b.velocity.x,
+                    vy: b.velocity.y
+                })),
+                predators: predators.map(p => ({
+                    x: p.position.x,
+                    y: p.position.y,
+                    vx: p.velocity.x,
+                    vy: p.velocity.y
+                })),
+                foods: foods.map(f => ({ x: f.position.x, y: f.position.y })),
+                obstacles: obstacles.map(o => ({
+                    x: o.position.x,
+                    y: o.position.y,
+                    radius: o.radius
+                })),
+                params: params,
+                visualMode: visualMode
+            };
+
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `boids-simulation-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('loadState').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const state = JSON.parse(event.target.result);
+
+                    boids = (state.boids || []).map(b => {
+                        const boid = new Boid(b.x, b.y);
+                        boid.velocity = new Vector(b.vx, b.vy);
+                        return boid;
+                    });
+
+                    predators = (state.predators || []).map(p => {
+                        const pred = new Boid(p.x, p.y, true);
+                        pred.velocity = new Vector(p.vx, p.vy);
+                        return pred;
+                    });
+
+                    foods = (state.foods || []).map(f => new Food(f.x, f.y));
+                    obstacles = (state.obstacles || []).map(o => new Obstacle(o.x, o.y, o.radius));
+
+                    if (state.params) {
+                        params = { ...params, ...state.params };
+                        document.getElementById('separation').value = params.separation;
+                        document.getElementById('alignment').value = params.alignment;
+                        document.getElementById('cohesion').value = params.cohesion;
+                        document.getElementById('perception').value = params.perception;
+                        document.getElementById('maxSpeed').value = params.maxSpeed;
+                        document.getElementById('maxForce').value = params.maxForce;
+                        document.getElementById('showTrails').checked = params.showTrails;
+
+                        document.getElementById('sepValue').textContent = params.separation.toFixed(1);
+                        document.getElementById('aliValue').textContent = params.alignment.toFixed(1);
+                        document.getElementById('cohValue').textContent = params.cohesion.toFixed(1);
+                        document.getElementById('radValue').textContent = params.perception;
+                        document.getElementById('speedValue').textContent = params.maxSpeed;
+                        document.getElementById('forceValue').textContent = params.maxForce.toFixed(2);
+                    }
+
+                    if (state.visualMode) {
+                        visualMode = state.visualMode;
+                        modeButtons.forEach(b => {
+                            b.classList.toggle('active', b.dataset.mode === visualMode);
+                        });
+                    }
+                } catch (err) {
+                    alert('Error loading file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Lofi Hip-Hop Music System
+        const lofiMusic = {
+            audioContext: null,
+            masterGain: null,
+            compressor: null,
+            isPlaying: false,
+            volume: 0.15,
+            
+            // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
+            chords: [
+                // Cmaj7: C4, E4, G4, B4
+                { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] },
+                // Am7: A3, C4, E4, G4
+                { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },
+                // Fmaj7: F3, A3, C4, E4
+                { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 329.63] },
+                // G7: G3, B3, D4, F4
+                { name: 'G7', notes: [196.00, 246.94, 293.66, 349.23] }
+            ],
+            currentChordIndex: 0,
+            chordOscillators: [],
+            
+            // Vinyl crackle
+            crackleNode: null,
+            
+            // Drum loop
+            nextBeatTime: 0,
+            beatInterval: 60 / 75, // 75 BPM
+            beatCount: 0,
+            
+            init() {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Master compressor: threshold -24dB, ratio 4:1
+                this.compressor = this.audioContext.createDynamicsCompressor();
+                this.compressor.threshold.value = -24;
+                this.compressor.knee.value = 0;
+                this.compressor.ratio.value = 4;
+                this.compressor.attack.value = 0.01;
+                this.compressor.release.value = 0.1;
+                
+                // Master gain
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.gain.value = this.volume;
+                
+                this.compressor.connect(this.masterGain);
+                this.masterGain.connect(this.audioContext.destination);
+                
+                // Initialize vinyl crackle
+                this.initVinylCrackle();
+            },
+            
+            initVinylCrackle() {
+                const bufferSize = 2 * this.audioContext.sampleRate;
+                const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Generate pink noise for vinyl crackle
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    data[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = data[i];
+                    data[i] *= 3.5;
+                }
+                
+                this.crackleNode = this.audioContext.createBufferSource();
+                this.crackleNode.buffer = buffer;
+                this.crackleNode.loop = true;
+                
+                // Bandpass filter for crackle texture
+                const crackleFilter = this.audioContext.createBiquadFilter();
+                crackleFilter.type = 'bandpass';
+                crackleFilter.frequency.value = 2000;
+                crackleFilter.Q.value = 0.5;
+                
+                // Very low volume for crackle
+                const crackleGain = this.audioContext.createGain();
+                crackleGain.gain.value = 0.015;
+                
+                this.crackleNode.connect(crackleFilter);
+                crackleFilter.connect(crackleGain);
+                crackleGain.connect(this.compressor);
+            },
+            
+            playChord() {
+                const chord = this.chords[this.currentChordIndex];
+                
+                // Stop previous chord oscillators
+                this.chordOscillators.forEach(osc => {
+                    try {
+                        const releaseGain = osc.gainNode;
+                        releaseGain.gain.setTargetAtTime(0, this.audioContext.currentTime, 1.0); // 1s release
+                        setTimeout(() => osc.stop(), 1500);
+                    } catch (e) {}
+                });
+                this.chordOscillators = [];
+                
+                // Play each note in chord with sine wave
+                chord.notes.forEach((freq, i) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    
+                    // Very low volume per oscillator (0.02-0.03)
+                    const baseVolume = 0.025;
+                    
+                    // Slow attack: 1.5s, full sustain
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(baseVolume, this.audioContext.currentTime + 1.5);
+                    
+                    osc.connect(gainNode);
+                    gainNode.connect(this.compressor);
+                    
+                    osc.gainNode = gainNode;
+                    osc.start();
+                    
+                    this.chordOscillators.push(osc);
+                });
+                
+                // Move to next chord every 2 beats (half bar)
+                this.currentChordIndex = (this.currentChordIndex + 1) % this.chords.length;
+            },
+            
+            playDrum(type) {
+                const t = this.audioContext.currentTime;
+                
+                if (type === 'kick') {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    
+                    osc.frequency.setValueAtTime(60, t);
+                    osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
+                    
+                    gain.gain.setValueAtTime(0.04, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.compressor);
+                    
+                    osc.start(t);
+                    osc.stop(t + 0.5);
+                    
+                } else if (type === 'snare') {
+                    // Noise for snare
+                    const bufferSize = this.audioContext.sampleRate * 0.2;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    
+                    const noise = this.audioContext.createBufferSource();
+                    noise.buffer = buffer;
+                    
+                    const filter = this.audioContext.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.value = 1000;
+                    
+                    const gain = this.audioContext.createGain();
+                    gain.gain.setValueAtTime(0.02, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                    
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.compressor);
+                    
+                    noise.start(t);
+                    noise.stop(t + 0.2);
+                    
+                    // Soft body tone
+                    const osc = this.audioContext.createOscillator();
+                    const oscGain = this.audioContext.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = 180;
+                    oscGain.gain.setValueAtTime(0.015, t);
+                    oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                    osc.connect(oscGain);
+                    oscGain.connect(this.compressor);
+                    osc.start(t);
+                    osc.stop(t + 0.1);
+                }
+            },
+            
+            schedule() {
+                if (!this.isPlaying) return;
+                
+                const lookahead = 0.1;
+                const t = this.audioContext.currentTime;
+                
+                while (this.nextBeatTime < t + lookahead) {
+                    // Simple relaxed beat pattern at 75 BPM:
+                    // Beat 0: Kick
+                    // Beat 1: - 
+                    // Beat 2: Kick + Snare
+                    // Beat 3: -
+                    
+                    if (this.beatCount % 4 === 0) {
+                        this.playDrum('kick');
+                    } else if (this.beatCount % 4 === 2) {
+                        this.playDrum('kick');
+                        setTimeout(() => this.playDrum('snare'), this.beatInterval * 500);
+                    }
+                    
+                    // Play chord on beat 0 every 2 bars
+                    if (this.beatCount % 8 === 0) {
+                        this.playChord();
+                    }
+                    
+                    this.nextBeatTime += this.beatInterval;
+                    this.beatCount = (this.beatCount + 1) % 32;
+                }
+                
+                requestAnimationFrame(() => this.schedule());
+            },
+            
+            start() {
+                if (!this.audioContext) {
+                    this.init();
+                }
+                
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
+                this.isPlaying = true;
+                this.nextBeatTime = this.audioContext.currentTime;
+                this.beatCount = 0;
+                
+                // Start crackle
+                if (this.crackleNode) {
+                    this.crackleNode.start();
+                }
+                
+                // Play initial chord
+                this.playChord();
+                
+                this.schedule();
+            },
+            
+            stop() {
+                this.isPlaying = false;
+                
+                // Stop chord oscillators with release
+                this.chordOscillators.forEach(osc => {
+                    try {
+                        const releaseGain = osc.gainNode;
+                        releaseGain.gain.setTargetAtTime(0, this.audioContext.currentTime, 1.0);
+                        setTimeout(() => osc.stop(), 1500);
+                    } catch (e) {}
+                });
+                this.chordOscillators = [];
+                
+                // Stop crackle
+                if (this.crackleNode) {
+                    try {
+                        this.crackleNode.stop();
+                    } catch (e) {}
+                    // Recreate for next start
+                    this.initVinylCrackle();
+                }
+            },
+            
+            setVolume(vol) {
+                this.volume = vol / 100;
+                if (this.masterGain) {
+                    this.masterGain.gain.setTargetAtTime(this.volume, this.audioContext.currentTime, 0.1);
+                }
+            }
+        };
+        
+        let lastOut = 0;
+        
+        // Music toggle
+        let musicEnabled = false;
+        const musicToggle = document.getElementById('musicToggle');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeLabel = document.getElementById('volumeLabel');
+        
+        musicToggle.addEventListener('click', () => {
+            musicEnabled = !musicEnabled;
+            musicToggle.textContent = musicEnabled ? '🎵 Music On' : '🔇 Music Off';
+            musicToggle.classList.toggle('muted', !musicEnabled);
+            
+            if (musicEnabled) {
+                lofiMusic.start();
+            } else {
+                lofiMusic.stop();
+            }
+        });
+        
+        volumeSlider.addEventListener('input', (e) => {
+            const vol = parseInt(e.target.value);
+            volumeLabel.textContent = vol + '%';
+            lofiMusic.setVolume(vol);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'c' || e.key === 'C') {
+                boids = [];
+                predators = [];
+                foods = [];
+                obstacles = [];
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                for (let i = 0; i < 10; i++) {
+                    boids.push(new Boid(
+                        Math.random() * canvas.width,
+                        Math.random() * canvas.height
+                    ));
+                }
+            }
+        });
+    </script>
+</body>
+</html>

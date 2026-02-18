@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 Ecosystem Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e0ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #0f3460, #533483);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .back-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: rgba(20, 25, 40, 0.8);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        /* Left panel - Controls */
+        .main-container > .panel:first-child {
+            grid-column: 1;
+        }
+
+        /* Right panel - Graphs (prevent overlap) */
+        .graphs-container .panel.graph {
+            margin: 0;
+            width: 100%;
+        }
+
+        .panel h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .simulation-area {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #simCanvas {
+            background: radial-gradient(ellipse at center, #0d1b2a 0%, #0a0a0f 100%);
+            border-radius: 12px;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 0 30px rgba(0, 212, 255, 0.1);
+            cursor: crosshair;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: rgba(30, 35, 50, 0.9);
+            border-radius: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            min-width: 80px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .plants { color: #00ff88; }
+        .herbivores { color: #ffd700; }
+        .carnivores { color: #ff4757; }
+        .apex { color: #9d4edd; }
+        .generation { color: #00d4ff; }
+        .season { color: #ff9f43; }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .control-group select, .control-group button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            background: rgba(30, 35, 50, 0.9);
+            color: #e0e0ff;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .control-group button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .control-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-group button.danger {
+            background: linear-gradient(135deg, #ff4757, #c44569);
+        }
+
+        .control-group button.success {
+            background: linear-gradient(135deg, #00d26a, #00b894);
+        }
+
+        .control-group button.warning {
+            background: linear-gradient(135deg, #ffa502, #ff6348);
+        }
+
+        .graphs-container {
+            grid-column: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 280px;
+            max-width: 300px;
+        }
+
+        .graph {
+            background: rgba(15, 20, 30, 0.9);
+            border-radius: 12px;
+            padding: 15px;
+            height: auto;
+            min-height: 200px;
+            flex: 0 0 auto;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .graph h4 {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            white-space: nowrap;
+        }
+
+        #populationGraph, #foodWebGraph, #geneGraph {
+            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            display: block;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .tool-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            margin: 3px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(50, 55, 70, 0.8);
+            color: #e0e0ff;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .info-display {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .info-display .highlight {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .close-modal {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #888;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            .main-container > .panel:first-child {
+                grid-column: 1;
+                grid-row: 1;
+            }
+            .simulation-area {
+                grid-column: 1;
+                grid-row: 2;
+            }
+            .graphs-container {
+                grid-column: 1;
+                grid-row: 3;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            animation: slideIn 0.3s ease;
+            z-index: 1001;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .notification.success { background: linear-gradient(135deg, #00d26a, #00b894); }
+        .notification.warning { background: linear-gradient(135deg, #ffa502, #ff6348); }
+        .notification.danger { background: linear-gradient(135deg, #ff4757, #c44569); }
+
+        /* Music Controls */
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 25, 40, 0.95);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .music-control:hover {
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.5);
+        }
+
+        .music-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .music-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .music-btn.muted {
+            background: linear-gradient(135deg, #666, #444);
+            box-shadow: none;
+        }
+
+        .music-btn.muted:hover {
+            box-shadow: 0 4px 15px rgba(100,100,100,0.3);
+        }
+
+        .volume-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .volume-label {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .volume-slider {
+            width: 100px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #667eea);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #667eea);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .music-status {
+            font-size: 0.75rem;
+            color: #00d4ff;
+            min-width: 60px;
+        }
+
+        .music-start-prompt {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 25, 40, 0.98);
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            border-radius: 20px;
+            padding: 30px 40px;
+            text-align: center;
+            z-index: 2000;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0, 212, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .music-start-prompt:hover {
+            transform: translate(-50%, -50%) scale(1.02);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6), 0 0 50px rgba(0, 212, 255, 0.3);
+        }
+
+        .music-start-prompt h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .music-start-prompt p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .music-start-prompt .music-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .music-start-prompt.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌍 Ecosystem Simulator</h1>
+        <a href="/games" class="back-btn">🎮 Games</a>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Panel: Controls -->
+        <div class="panel">
+            <h3>⚙️ Simulation Controls</h3>
+            
+            <div class="control-group">
+                <button id="pauseBtn" class="success">⏸️ Pause</button>
+                <button id="resetBtn" class="danger">🔄 Reset / New Game</button>
+            </div>
+
+            <h3>💾 Save / Load</h3>
+            <div class="control-group">
+                <button id="saveBtn" class="success">💾 Save Game</button>
+                <button id="loadBtn">📂 Load Game</button>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer;">
+                    <input type="checkbox" id="autoSaveCheck" checked>
+                    <span>Auto-save (every 30s)</span>
+                </label>
+                <div id="saveStatus" style="font-size: 0.8rem; color: #888; margin-top: 5px;"></div>
+            </div>
+
+            <div class="control-group">
+                <label>Simulation Speed</label>
+                <input type="range" id="speedSlider" min="1" max="10" value="5">
+            </div>
+
+            <h3>🌱 Add Species</h3>
+            <div class="control-group">
+                <div class="tool-btn active" data-tool="plant">
+                    <span style="color: #00ff88;">🌿</span> Plant
+                </div>
+                <div class="tool-btn" data-tool="herbivore">
+                    <span style="color: #ffd700;">🐇</span> Herbivore
+                </div>
+                <div class="tool-btn" data-tool="carnivore">
+                    <span style="color: #ff4757;">🦊</span> Carnivore
+                </div>
+                <div class="tool-btn" data-tool="apex">
+                    <span style="color: #9d4edd;">🦁</span> Apex Predator
+                </div>
+            </div>
+
+            <h3>🌍 Environment</h3>
+            <div class="control-group">
+                <label>Climate</label>
+                <select id="climateSelect">
+                    <option value="temperate">Temperate</option>
+                    <option value="tropical">Tropical</option>
+                    <option value="arctic">Arctic</option>
+                    <option value="desert">Desert</option>
+                </select>
+                <button id="disasterBtn" class="warning">⚡ Trigger Disaster</button>
+                <button id="rainBtn">🌧️ Toggle Rain</button>
+            </div>
+
+            <h3>🔧 Tools</h3>
+            <div class="control-group">
+                <div class="tool-btn" data-tool="inspect">
+                    🔍 Inspect
+                </div>
+                <div class="tool-btn" data-tool="remove">
+                    🗑️ Remove
+                </div>
+                <div class="tool-btn" data-tool="food">
+                    🍖 Add Food
+                </div>
+            </div>
+
+            <h3>📊 Selected Info</h3>
+            <div class="info-display" id="infoDisplay">
+                Click on an organism to view details...
+            </div>
+        </div>
+
+        <!-- Center: Simulation -->
+        <div class="simulation-area">
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value plants" id="plantCount">0</div>
+                    <div class="stat-label">Plants</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value herbivores" id="herbivoreCount">0</div>
+                    <div class="stat-label">Herbivores</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value carnivores" id="carnivoreCount">0</div>
+                    <div class="stat-label">Carnivores</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value apex" id="apexCount">0</div>
+                    <div class="stat-label">Apex Predators</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value generation" id="genCount">1</div>
+                    <div class="stat-label">Generation</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value season" id="seasonDisplay">🌸 Spring</div>
+                    <div class="stat-label">Season</div>
+                </div>
+            </div>
+            <canvas id="simCanvas" width="800" height="600"></canvas>
+        </div>
+
+        <!-- Right Panel: Graphs -->
+        <div class="graphs-container">
+            <div class="panel graph">
+                <h4>📈 Population Over Time</h4>
+                <canvas id="populationGraph"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #00ff88;"></div>
+                        <span>Plants</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #ffd700;"></div>
+                        <span>Herbivores</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #ff4757;"></div>
+                        <span>Carnivores</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #9d4edd;"></div>
+                        <span>Apex</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel graph">
+                <h4>🕸️ Food Web</h4>
+                <canvas id="foodWebGraph"></canvas>
+            </div>
+
+            <div class="panel graph">
+                <h4>🧬 Average Traits</h4>
+                <canvas id="geneGraph"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #00d4ff;"></div>
+                        <span>Speed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #ff6b6b;"></div>
+                        <span>Size</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #4ecdc4;"></div>
+                        <span>Camouflage</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="music-start-prompt" id="musicStartPrompt">
+        <div class="music-icon">🎵</div>
+        <h3>Click to Start Experience</h3>
+        <p>Begin your ecosystem journey with ambient nature sounds</p>
+    </div>
+
+    <div class="music-control" id="musicControl" style="display: none;">
+        <button class="music-btn" id="musicToggle" title="Toggle Music">🎵</button>
+        <div class="volume-container">
+            <span class="volume-label">Volume</span>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="15">
+        </div>
+        <span class="music-status" id="musicStatus">Playing</span>
+    </div>
+
+    <script>
+        // ============== CONFIGURATION ==============
+        const CONFIG = {
+            width: 800,
+            height: 600,
+            maxPlants: 200,
+            maxAnimals: 150,
+            plantGrowthRate: 0.02,
+            seasons: ['🌸 Spring', '☀️ Summer', '🍂 Autumn', '❄️ Winter'],
+            seasonLengths: 300, // frames per season
+            climateEffects: {
+                temperate: { growth: 1.0, speed: 1.0, reproduction: 1.0 },
+                tropical: { growth: 1.5, speed: 1.2, reproduction: 1.3 },
+                arctic: { growth: 0.5, speed: 0.7, reproduction: 0.6 },
+                desert: { growth: 0.3, speed: 1.1, reproduction: 0.5 }
+            }
+        };
+
+        // ============== GENETICS SYSTEM ==============
+        class Genome {
+            constructor(parent = null) {
+                if (parent) {
+                    this.speed = this.mutate(parent.speed, 0.1, 0.5, 3);
+                    this.size = this.mutate(parent.size, 0.05, 0.3, 2);
+                    this.camouflage = this.mutate(parent.camouflage, 0.1, 0, 1);
+                    this.energyEfficiency = this.mutate(parent.energyEfficiency, 0.05, 0.5, 1.5);
+                    this.reproductionThreshold = this.mutate(parent.reproductionThreshold, 5, 60, 120);
+                } else {
+                    this.speed = 1 + Math.random();
+                    this.size = 0.5 + Math.random() * 0.5;
+                    this.camouflage = Math.random();
+                    this.energyEfficiency = 0.8 + Math.random() * 0.4;
+                    this.reproductionThreshold = 80 + Math.random() * 40;
+                }
+            }
+
+            mutate(value, rate, min, max) {
+                const change = (Math.random() - 0.5) * 2 * rate;
+                return Math.max(min, Math.min(max, value * (1 + change)));
+            }
+        }
+
+        // ============== ORGANISM CLASSES ==============
+        class Organism {
+            constructor(x, y, genome = null) {
+                this.x = x;
+                this.y = y;
+                this.age = 0;
+                this.energy = 50;
+                this.genome = genome || new Genome();
+                this.generation = 1;
+                this.id = Math.random().toString(36).substr(2, 9);
+                this.dead = false;
+            }
+
+            update() {
+                this.age++;
+            }
+
+            distanceTo(other) {
+                return Math.sqrt((this.x - other.x) ** 2 + (this.y - other.y) ** 2);
+            }
+        }
+
+        class Plant extends Organism {
+            constructor(x, y, genome = null) {
+                super(x, y, genome);
+                this.energy = 30;
+                this.type = 'plant';
+                this.maxEnergy = 50 + this.genome.size * 30;
+                this.growthRate = 0.3 * this.genome.energyEfficiency;
+            }
+
+            update(climate) {
+                super.update();
+                if (this.energy < this.maxEnergy) {
+                    this.energy += this.growthRate * climate.growth;
+                }
+                return this.energy > 0;
+            }
+
+            draw(ctx) {
+                const size = 3 + this.genome.size * 4;
+                const alpha = 0.6 + (this.energy / this.maxEnergy) * 0.4;
+                ctx.globalAlpha = alpha;
+                
+                // Plant body
+                ctx.fillStyle = `rgb(0, ${Math.floor(150 + this.genome.camouflage * 105)}, ${Math.floor(50 + this.genome.camouflage * 50)})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Glow effect
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#00ff88';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Animal extends Organism {
+            constructor(x, y, genome = null) {
+                super(x, y, genome);
+                this.vx = (Math.random() - 0.5) * this.genome.speed;
+                this.vy = (Math.random() - 0.5) * this.genome.speed;
+                this.hunting = false;
+                this.matingCooldown = 0;
+            }
+
+            move() {
+                const speed = this.genome.speed;
+                this.x += this.vx * speed;
+                this.y += this.vy * speed;
+
+                // Boundary bounce
+                if (this.x < 0 || this.x > CONFIG.width) this.vx *= -1;
+                if (this.y < 0 || this.y > CONFIG.height) this.vy *= -1;
+
+                this.x = Math.max(0, Math.min(CONFIG.width, this.x));
+                this.y = Math.max(0, Math.min(CONFIG.height, this.y));
+
+                // Random direction change
+                if (Math.random() < 0.02) {
+                    this.vx = (Math.random() - 0.5) * speed;
+                    this.vy = (Math.random() - 0.5) * speed;
+                }
+
+                this.energy -= 0.1 * this.genome.size / this.genome.energyEfficiency;
+            }
+
+            seek(target) {
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    this.vx = (dx / dist) * this.genome.speed;
+                    this.vy = (dy / dist) * this.genome.speed;
+                }
+            }
+
+            flee(threat) {
+                const dx = this.x - threat.x;
+                const dy = this.y - threat.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    this.vx = (dx / dist) * this.genome.speed * 1.5;
+                    this.vy = (dy / dist) * this.genome.speed * 1.5;
+                }
+            }
+
+            canReproduce() {
+                return this.energy > this.genome.reproductionThreshold && 
+                       this.matingCooldown <= 0 && 
+                       this.age > 50;
+            }
+
+            reproduce(partner = null) {
+                this.energy *= 0.5;
+                this.matingCooldown = 200;
+                const offspringGenome = partner ? 
+                    new Genome(Math.random() > 0.5 ? this.genome : partner.genome) : 
+                    new Genome(this.genome);
+                return offspringGenome;
+            }
+
+            update() {
+                super.update();
+                this.move();
+                if (this.matingCooldown > 0) this.matingCooldown--;
+                return this.energy > 0;
+            }
+
+            draw(ctx, color) {
+                const size = 4 + this.genome.size * 6;
+                
+                // Body
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Direction indicator
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + this.vx * 5, this.y + this.vy * 5);
+                ctx.stroke();
+
+                // Energy indicator
+                if (this.energy < 30) {
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y - size - 5, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Glow for high energy
+                if (this.canReproduce()) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = color;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+        }
+
+        class Herbivore extends Animal {
+            constructor(x, y, genome = null) {
+                super(x, y, genome);
+                this.type = 'herbivore';
+                this.energy = 60;
+            }
+
+            update(plants, carnivores, apex, climate) {
+                if (!super.update()) return false;
+
+                // Flee from predators
+                for (let predator of [...carnivores, ...apex]) {
+                    if (this.distanceTo(predator) < 80) {
+                        this.flee(predator);
+                        this.energy -= 0.5;
+                        return true;
+                    }
+                }
+
+                // Find nearest plant
+                let nearestPlant = null;
+                let minDist = Infinity;
+                for (let plant of plants) {
+                    const dist = this.distanceTo(plant);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestPlant = plant;
+                    }
+                }
+
+                if (nearestPlant && minDist < 100) {
+                    this.seek(nearestPlant);
+                    if (minDist < 10 + this.genome.size * 3) {
+                        this.energy += nearestPlant.energy * 0.5;
+                        nearestPlant.energy = 0;
+                        nearestPlant.dead = true;
+                    }
+                }
+
+                return true;
+            }
+
+            draw(ctx) {
+                super.draw(ctx, `rgb(255, ${Math.floor(215 - this.genome.camouflage * 50)}, 0)`);
+            }
+        }
+
+        class Carnivore extends Animal {
+            constructor(x, y, genome = null) {
+                super(x, y, genome);
+                this.type = 'carnivore';
+                this.energy = 80;
+            }
+
+            update(herbivores, apex, climate) {
+                if (!super.update()) return false;
+
+                // Flee from apex
+                for (let predator of apex) {
+                    if (this.distanceTo(predator) < 100) {
+                        this.flee(predator);
+                        return true;
+                    }
+                }
+
+                // Hunt herbivores
+                let nearestPrey = null;
+                let minDist = Infinity;
+                for (let prey of herbivores) {
+                    const dist = this.distanceTo(prey);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestPrey = prey;
+                    }
+                }
+
+                if (nearestPrey && minDist < 150) {
+                    this.seek(nearestPrey);
+                    if (minDist < 10 + this.genome.size * 2) {
+                        this.energy += nearestPrey.energy * 0.6;
+                        nearestPrey.energy = 0;
+                        nearestPrey.dead = true;
+                    }
+                }
+
+                return true;
+            }
+
+            draw(ctx) {
+                super.draw(ctx, `rgb(255, ${Math.floor(71 + this.genome.camouflage * 50)}, ${Math.floor(87 - this.genome.camouflage * 30)})`);
+            }
+        }
+
+        class ApexPredator extends Animal {
+            constructor(x, y, genome = null) {
+                super(x, y, genome);
+                this.type = 'apex';
+                this.energy = 120;
+            }
+
+            update(herbivores, carnivores, climate) {
+                if (!super.update()) return false;
+
+                // Hunt anything
+                const targets = [...herbivores, ...carnivores];
+                let nearestPrey = null;
+                let minDist = Infinity;
+                
+                for (let prey of targets) {
+                    const dist = this.distanceTo(prey);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestPrey = prey;
+                    }
+                }
+
+                if (nearestPrey && minDist < 200) {
+                    this.seek(nearestPrey);
+                    if (minDist < 12 + this.genome.size * 3) {
+                        this.energy += nearestPrey.energy * 0.5;
+                        nearestPrey.energy = 0;
+                        nearestPrey.dead = true;
+                    }
+                }
+
+                return true;
+            }
+
+            draw(ctx) {
+                super.draw(ctx, `rgb(${Math.floor(157 + this.genome.camouflage * 40)}, 78, 221)`);
+            }
+        }
+
+        // ============== SIMULATION ENGINE ==============
+        class Ecosystem {
+            constructor() {
+                this.plants = [];
+                this.herbivores = [];
+                this.carnivores = [];
+                this.apex = [];
+                this.frame = 0;
+                this.generation = 1;
+                this.season = 0;
+                this.climate = 'temperate';
+                this.raining = false;
+                this.paused = false;
+                this.speed = 5;
+                this.history = {
+                    plants: [],
+                    herbivores: [],
+                    carnivores: [],
+                    apex: [],
+                    speed: [],
+                    size: [],
+                    camouflage: []
+                };
+                this.selectedTool = 'plant';
+                this.selectedOrganism = null;
+                this.lastSaveTime = 0;
+                
+                this.init();
+            }
+
+            init() {
+                // Initial population
+                for (let i = 0; i < 30; i++) {
+                    this.plants.push(new Plant(
+                        Math.random() * CONFIG.width,
+                        Math.random() * CONFIG.height
+                    ));
+                }
+                for (let i = 0; i < 15; i++) {
+                    this.herbivores.push(new Herbivore(
+                        Math.random() * CONFIG.width,
+                        Math.random() * CONFIG.height
+                    ));
+                }
+                for (let i = 0; i < 5; i++) {
+                    this.carnivores.push(new Carnivore(
+                        Math.random() * CONFIG.width,
+                        Math.random() * CONFIG.height
+                    ));
+                }
+                this.apex.push(new ApexPredator(
+                    Math.random() * CONFIG.width,
+                    Math.random() * CONFIG.height
+                ));
+            }
+
+            reset() {
+                this.plants = [];
+                this.herbivores = [];
+                this.carnivores = [];
+                this.apex = [];
+                this.frame = 0;
+                this.generation = 1;
+                this.season = 0;
+                this.history = { plants: [], herbivores: [], carnivores: [], apex: [], speed: [], size: [], camouflage: [] };
+                this.selectedOrganism = null;
+                this.lastSaveTime = 0;
+                this.init();
+                
+                // Clear saved game
+                localStorage.removeItem('ecosystem-save');
+            }
+
+            // ============== SAVE / LOAD SYSTEM ==============
+            serializeOrganism(org) {
+                return {
+                    x: org.x,
+                    y: org.y,
+                    age: org.age,
+                    energy: org.energy,
+                    genome: { ...org.genome },
+                    generation: org.generation,
+                    type: org.type,
+                    vx: org.vx || 0,
+                    vy: org.vy || 0,
+                    matingCooldown: org.matingCooldown || 0
+                };
+            }
+
+            deserializeOrganism(data) {
+                let org;
+                const genome = new Genome();
+                Object.assign(genome, data.genome);
+                
+                switch(data.type) {
+                    case 'plant':
+                        org = new Plant(data.x, data.y, genome);
+                        break;
+                    case 'herbivore':
+                        org = new Herbivore(data.x, data.y, genome);
+                        org.vx = data.vx;
+                        org.vy = data.vy;
+                        break;
+                    case 'carnivore':
+                        org = new Carnivore(data.x, data.y, genome);
+                        org.vx = data.vx;
+                        org.vy = data.vy;
+                        break;
+                    case 'apex':
+                        org = new ApexPredator(data.x, data.y, genome);
+                        org.vx = data.vx;
+                        org.vy = data.vy;
+                        break;
+                }
+                
+                if (org) {
+                    org.age = data.age;
+                    org.energy = data.energy;
+                    org.generation = data.generation;
+                    org.matingCooldown = data.matingCooldown;
+                }
+                
+                return org;
+            }
+
+            save() {
+                try {
+                    const saveData = {
+                        version: 1,
+                        timestamp: Date.now(),
+                        frame: this.frame,
+                        generation: this.generation,
+                        season: this.season,
+                        climate: this.climate,
+                        raining: this.raining,
+                        speed: this.speed,
+                        plants: this.plants.map(p => this.serializeOrganism(p)),
+                        herbivores: this.herbivores.map(h => this.serializeOrganism(h)),
+                        carnivores: this.carnivores.map(c => this.serializeOrganism(c)),
+                        apex: this.apex.map(a => this.serializeOrganism(a)),
+                        history: this.history
+                    };
+                    
+                    localStorage.setItem('ecosystem-save', JSON.stringify(saveData));
+                    this.lastSaveTime = Date.now();
+                    return true;
+                } catch (e) {
+                    console.error('Save failed:', e);
+                    return false;
+                }
+            }
+
+            load() {
+                try {
+                    const saveData = localStorage.getItem('ecosystem-save');
+                    if (!saveData) return false;
+                    
+                    const data = JSON.parse(saveData);
+                    
+                    // Restore state
+                    this.frame = data.frame || 0;
+                    this.generation = data.generation || 1;
+                    this.season = data.season || 0;
+                    this.climate = data.climate || 'temperate';
+                    this.raining = data.raining || false;
+                    this.speed = data.speed || 5;
+                    this.history = data.history || { plants: [], herbivores: [], carnivores: [], apex: [], speed: [], size: [], camouflage: [] };
+                    
+                    // Restore organisms
+                    this.plants = (data.plants || []).map(p => this.deserializeOrganism(p)).filter(Boolean);
+                    this.herbivores = (data.herbivores || []).map(h => this.deserializeOrganism(h)).filter(Boolean);
+                    this.carnivores = (data.carnivores || []).map(c => this.deserializeOrganism(c)).filter(Boolean);
+                    this.apex = (data.apex || []).map(a => this.deserializeOrganism(a)).filter(Boolean);
+                    
+                    this.selectedOrganism = null;
+                    this.lastSaveTime = Date.now();
+                    
+                    return true;
+                } catch (e) {
+                    console.error('Load failed:', e);
+                    return false;
+                }
+            }
+
+            checkAutoSave() {
+                const autoSaveEnabled = document.getElementById('autoSaveCheck')?.checked ?? true;
+                if (!autoSaveEnabled) return;
+                
+                // Auto-save every 30 seconds (assuming ~60fps, that's every 1800 frames)
+                if (this.frame - (this.lastSaveFrame || 0) > 1800) {
+                    if (this.save()) {
+                        this.lastSaveFrame = this.frame;
+                        this.updateSaveStatus('💾 Auto-saved!');
+                    }
+                }
+            }
+
+            updateSaveStatus(message) {
+                const statusEl = document.getElementById('saveStatus');
+                if (statusEl) {
+                    statusEl.textContent = message;
+                    setTimeout(() => {
+                        if (statusEl.textContent === message) {
+                            statusEl.textContent = '';
+                        }
+                    }, 3000);
+                }
+            }
+
+            getClimateEffect() {
+                let effect = { ...CONFIG.climateEffects[this.climate] };
+                
+                // Season modifier
+                const seasonMult = [1.2, 1.0, 0.8, 0.5][this.season];
+                effect.growth *= seasonMult;
+                
+                // Rain bonus
+                if (this.raining) effect.growth *= 1.5;
+                
+                return effect;
+            }
+
+            spawnPlants(climate) {
+                if (this.plants.length < CONFIG.maxPlants * climate.growth) {
+                    if (Math.random() < CONFIG.plantGrowthRate * climate.growth) {
+                        this.plants.push(new Plant(
+                            Math.random() * CONFIG.width,
+                            Math.random() * CONFIG.height
+                        ));
+                    }
+                }
+            }
+
+            handleReproduction() {
+                const allAnimals = [...this.herbivores, ...this.carnivores, ...this.apex];
+                
+                for (let i = 0; i < allAnimals.length; i++) {
+                    const animal = allAnimals[i];
+                    if (!animal.canReproduce()) continue;
+
+                    // Find mate
+                    for (let j = i + 1; j < allAnimals.length; j++) {
+                        const mate = allAnimals[j];
+                        if (mate.type !== animal.type || !mate.canReproduce()) continue;
+                        
+                        if (animal.distanceTo(mate) < 30) {
+                            const offspringGenome = animal.reproduce(mate);
+                            const x = (animal.x + mate.x) / 2;
+                            const y = (animal.y + mate.y) / 2;
+                            
+                            if (animal.type === 'herbivore' && this.herbivores.length < CONFIG.maxAnimals) {
+                                this.herbivores.push(new Herbivore(x, y, offspringGenome));
+                            } else if (animal.type === 'carnivore' && this.carnivores.length < CONFIG.maxAnimals / 2) {
+                                this.carnivores.push(new Carnivore(x, y, offspringGenome));
+                            } else if (animal.type === 'apex' && this.apex.length < 10) {
+                                this.apex.push(new ApexPredator(x, y, offspringGenome));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            triggerDisaster() {
+                const type = Math.random();
+                let message = '';
+                
+                if (type < 0.33) {
+                    // Disease - kills random animals
+                    const victims = Math.floor(Math.random() * 10) + 5;
+                    for (let i = 0; i < victims && this.herbivores.length > 5; i++) {
+                        this.herbivores[Math.floor(Math.random() * this.herbivores.length)].dead = true;
+                    }
+                    message = '🦠 Disease outbreak! Many herbivores affected.';
+                } else if (type < 0.66) {
+                    // Fire - kills plants
+                    const victims = Math.floor(this.plants.length * 0.3);
+                    for (let i = 0; i < victims && this.plants.length > 10; i++) {
+                        this.plants[Math.floor(Math.random() * this.plants.length)].dead = true;
+                    }
+                    message = '🔥 Wildfire! Plant population reduced.';
+                } else {
+                    // Flood - affects all
+                    for (let arr of [this.herbivores, this.carnivores, this.plants]) {
+                        const victims = Math.floor(arr.length * 0.15);
+                        for (let i = 0; i < victims && arr.length > 3; i++) {
+                            arr[Math.floor(Math.random() * arr.length)].dead = true;
+                        }
+                    }
+                    message = '🌊 Flood! Multiple species affected.';
+                }
+                
+                this.showNotification(message, 'warning');
+            }
+
+            showNotification(message, type = 'success') {
+                const notif = document.createElement('div');
+                notif.className = `notification ${type}`;
+                notif.textContent = message;
+                document.body.appendChild(notif);
+                setTimeout(() => notif.remove(), 3000);
+            }
+
+            update() {
+                if (this.paused) return;
+
+                // Update frame counter
+                this.frame++;
+                
+                // Check auto-save
+                this.checkAutoSave();
+                
+                // Update season
+                if (this.frame % CONFIG.seasonLengths === 0) {
+                    this.season = (this.season + 1) % 4;
+                    if (this.season === 0) this.generation++;
+                }
+
+                const climate = this.getClimateEffect();
+
+                // Spawn plants
+                this.spawnPlants(climate);
+
+                // Update organisms
+                this.plants = this.plants.filter(p => p.update(climate));
+                this.herbivores = this.herbivores.filter(h => h.update(this.plants, this.carnivores, this.apex, climate));
+                this.carnivores = this.carnivores.filter(c => c.update(this.herbivores, this.apex, climate));
+                this.apex = this.apex.filter(a => a.update(this.herbivores, this.carnivores, climate));
+
+                // Remove dead
+                this.plants = this.plants.filter(p => !p.dead);
+                this.herbivores = this.herbivores.filter(h => !h.dead);
+                this.carnivores = this.carnivores.filter(c => !c.dead);
+                this.apex = this.apex.filter(a => !a.dead);
+
+                // Reproduction
+                this.handleReproduction();
+
+                // Update history every 10 frames
+                if (this.frame % 10 === 0) {
+                    this.updateHistory();
+                }
+            }
+
+            updateHistory() {
+                const allAnimals = [...this.herbivores, ...this.carnivores, ...this.apex];
+                
+                this.history.plants.push(this.plants.length);
+                this.history.herbivores.push(this.herbivores.length);
+                this.history.carnivores.push(this.carnivores.length);
+                this.history.apex.push(this.apex.length);
+
+                if (allAnimals.length > 0) {
+                    const avgSpeed = allAnimals.reduce((s, a) => s + a.genome.speed, 0) / allAnimals.length;
+                    const avgSize = allAnimals.reduce((s, a) => s + a.genome.size, 0) / allAnimals.length;
+                    const avgCamo = allAnimals.reduce((s, a) => s + a.genome.camouflage, 0) / allAnimals.length;
+                    
+                    this.history.speed.push(avgSpeed);
+                    this.history.size.push(avgSize);
+                    this.history.camouflage.push(avgCamo);
+                }
+
+                // Keep last 100 points
+                const maxPoints = 100;
+                for (let key in this.history) {
+                    if (this.history[key].length > maxPoints) {
+                        this.history[key] = this.history[key].slice(-maxPoints);
+                    }
+                }
+            }
+
+            draw(ctx) {
+                // Clear
+                ctx.fillStyle = 'rgba(13, 27, 42, 0.3)';
+                ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+
+                // Draw rain
+                if (this.raining) {
+                    ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < 100; i++) {
+                        const x = Math.random() * CONFIG.width;
+                        const y = Math.random() * CONFIG.height;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x - 2, y + 10);
+                        ctx.stroke();
+                    }
+                }
+
+                // Draw organisms
+                for (let plant of this.plants) plant.draw(ctx);
+                for (let herb of this.herbivores) herb.draw(ctx);
+                for (let carn of this.carnivores) carn.draw(ctx);
+                for (let apex of this.apex) apex.draw(ctx);
+
+                // Highlight selected organism
+                if (this.selectedOrganism) {
+                    ctx.strokeStyle = '#00d4ff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.selectedOrganism.x, this.selectedOrganism.y, 20, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            addOrganism(type, x, y) {
+                switch(type) {
+                    case 'plant':
+                        if (this.plants.length < CONFIG.maxPlants) {
+                            this.plants.push(new Plant(x, y));
+                            return true;
+                        }
+                        break;
+                    case 'herbivore':
+                        if (this.herbivores.length < CONFIG.maxAnimals) {
+                            this.herbivores.push(new Herbivore(x, y));
+                            return true;
+                        }
+                        break;
+                    case 'carnivore':
+                        if (this.carnivores.length < CONFIG.maxAnimals / 2) {
+                            this.carnivores.push(new Carnivore(x, y));
+                            return true;
+                        }
+                        break;
+                    case 'apex':
+                        if (this.apex.length < 10) {
+                            this.apex.push(new ApexPredator(x, y));
+                            return true;
+                        }
+                        break;
+                    case 'food':
+                        const plant = new Plant(x, y);
+                        plant.energy = 100;
+                        this.plants.push(plant);
+                        return true;
+                }
+                return false;
+            }
+
+            removeAt(x, y) {
+                const all = [...this.plants, ...this.herbivores, ...this.carnivores, ...this.apex];
+                const clicked = all.find(o => Math.sqrt((o.x - x) ** 2 + (o.y - y) ** 2) < 20);
+                if (clicked) {
+                    clicked.dead = true;
+                    return true;
+                }
+                return false;
+            }
+
+            getOrganismAt(x, y) {
+                const all = [...this.plants, ...this.herbivores, ...this.carnivores, ...this.apex];
+                return all.find(o => Math.sqrt((o.x - x) ** 2 + (o.y - y) ** 2) < 20);
+            }
+        }
+
+        // ============== GRAPH RENDERERS ==============
+        function drawLineGraph(canvas, data, colors, labels) {
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!data[0] || data[0].length < 2) return;
+
+            const maxVal = Math.max(...data.flat().filter(v => v !== undefined)) || 1;
+            const minVal = 0;
+            const range = maxVal - minVal || 1;
+
+            data.forEach((series, idx) => {
+                ctx.strokeStyle = colors[idx];
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                series.forEach((val, i) => {
+                    const x = (i / (series.length - 1)) * w;
+                    const y = h - ((val - minVal) / range) * (h - 20) - 10;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                
+                ctx.stroke();
+            });
+        }
+
+        function drawFoodWeb(canvas, ecosystem) {
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(0, 0, w, h);
+
+            const centerX = w / 2;
+            const centerY = h / 2;
+            
+            // Draw connections (simplified food web)
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            
+            // Plant -> Herbivore
+            ctx.beginPath();
+            ctx.moveTo(centerX - 60, centerY + 40);
+            ctx.lineTo(centerX - 20, centerY - 10);
+            ctx.stroke();
+            
+            // Herbivore -> Carnivore
+            ctx.beginPath();
+            ctx.moveTo(centerX - 20, centerY - 10);
+            ctx.lineTo(centerX + 30, centerY - 20);
+            ctx.stroke();
+            
+            // Carnivore -> Apex
+            ctx.beginPath();
+            ctx.moveTo(centerX + 30, centerY - 20);
+            ctx.lineTo(centerX + 60, centerY + 20);
+            ctx.stroke();
+            
+            // Herbivore -> Apex (direct)
+            ctx.beginPath();
+            ctx.moveTo(centerX - 20, centerY - 10);
+            ctx.lineTo(centerX + 60, centerY + 20);
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw nodes
+            const nodes = [
+                { x: centerX - 60, y: centerY + 40, color: '#00ff88', label: 'Plants', count: ecosystem.plants.length },
+                { x: centerX - 20, y: centerY - 10, color: '#ffd700', label: 'Herbivores', count: ecosystem.herbivores.length },
+                { x: centerX + 30, y: centerY - 20, color: '#ff4757', label: 'Carnivores', count: ecosystem.carnivores.length },
+                { x: centerX + 60, y: centerY + 20, color: '#9d4edd', label: 'Apex', count: ecosystem.apex.length }
+            ];
+
+            nodes.forEach(node => {
+                const size = Math.min(20, 8 + node.count / 5);
+                
+                ctx.fillStyle = node.color;
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.label, node.x, node.y + size + 12);
+                ctx.fillText(node.count.toString(), node.x, node.y + 4);
+            });
+        }
+
+        // ============== MAIN LOOP ==============
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const ecosystem = new Ecosystem();
+
+        // UI Elements
+        const plantCount = document.getElementById('plantCount');
+        const herbivoreCount = document.getElementById('herbivoreCount');
+        const carnivoreCount = document.getElementById('carnivoreCount');
+        const apexCount = document.getElementById('apexCount');
+        const genCount = document.getElementById('genCount');
+        const seasonDisplay = document.getElementById('seasonDisplay');
+        const infoDisplay = document.getElementById('infoDisplay');
+
+        // Event Listeners
+        document.getElementById('pauseBtn').addEventListener('click', function() {
+            ecosystem.paused = !ecosystem.paused;
+            this.textContent = ecosystem.paused ? '▶️ Resume' : '⏸️ Pause';
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to start a new game? This will clear your current ecosystem and saved data.')) {
+                ecosystem.reset();
+                updateUIFromEcosystem();
+                ecosystem.showNotification('New game started!', 'success');
+            }
+        });
+
+        document.getElementById('speedSlider').addEventListener('input', function() {
+            ecosystem.speed = parseInt(this.value);
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            if (ecosystem.save()) {
+                const date = new Date().toLocaleTimeString();
+                ecosystem.updateSaveStatus(`💾 Saved at ${date}`);
+                ecosystem.showNotification('Game saved successfully!', 'success');
+            } else {
+                ecosystem.showNotification('Failed to save game!', 'danger');
+            }
+        });
+
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            if (ecosystem.load()) {
+                updateUIFromEcosystem();
+                ecosystem.updateSaveStatus('📂 Game loaded!');
+                ecosystem.showNotification('Game loaded successfully!', 'success');
+            } else {
+                ecosystem.showNotification('No saved game found!', 'warning');
+            }
+        });
+
+        // Check for saved game on startup
+        window.addEventListener('load', () => {
+            if (localStorage.getItem('ecosystem-save')) {
+                const loadBtn = document.getElementById('loadBtn');
+                loadBtn.style.background = 'linear-gradient(135deg, #00d26a, #00b894)';
+                loadBtn.textContent = '📂 Load Game (Found!)';
+            }
+        });
+
+        document.getElementById('climateSelect').addEventListener('change', function() {
+            ecosystem.climate = this.value;
+            ecosystem.showNotification(`Climate changed to ${this.options[this.selectedIndex].text}`, 'success');
+        });
+
+        document.getElementById('disasterBtn').addEventListener('click', () => {
+            ecosystem.triggerDisaster();
+        });
+
+        document.getElementById('rainBtn').addEventListener('click', function() {
+            ecosystem.raining = !ecosystem.raining;
+            this.textContent = ecosystem.raining ? '☀️ Stop Rain' : '🌧️ Toggle Rain';
+        });
+
+        // Tool selection
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                ecosystem.selectedTool = this.dataset.tool;
+            });
+        });
+
+        // Canvas interactions
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            if (ecosystem.selectedTool === 'inspect') {
+                ecosystem.selectedOrganism = ecosystem.getOrganismAt(x, y);
+                updateInfoDisplay();
+            } else if (ecosystem.selectedTool === 'remove') {
+                if (ecosystem.removeAt(x, y)) {
+                    ecosystem.showNotification('Organism removed', 'success');
+                }
+            } else {
+                if (ecosystem.addOrganism(ecosystem.selectedTool, x, y)) {
+                    ecosystem.showNotification(`${ecosystem.selectedTool} added!`, 'success');
+                }
+            }
+        });
+
+        function updateInfoDisplay() {
+            const org = ecosystem.selectedOrganism;
+            if (!org) {
+                infoDisplay.innerHTML = 'Click on an organism to view details...';
+                return;
+            }
+
+            const typeEmoji = { plant: '🌿', herbivore: '🐇', carnivore: '🦊', apex: '🦁' }[org.type] || '❓';
+            
+            infoDisplay.innerHTML = `
+                <div style="margin-bottom: 10px; font-size: 1.2rem;">${typeEmoji} <span class="highlight">${org.type.toUpperCase()}</span></div>
+                <div><span class="highlight">Age:</span> ${org.age} frames</div>
+                <div><span class="highlight">Energy:</span> ${Math.floor(org.energy)}</div>
+                <div><span class="highlight">Generation:</span> ${org.generation}</div>
+                ${org.genome ? `
+                <hr style="margin: 10px 0; border-color: rgba(100,150,255,0.3);">
+                <div><span class="highlight">Speed:</span> ${org.genome.speed.toFixed(2)}</div>
+                <div><span class="highlight">Size:</span> ${org.genome.size.toFixed(2)}</div>
+                <div><span class="highlight">Camouflage:</span> ${org.genome.camouflage.toFixed(2)}</div>
+                <div><span class="highlight">Energy Efficiency:</span> ${org.genome.energyEfficiency.toFixed(2)}</div>
+                ` : ''}
+            `;
+        }
+
+        // Update UI elements after loading
+        function updateUIFromEcosystem() {
+            document.getElementById('speedSlider').value = ecosystem.speed;
+            document.getElementById('climateSelect').value = ecosystem.climate;
+            document.getElementById('rainBtn').textContent = ecosystem.raining ? '☀️ Stop Rain' : '🌧️ Toggle Rain';
+            document.getElementById('autoSaveCheck').checked = true;
+        }
+
+        // Main animation loop
+        let lastTime = 0;
+        function loop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            
+            // Update multiple times based on speed
+            const updates = ecosystem.speed;
+            for (let i = 0; i < updates; i++) {
+                ecosystem.update();
+            }
+
+            // Draw simulation
+            ecosystem.draw(ctx);
+
+            // Update UI
+            plantCount.textContent = ecosystem.plants.length;
+            herbivoreCount.textContent = ecosystem.herbivores.length;
+            carnivoreCount.textContent = ecosystem.carnivores.length;
+            apexCount.textContent = ecosystem.apex.length;
+            genCount.textContent = ecosystem.generation;
+            seasonDisplay.textContent = CONFIG.seasons[ecosystem.season];
+
+            // Draw graphs
+            drawLineGraph(document.getElementById('populationGraph'), 
+                [ecosystem.history.plants, ecosystem.history.herbivores, ecosystem.history.carnivores, ecosystem.history.apex],
+                ['#00ff88', '#ffd700', '#ff4757', '#9d4edd']
+            );
+
+            drawFoodWeb(document.getElementById('foodWebGraph'), ecosystem);
+
+            drawLineGraph(document.getElementById('geneGraph'),
+                [ecosystem.history.speed, ecosystem.history.size, ecosystem.history.camouflage],
+                ['#00d4ff', '#ff6b6b', '#4ecdc4']
+            );
+
+            lastTime = timestamp;
+            requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
+    </script>
+    <script>
+        // ============== CHILL LOFI HIP-HOP MUSIC SYSTEM ==============
+        class LofiMusic {
+            constructor() {
+                this.audioContext = null;
+                this.masterGain = null;
+                this.compressor = null;
+                this.isPlaying = false;
+                this.isMuted = false;
+                this.volume = 0.15; // Default volume 15%
+                this.oscillators = [];
+                this.vinylBuffer = null;
+                this.vinylSource = null;
+                this.vinylGain = null;
+                this.beatInterval = null;
+                this.chordInterval = null;
+                this.nextNoteTime = 0;
+                this.beatIndex = 0;
+                
+                // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
+                // C4 = 261.63 Hz as base
+                this.baseFreq = 261.63; // C4
+                this.chords = [
+                    // Cmaj7: C, E, G, B
+                    [1, 1.2599, 1.4983, 1.8877],
+                    // Am7: A, C, E, G
+                    [1.6818, 2, 2.5198, 3],
+                    // Fmaj7: F, A, C, E
+                    [1.2599, 1.5, 2, 2.5198],
+                    // G7: G, B, D, F
+                    [1.4983, 1.8877, 2.2449, 2.6697]
+                ];
+                this.currentChord = 0;
+                
+                // 75 BPM settings
+                this.bpm = 75;
+                this.beatDuration = 60 / this.bpm; // seconds per beat
+                
+                this.initUI();
+            }
+
+            initUI() {
+                const prompt = document.getElementById('musicStartPrompt');
+                const control = document.getElementById('musicControl');
+                const toggle = document.getElementById('musicToggle');
+                const slider = document.getElementById('volumeSlider');
+
+                // Update prompt text
+                const promptText = prompt.querySelector('p');
+                if (promptText) promptText.textContent = 'Begin your ecosystem journey with chill lofi beats';
+
+                const startMusic = () => {
+                    if (!this.audioContext) {
+                        this.start();
+                        prompt.classList.add('hidden');
+                        control.style.display = 'flex';
+                    }
+                };
+
+                prompt.addEventListener('click', startMusic);
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.music-control') && !this.audioContext) {
+                        startMusic();
+                    }
+                }, { once: true });
+
+                toggle.addEventListener('click', () => this.toggle());
+                slider.addEventListener('input', (e) => this.setVolume(e.target.value / 100));
+                this.setVolume(slider.value / 100);
+            }
+
+            async start() {
+                if (this.audioContext) return;
+                
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create compressor: threshold -24dB, ratio 4:1
+                this.compressor = this.audioContext.createDynamicsCompressor();
+                this.compressor.threshold.value = -24;
+                this.compressor.knee.value = 30;
+                this.compressor.ratio.value = 4;
+                this.compressor.attack.value = 0.003;
+                this.compressor.release.value = 0.25;
+                
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.gain.value = this.volume;
+                
+                // Chain: master -> compressor -> destination
+                this.masterGain.connect(this.compressor);
+                this.compressor.connect(this.audioContext.destination);
+
+                // Start the lofi elements
+                this.nextNoteTime = this.audioContext.currentTime;
+                this.startVinylCrackle();
+                this.startChordProgression();
+                this.startBeat();
+                
+                this.isPlaying = true;
+                document.getElementById('musicStatus').textContent = 'Playing';
+            }
+
+            // Generate vinyl crackle using brown noise
+            createVinylCrackleBuffer() {
+                const sampleRate = this.audioContext.sampleRate;
+                const length = sampleRate * 2; // 2 seconds loop
+                const buffer = this.audioContext.createBuffer(1, length, sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Brown noise algorithm (deeper, warmer crackle)
+                let lastOut = 0;
+                for (let i = 0; i < length; i++) {
+                    const white = Math.random() * 2 - 1;
+                    lastOut = (lastOut + (0.02 * white)) / 1.02;
+                    data[i] = lastOut * 0.5;
+                }
+                
+                return buffer;
+            }
+
+            startVinylCrackle() {
+                if (!this.vinylBuffer) {
+                    this.vinylBuffer = this.createVinylCrackleBuffer();
+                }
+                
+                this.vinylGain = this.audioContext.createGain();
+                this.vinylGain.gain.value = 0.008; // Very subtle crackle
+                
+                // Low-pass filter to make crackle softer
+                const filter = this.audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 4000;
+                
+                this.vinylGain.connect(filter);
+                filter.connect(this.masterGain);
+                
+                this.playVinylLoop();
+            }
+
+            playVinylLoop() {
+                if (!this.isPlaying || this.isMuted) return;
+                
+                this.vinylSource = this.audioContext.createBufferSource();
+                this.vinylSource.buffer = this.vinylBuffer;
+                this.vinylSource.loop = true;
+                this.vinylSource.connect(this.vinylGain);
+                this.vinylSource.start();
+            }
+
+            startChordProgression() {
+                this.playChord();
+                // Change chord every 4 beats (2 bars at 75 BPM)
+                const chordIntervalMs = (this.beatDuration * 4) * 1000;
+                this.chordInterval = setInterval(() => {
+                    if (this.isPlaying && !this.isMuted) {
+                        this.nextChord();
+                    }
+                }, chordIntervalMs);
+            }
+
+            playChord() {
+                const chord = this.chords[this.currentChord];
+                const now = this.audioContext.currentTime;
+                
+                // Create 4 sine wave oscillators for the 7th chord
+                chord.forEach((ratio, idx) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    
+                    osc.type = 'sine';
+                    // Lower octave for chill vibe (C3 range)
+                    osc.frequency.value = (this.baseFreq * ratio) / 2;
+                    
+                    // Very subtle detune for warmth
+                    osc.detune.value = (Math.random() - 0.5) * 3;
+                    
+                    // Very low volumes (0.02-0.03 per oscillator)
+                    const targetVolume = 0.025;
+                    gain.gain.value = 0;
+                    
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    osc.start(now);
+                    
+                    // Slow attack envelope (1.5s attack)
+                    gain.gain.linearRampToValueAtTime(targetVolume, now + 1.5);
+                    
+                    this.oscillators.push({ osc, gain });
+                });
+            }
+
+            nextChord() {
+                if (!this.audioContext) return;
+                
+                const now = this.audioContext.currentTime;
+                
+                // Slow release (1s release)
+                this.oscillators.forEach(({ gain }) => {
+                    gain.gain.linearRampToValueAtTime(0, now + 1);
+                });
+                
+                // Stop oscillators after release
+                setTimeout(() => {
+                    this.oscillators.forEach(({ osc }) => {
+                        try { osc.stop(); } catch (e) {}
+                    });
+                    this.oscillators = [];
+                }, 1100);
+                
+                // Move to next chord
+                this.currentChord = (this.currentChord + 1) % this.chords.length;
+                
+                // Start new chord after brief pause
+                setTimeout(() => {
+                    this.playChord();
+                }, 1000);
+            }
+
+            startBeat() {
+                this.scheduleBeat();
+            }
+
+            scheduleBeat() {
+                if (!this.isPlaying) return;
+                
+                const lookahead = 0.1; // seconds
+                const scheduleAhead = 0.1; // seconds
+                
+                while (this.nextNoteTime < this.audioContext.currentTime + scheduleAhead) {
+                    this.playBeat(this.nextNoteTime);
+                    this.nextNoteTime += this.beatDuration;
+                }
+                
+                this.beatInterval = setTimeout(() => this.scheduleBeat(), lookahead * 1000);
+            }
+
+            playBeat(time) {
+                if (this.isMuted) return;
+                
+                // Simple downtempo pattern: kick on 1, snare on 3 (out of 4)
+                const beatInMeasure = this.beatIndex % 4;
+                
+                // Soft kick on beats 0 and 2 (kick-snare-kick-snare pattern)
+                if (beatInMeasure === 0 || beatInMeasure === 2) {
+                    this.playKick(time);
+                }
+                // Soft snare on beat 3
+                if (beatInMeasure === 3) {
+                    this.playSnare(time);
+                }
+                
+                this.beatIndex++;
+            }
+
+            playKick(time) {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
+                
+                gain.gain.setValueAtTime(0.08, time); // Very soft
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + 0.15);
+            }
+
+            playSnare(time) {
+                // Create noise for snare
+                const bufferSize = this.audioContext.sampleRate * 0.1;
+                const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = this.audioContext.createBufferSource();
+                noise.buffer = buffer;
+                
+                const noiseFilter = this.audioContext.createBiquadFilter();
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 1000;
+                
+                const gain = this.audioContext.createGain();
+                gain.gain.setValueAtTime(0.04, time); // Very soft
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                
+                noise.connect(noiseFilter);
+                noiseFilter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                noise.start(time);
+            }
+
+            toggle() {
+                if (!this.audioContext) return;
+
+                this.isMuted = !this.isMuted;
+                const toggle = document.getElementById('musicToggle');
+                const status = document.getElementById('musicStatus');
+
+                if (this.isMuted) {
+                    this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
+                    if (this.vinylGain) this.vinylGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
+                    toggle.classList.add('muted');
+                    toggle.textContent = '🔇';
+                    status.textContent = 'Muted';
+                } else {
+                    this.masterGain.gain.linearRampToValueAtTime(this.volume, this.audioContext.currentTime + 0.5);
+                    if (this.vinylGain) this.vinylGain.gain.linearRampToValueAtTime(0.008, this.audioContext.currentTime + 0.5);
+                    toggle.classList.remove('muted');
+                    toggle.textContent = '🎵';
+                    status.textContent = 'Playing';
+                }
+            }
+
+            setVolume(value) {
+                this.volume = value;
+                if (this.masterGain && !this.isMuted) {
+                    this.masterGain.gain.setValueAtTime(value, this.audioContext.currentTime);
+                }
+            }
+        }
+
+        // Initialize music system
+        const ambientMusic = new LofiMusic();
+    </script>
+</body>
+</html>

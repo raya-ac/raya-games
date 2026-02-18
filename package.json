@@ -1,0 +1,40 @@
+{
+  "name": "raya-games",
+  "version": "1.0.0",
+  "description": "Browser-based games and simulations collection",
+  "main": "index.html",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "version": "node scripts/version.js",
+    "release": "node scripts/release.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/raya-ac/raya-games.git"
+  },
+  "keywords": [
+    "games",
+    "simulations",
+    "javascript",
+    "html5",
+    "browser-games",
+    "cellular-automata",
+    "ai",
+    "physics"
+  ],
+  "author": "raya",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/raya-ac/raya-games/issues"
+  },
+  "homepage": "https://raya.li/games",
+  "games": {
+    "featured": ["life-simulator"],
+    "cellular": ["life2d", "gol3d", "gol4d"],
+    "simulation": ["ecosystem", "fluid-sim", "boids", "particles", "ant-sim"],
+    "tycoon": ["prison-tycoon", "stock-tycoon", "city-builder", "space-colony"],
+    "strategy": ["medieval-wars", "battleroyale", "disease-sim"],
+    "ai": ["neural-net", "ai-office"],
+    "utility": ["traffic"]
+  }
+}

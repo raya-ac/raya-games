@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Dynamics Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .main-container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            color: #00d4ff;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #b0b0b0;
+        }
+
+        .fluid-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .fluid-btn {
+            padding: 12px;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fluid-btn.water {
+            background: linear-gradient(135deg, rgba(0, 150, 255, 0.3), rgba(0, 100, 200, 0.3));
+            color: #4fc3f7;
+            border-color: rgba(79, 195, 247, 0.3);
+        }
+
+        .fluid-btn.oil {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.3), rgba(160, 82, 45, 0.3));
+            color: #d2691e;
+            border-color: rgba(210, 105, 30, 0.3);
+        }
+
+        .fluid-btn.lava {
+            background: linear-gradient(135deg, rgba(255, 69, 0, 0.3), rgba(255, 140, 0, 0.3));
+            color: #ff6b35;
+            border-color: rgba(255, 107, 53, 0.3);
+        }
+
+        .fluid-btn.smoke {
+            background: linear-gradient(135deg, rgba(128, 128, 128, 0.3), rgba(169, 169, 169, 0.3));
+            color: #c0c0c0;
+            border-color: rgba(192, 192, 192, 0.3);
+        }
+
+        .fluid-btn.dye-red {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.3), rgba(200, 0, 0, 0.3));
+            color: #ff4444;
+            border-color: rgba(255, 68, 68, 0.3);
+        }
+
+        .fluid-btn.dye-blue {
+            background: linear-gradient(135deg, rgba(0, 0, 255, 0.3), rgba(0, 0, 200, 0.3));
+            color: #4444ff;
+            border-color: rgba(68, 68, 255, 0.3);
+        }
+
+        .fluid-btn.dye-green {
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.3), rgba(0, 200, 0, 0.3));
+            color: #44ff44;
+            border-color: rgba(68, 255, 68, 0.3);
+        }
+
+        .fluid-btn.dye-yellow {
+            background: linear-gradient(135deg, rgba(255, 255, 0, 0.3), rgba(200, 200, 0, 0.3));
+            color: #ffff44;
+            border-color: rgba(255, 255, 68, 0.3);
+        }
+
+        .fluid-btn.obstacle {
+            background: linear-gradient(135deg, rgba(100, 100, 100, 0.3), rgba(80, 80, 80, 0.3));
+            color: #888;
+            border-color: rgba(136, 136, 136, 0.3);
+        }
+
+        .fluid-btn.eraser {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(200, 200, 200, 0.1));
+            color: #ccc;
+            border-color: rgba(204, 204, 204, 0.3);
+        }
+
+        .fluid-btn:hover, .fluid-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .fluid-btn.active {
+            border-color: currentColor;
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .slider-container {
+            margin-bottom: 12px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.6);
+        }
+
+        .slider-value {
+            display: inline-block;
+            margin-left: 10px;
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        #simCanvas {
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            cursor: crosshair;
+            background: #0a0a0f;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 0.8rem;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .mini-games {
+            margin-top: 20px;
+        }
+
+        .game-btn {
+            width: 100%;
+            margin-bottom: 8px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(123, 44, 191, 0.2));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #00d4ff;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+        }
+
+        .game-btn:hover {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(123, 44, 191, 0.3));
+            transform: translateX(5px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .color-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .brush-size-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .brush-preview {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(0, 212, 255, 0.5);
+            border: 2px solid #00d4ff;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+        }
+
+        .particle-count {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 Fluid Dynamics Simulator</h1>
+        <div class="header-buttons">
+            <button class="btn btn-secondary" id="musicToggle">🎵 Music: OFF</button>
+            <input type="range" id="musicVolumeSlider" min="0" max="100" value="15" style="width: 80px; cursor: pointer;" title="Music Volume">
+            <button class="btn btn-secondary" id="saveBtn">💾 Save</button>
+            <button class="btn btn-secondary" id="loadBtn">📂 Load</button>
+            <button class="btn btn-secondary" id="clearBtn">🗑️ Clear</button>
+            <button class="btn btn-primary" onclick="window.location.href='/games'">🎮 Games</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="control-group">
+                <h3>🎨 Fluid Types</h3>
+                <div class="fluid-buttons">
+                    <button class="fluid-btn water active" data-type="water">
+                        <span class="color-indicator" style="background: #4fc3f7;"></span>Water
+                    </button>
+                    <button class="fluid-btn oil" data-type="oil">
+                        <span class="color-indicator" style="background: #d2691e;"></span>Oil
+                    </button>
+                    <button class="fluid-btn lava" data-type="lava">
+                        <span class="color-indicator" style="background: #ff6b35;"></span>Lava
+                    </button>
+                    <button class="fluid-btn smoke" data-type="smoke">
+                        <span class="color-indicator" style="background: #c0c0c0;"></span>Smoke
+                    </button>
+                    <button class="fluid-btn dye-red" data-type="dye-red">
+                        <span class="color-indicator" style="background: #ff4444;"></span>Red Dye
+                    </button>
+                    <button class="fluid-btn dye-blue" data-type="dye-blue">
+                        <span class="color-indicator" style="background: #4444ff;"></span>Blue Dye
+                    </button>
+                    <button class="fluid-btn dye-green" data-type="dye-green">
+                        <span class="color-indicator" style="background: #44ff44;"></span>Green Dye
+                    </button>
+                    <button class="fluid-btn dye-yellow" data-type="dye-yellow">
+                        <span class="color-indicator" style="background: #ffff44;"></span>Yellow Dye
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🛠️ Tools</h3>
+                <div class="fluid-buttons">
+                    <button class="fluid-btn obstacle" data-type="obstacle">
+                        <span class="color-indicator" style="background: #888;"></span>Wall
+                    </button>
+                    <button class="fluid-btn eraser" data-type="eraser">
+                        <span class="color-indicator" style="background: #fff;"></span>Eraser
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>⚙️ Physics Settings</h3>
+                <div class="slider-container">
+                    <label class="control-label">Viscosity: <span class="slider-value" id="viscosityValue">0.0001</span></label>
+                    <input type="range" class="slider" id="viscositySlider" min="0" max="0.001" step="0.00001" value="0.0001">
+                </div>
+                <div class="slider-container">
+                    <label class="control-label">Diffusion: <span class="slider-value" id="diffusionValue">0.0001</span></label>
+                    <input type="range" class="slider" id="diffusionSlider" min="0" max="0.001" step="0.00001" value="0.0001">
+                </div>
+                <div class="slider-container">
+                    <label class="control-label">Gravity: <span class="slider-value" id="gravityValue">9.8</span></label>
+                    <input type="range" class="slider" id="gravitySlider" min="-20" max="20" step="0.1" value="9.8">
+                </div>
+                <div class="slider-container">
+                    <label class="control-label">Wind (X): <span class="slider-value" id="windXValue">0</span></label>
+                    <input type="range" class="slider" id="windXSlider" min="-5" max="5" step="0.1" value="0">
+                </div>
+                <div class="slider-container">
+                    <label class="control-label">Wind (Y): <span class="slider-value" id="windYValue">0</span></label>
+                    <input type="range" class="slider" id="windYSlider" min="-5" max="5" step="0.1" value="0">
+                </div>
+                <div class="slider-container">
+                    <label class="control-label">Brush Size: <span class="slider-value" id="brushValue">3</span></label>
+                    <div class="brush-size-display">
+                        <input type="range" class="slider" id="brushSlider" min="1" max="20" step="1" value="3">
+                        <div class="brush-preview" id="brushPreview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🎮 Simulation</h3>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="showVelocity">
+                    <span>Show Velocity Field</span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="colorMixing" checked>
+                    <span>Enable Color Mixing</span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="paused">
+                    <span>Pause Simulation</span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="glowEffect" checked>
+                    <span>Glow Effect</span>
+                </label>
+            </div>
+
+            <div class="control-group mini-games">
+                <h3>🏆 Mini-Games</h3>
+                <button class="game-btn" id="gameFill">🎯 Fill the Container</button>
+                <button class="game-btn" id="gameMix">🎨 Mix Colors Challenge</button>
+                <button class="game-btn" id="gameObstacle">🚧 Obstacle Course</button>
+                <button class="game-btn" id="gameLava">🔥 Lava Cooling</button>
+            </div>
+
+            <div class="control-group">
+                <h3>📊 Stats</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div>FPS</div>
+                        <div class="stat-value" id="fps">60</div>
+                    </div>
+                    <div class="stat-item">
+                        <div>Particles</div>
+                        <div class="stat-value" id="particleCount">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div>Fluid Cells</div>
+                        <div class="stat-value" id="fluidCells">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div>Obstacles</div>
+                        <div class="stat-value" id="obstacleCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="simCanvas" width="800" height="600"></canvas>
+        </div>
+    </div>
+
+    <div class="modal" id="gameModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Mini-Game</h2>
+            <p id="modalText">Game description here...</p>
+            <button class="btn btn-primary" id="startGameBtn">Start Game</button>
+            <button class="btn btn-secondary" id="closeModalBtn" style="margin-left: 10px;">Close</button>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <script>
+        // Fluid Simulation Constants
+        const WIDTH = 200;
+        const HEIGHT = 150;
+        const ITERATIONS = 16; // More iterations for better pressure solving
+        const DT = 0.016; // Fixed timestep for stable simulation
+        
+        // Canvas setup
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Offscreen canvas for fluid rendering at simulation resolution
+        const fluidCanvas = document.createElement('canvas');
+        fluidCanvas.width = WIDTH;
+        fluidCanvas.height = HEIGHT;
+        const fluidCtx = fluidCanvas.getContext('2d', { alpha: false });
+        
+        // Glow effect canvas
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = WIDTH;
+        glowCanvas.height = HEIGHT;
+        const glowCtx = glowCanvas.getContext('2d');
+
+        // Simulation arrays
+        let density, density0;
+        let velX, velY, velX0, velY0;
+        let pressure, divergence;
+        let obstacles;
+        let colorR, colorG, colorB;
+        let colorR0, colorG0, colorB0;
+
+        // Fluid properties
+        const FLUID_TYPES = {
+            water: { density: 1.0, viscosity: 0.0001, color: [79, 195, 247], flow: 1.0 },
+            oil: { density: 0.8, viscosity: 0.0005, color: [210, 105, 30], flow: 0.7 },
+            lava: { density: 2.5, viscosity: 0.001, color: [255, 107, 53], flow: 0.3 },
+            smoke: { density: 0.3, viscosity: 0.00005, color: [192, 192, 192], flow: 1.2 },
+            'dye-red': { density: 1.0, viscosity: 0.0001, color: [255, 68, 68], flow: 1.0 },
+            'dye-blue': { density: 1.0, viscosity: 0.0001, color: [68, 68, 255], flow: 1.0 },
+            'dye-green': { density: 1.0, viscosity: 0.0001, color: [68, 255, 68], flow: 1.0 },
+            'dye-yellow': { density: 1.0, viscosity: 0.0001, color: [255, 255, 68], flow: 1.0 }
+        };
+
+        // Current settings
+        let currentTool = 'water';
+        let brushSize = 3;
+        let viscosity = 0.0001;
+        let diffusion = 0.0001;
+        let gravity = 9.8;
+        let windX = 0;
+        let windY = 0;
+        let showVelocityField = false;
+        let colorMixingEnabled = true;
+        let glowEffect = true;
+        let isPaused = false;
+        let isDrawing = false;
+        let lastMouseX = 0, lastMouseY = 0;
+
+        // Initialize arrays
+        function initArrays() {
+            const size = WIDTH * HEIGHT;
+            density = new Float32Array(size);
+            density0 = new Float32Array(size);
+            velX = new Float32Array(size);
+            velY = new Float32Array(size);
+            velX0 = new Float32Array(size);
+            velY0 = new Float32Array(size);
+            pressure = new Float32Array(size);
+            divergence = new Float32Array(size);
+            obstacles = new Uint8Array(size);
+            
+            // Color arrays for RGB channels
+            colorR = new Float32Array(size);
+            colorG = new Float32Array(size);
+            colorB = new Float32Array(size);
+            colorR0 = new Float32Array(size);
+            colorG0 = new Float32Array(size);
+            colorB0 = new Float32Array(size);
+        }
+
+        // Get array index
+        function IX(x, y) {
+            return x + y * WIDTH;
+        }
+
+        // Add density (fluid)
+        function addDensity(x, y, amount, type) {
+            const idx = IX(x, y);
+            density[idx] = Math.min(density[idx] + amount, 10.0);
+            
+            const fluidInfo = FLUID_TYPES[type];
+            const color = fluidInfo.color;
+            
+            if (colorMixingEnabled && density[idx] > 0.1) {
+                // Weighted color mixing based on density added
+                const mixFactor = amount / density[idx];
+                colorR[idx] = colorR[idx] * (1 - mixFactor) + color[0] * mixFactor;
+                colorG[idx] = colorG[idx] * (1 - mixFactor) + color[1] * mixFactor;
+                colorB[idx] = colorB[idx] * (1 - mixFactor) + color[2] * mixFactor;
+            } else {
+                colorR[idx] = color[0];
+                colorG[idx] = color[1];
+                colorB[idx] = color[2];
+            }
+        }
+
+        // Add velocity
+        function addVelocity(x, y, vx, vy) {
+            const idx = IX(x, y);
+            velX[idx] += vx;
+            velY[idx] += vy;
+        }
+
+        // Add obstacle
+        function addObstacle(x, y) {
+            obstacles[IX(x, y)] = 1;
+        }
+
+        // Remove obstacle/fluid
+        function clearCell(x, y) {
+            const idx = IX(x, y);
+            density[idx] = 0;
+            velX[idx] = 0;
+            velY[idx] = 0;
+            obstacles[idx] = 0;
+            colorR[idx] = 0;
+            colorG[idx] = 0;
+            colorB[idx] = 0;
+        }
+
+        // Linear interpolation
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        // Bilinear interpolation for array sampling
+        function sampleField(array, x, y) {
+            const i0 = Math.floor(x);
+            const j0 = Math.floor(y);
+            const i1 = Math.min(i0 + 1, WIDTH - 1);
+            const j1 = Math.min(j0 + 1, HEIGHT - 1);
+            
+            const s1 = x - i0;
+            const s0 = 1 - s1;
+            const t1 = y - j0;
+            const t0 = 1 - t1;
+            
+            // Clamp coordinates
+            const ci0 = Math.max(0, Math.min(i0, WIDTH - 1));
+            const cj0 = Math.max(0, Math.min(j0, HEIGHT - 1));
+            const ci1 = Math.max(0, Math.min(i1, WIDTH - 1));
+            const cj1 = Math.max(0, Math.min(j1, HEIGHT - 1));
+            
+            return s0 * (t0 * array[IX(ci0, cj0)] + t1 * array[IX(ci0, cj1)]) +
+                   s1 * (t0 * array[IX(ci1, cj0)] + t1 * array[IX(ci1, cj1)]);
+        }
+
+        // Set boundary conditions with proper obstacle handling
+        function setBoundary(field, scale, isVelocityX = false, isVelocityY = false) {
+            // Handle edges
+            for (let i = 0; i < WIDTH; i++) {
+                field[IX(i, 0)] = field[IX(i, 1)] * scale;
+                field[IX(i, HEIGHT - 1)] = field[IX(i, HEIGHT - 2)] * scale;
+            }
+            for (let j = 0; j < HEIGHT; j++) {
+                field[IX(0, j)] = field[IX(1, j)] * scale;
+                field[IX(WIDTH - 1, j)] = field[IX(WIDTH - 2, j)] * scale;
+            }
+            
+            // Corners
+            field[IX(0, 0)] = 0.5 * (field[IX(1, 0)] + field[IX(0, 1)]);
+            field[IX(0, HEIGHT - 1)] = 0.5 * (field[IX(1, HEIGHT - 1)] + field[IX(0, HEIGHT - 2)]);
+            field[IX(WIDTH - 1, 0)] = 0.5 * (field[IX(WIDTH - 2, 0)] + field[IX(WIDTH - 1, 1)]);
+            field[IX(WIDTH - 1, HEIGHT - 1)] = 0.5 * (field[IX(WIDTH - 2, HEIGHT - 1)] + field[IX(WIDTH - 1, HEIGHT - 2)]);
+            
+            // Handle obstacles - zero out velocity inside obstacles
+            if (isVelocityX || isVelocityY) {
+                for (let j = 1; j < HEIGHT - 1; j++) {
+                    for (let i = 1; i < WIDTH - 1; i++) {
+                        const idx = IX(i, j);
+                        if (obstacles[idx]) {
+                            field[idx] = 0;
+                            
+                            // Also zero out velocity going into obstacle from neighbors
+                            if (isVelocityX) {
+                                if (i > 0 && obstacles[IX(i - 1, j)]) field[IX(i - 1, j)] = 0;
+                            }
+                            if (isVelocityY) {
+                                if (j > 0 && obstacles[IX(i, j - 1)]) field[IX(i, j - 1)] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Diffusion step using Gauss-Seidel relaxation
+        function diffuse(dest, src, diffRate, dt) {
+            const a = dt * diffRate * (WIDTH - 2) * (HEIGHT - 2);
+            const invDen = 1.0 / (1 + 4 * a);
+            
+            for (let k = 0; k < ITERATIONS; k++) {
+                for (let j = 1; j < HEIGHT - 1; j++) {
+                    for (let i = 1; i < WIDTH - 1; i++) {
+                        const idx = IX(i, j);
+                        if (obstacles[idx]) {
+                            dest[idx] = 0;
+                            continue;
+                        }
+                        
+                        dest[idx] = (src[idx] + a * (
+                            dest[IX(i + 1, j)] + dest[IX(i - 1, j)] +
+                            dest[IX(i, j + 1)] + dest[IX(i, j - 1)]
+                        )) * invDen;
+                    }
+                }
+                setBoundary(dest, 1);
+            }
+        }
+
+        // Advection step with backtracking
+        function advect(dest, src, velXField, velYField, dt) {
+            const dt0X = dt * (WIDTH - 2);
+            const dt0Y = dt * (HEIGHT - 2);
+            
+            for (let j = 1; j < HEIGHT - 1; j++) {
+                for (let i = 1; i < WIDTH - 1; i++) {
+                    const idx = IX(i, j);
+                    if (obstacles[idx]) {
+                        dest[idx] = 0;
+                        continue;
+                    }
+                    
+                    // Backtrack to find where this particle came from
+                    let x = i - dt0X * velXField[idx];
+                    let y = j - dt0Y * velYField[idx];
+                    
+                    // Clamp to boundaries
+                    x = Math.max(0.5, Math.min(WIDTH - 1.5, x));
+                    y = Math.max(0.5, Math.min(HEIGHT - 1.5, y));
+                    
+                    dest[idx] = sampleField(src, x, y);
+                }
+            }
+            setBoundary(dest, 1);
+        }
+
+        // Project step to make velocity field divergence-free (incompressible)
+        function project(velXField, velYField, p, div) {
+            // Calculate divergence
+            for (let j = 1; j < HEIGHT - 1; j++) {
+                for (let i = 1; i < WIDTH - 1; i++) {
+                    const idx = IX(i, j);
+                    if (obstacles[idx]) {
+                        div[idx] = 0;
+                        p[idx] = 0;
+                        continue;
+                    }
+                    
+                    div[idx] = -0.5 * (
+                        velXField[IX(i + 1, j)] - velXField[IX(i - 1, j)] +
+                        velYField[IX(i, j + 1)] - velYField[IX(i, j - 1)]
+                    ) / Math.max(WIDTH, HEIGHT);
+                    p[idx] = 0;
+                }
+            }
+            setBoundary(div, 0);
+            setBoundary(p, 1);
+
+            // Solve for pressure using Gauss-Seidel
+            for (let k = 0; k < ITERATIONS; k++) {
+                for (let j = 1; j < HEIGHT - 1; j++) {
+                    for (let i = 1; i < WIDTH - 1; i++) {
+                        const idx = IX(i, j);
+                        if (obstacles[idx]) continue;
+                        
+                        p[idx] = (div[idx] + p[IX(i + 1, j)] + p[IX(i - 1, j)] +
+                                  p[IX(i, j + 1)] + p[IX(i, j - 1)]) * 0.25;
+                    }
+                }
+                setBoundary(p, 1);
+            }
+
+            // Subtract pressure gradient from velocity
+            for (let j = 1; j < HEIGHT - 1; j++) {
+                for (let i = 1; i < WIDTH - 1; i++) {
+                    const idx = IX(i, j);
+                    if (obstacles[idx]) continue;
+                    
+                    velXField[idx] -= 0.5 * (p[IX(i + 1, j)] - p[IX(i - 1, j)]) * WIDTH;
+                    velYField[idx] -= 0.5 * (p[IX(i, j + 1)] - p[IX(i, j - 1)]) * HEIGHT;
+                }
+            }
+            setBoundary(velXField, -1, true, false);
+            setBoundary(velYField, -1, false, true);
+        }
+
+        // Apply external forces (gravity, wind)
+        function applyForces(dt) {
+            const gScale = gravity * dt * 0.1;
+            const wxScale = windX * dt;
+            const wyScale = windY * dt;
+            
+            for (let j = 1; j < HEIGHT - 1; j++) {
+                for (let i = 1; i < WIDTH - 1; i++) {
+                    const idx = IX(i, j);
+                    if (obstacles[idx] || density[idx] < 0.01) continue;
+                    
+                    // Gravity affects vertical velocity
+                    velY[idx] += gScale * density[idx];
+                    
+                    // Wind affects both components
+                    velX[idx] += wxScale;
+                    velY[idx] += wyScale;
+                }
+            }
+        }
+
+        // Simulation step
+        function step() {
+            if (isPaused) return;
+
+            const dt = DT;
+
+            // Apply external forces
+            applyForces(dt);
+
+            // Velocity step
+            // 1. Diffuse velocity (viscosity)
+            diffuse(velX0, velX, viscosity, dt);
+            diffuse(velY0, velY, viscosity, dt);
+            
+            // 2. Project to make divergence-free
+            project(velX0, velY0, pressure, divergence);
+            
+            // 3. Advect velocity (self-advection)
+            advect(velX, velX0, velX0, velY0, dt);
+            advect(velY, velY0, velX0, velY0, dt);
+            
+            // 4. Project again after advection
+            project(velX, velY, pressure, divergence);
+
+            // Density step
+            // 1. Diffuse density
+            diffuse(density0, density, diffusion, dt);
+            
+            // 2. Advect density
+            advect(density, density0, velX, velY, dt);
+            
+            // Color step (advect colors with the flow)
+            diffuse(colorR0, colorR, diffusion, dt);
+            diffuse(colorG0, colorG, diffusion, dt);
+            diffuse(colorB0, colorB, diffusion, dt);
+            
+            advect(colorR, colorR0, velX, velY, dt);
+            advect(colorG, colorG0, velX, velY, dt);
+            advect(colorB, colorB0, velX, velY, dt);
+
+            // Dissipation
+            for (let i = 0; i < density.length; i++) {
+                if (density[i] > 0) {
+                    density[i] *= 0.995; // Slow fade
+                    if (density[i] < 0.001) {
+                        density[i] = 0;
+                        colorR[i] = 0;
+                        colorG[i] = 0;
+                        colorB[i] = 0;
+                    }
+                }
+            }
+
+            // Zero out inside obstacles
+            for (let j = 1; j < HEIGHT - 1; j++) {
+                for (let i = 1; i < WIDTH - 1; i++) {
+                    const idx = IX(i, j);
+                    if (obstacles[idx]) {
+                        density[idx] = 0;
+                        velX[idx] = 0;
+                        velY[idx] = 0;
+                        colorR[idx] = 0;
+                        colorG[idx] = 0;
+                        colorB[idx] = 0;
+                    }
+                }
+            }
+        }
+
+        // Render the fluid with glow and smoothing
+        function render() {
+            // Get image data
+            const imageData = fluidCtx.createImageData(WIDTH, HEIGHT);
+            const data = imageData.data;
+
+            // Fill background
+            for (let j = 0; j < HEIGHT; j++) {
+                for (let i = 0; i < WIDTH; i++) {
+                    const idx = IX(i, j);
+                    const pixelIdx = (j * WIDTH + i) * 4;
+                    
+                    if (obstacles[idx]) {
+                        // Obstacle color
+                        data[pixelIdx] = 60;
+                        data[pixelIdx + 1] = 60;
+                        data[pixelIdx + 2] = 65;
+                        data[pixelIdx + 3] = 255;
+                    } else if (density[idx] > 0.001) {
+                        // Fluid with density-based alpha
+                        const alpha = Math.min(density[idx] * 100, 255);
+                        data[pixelIdx] = Math.min(255, colorR[idx] * 1.2);
+                        data[pixelIdx + 1] = Math.min(255, colorG[idx] * 1.2);
+                        data[pixelIdx + 2] = Math.min(255, colorB[idx] * 1.2);
+                        data[pixelIdx + 3] = alpha;
+                    } else {
+                        // Background gradient
+                        const bgVal = 12 + (j / HEIGHT) * 15;
+                        data[pixelIdx] = bgVal;
+                        data[pixelIdx + 1] = bgVal;
+                        data[pixelIdx + 2] = bgVal + 8;
+                        data[pixelIdx + 3] = 255;
+                    }
+                }
+            }
+
+            fluidCtx.putImageData(imageData, 0, 0);
+
+            // Apply glow effect
+            if (glowEffect) {
+                // Clear glow canvas
+                glowCtx.clearRect(0, 0, WIDTH, HEIGHT);
+                
+                // Draw fluid with blur for glow
+                glowCtx.filter = 'blur(4px)';
+                glowCtx.globalCompositeOperation = 'screen';
+                glowCtx.globalAlpha = 0.6;
+                glowCtx.drawImage(fluidCanvas, 0, 0);
+                
+                // Reset composite
+                glowCtx.filter = 'none';
+                glowCtx.globalCompositeOperation = 'source-over';
+                glowCtx.globalAlpha = 1.0;
+            }
+
+            // Scale up to display canvas
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Draw background
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw glow layer
+            if (glowEffect) {
+                ctx.globalCompositeOperation = 'screen';
+                ctx.drawImage(glowCanvas, 0, 0, canvas.width, canvas.height);
+            }
+            
+            // Draw main fluid
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(fluidCanvas, 0, 0, canvas.width, canvas.height);
+
+            // Draw velocity field
+            if (showVelocityField) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1;
+                const skip = 8;
+                const scaleX = canvas.width / WIDTH;
+                const scaleY = canvas.height / HEIGHT;
+                
+                for (let j = skip; j < HEIGHT - skip; j += skip) {
+                    for (let i = skip; i < WIDTH - skip; i += skip) {
+                        const idx = IX(i, j);
+                        const vx = velX[idx] * 30;
+                        const vy = velY[idx] * 30;
+                        
+                        const speed = Math.sqrt(vx * vx + vy * vy);
+                        if (speed > 0.5) {
+                            ctx.beginPath();
+                            ctx.moveTo(i * scaleX, j * scaleY);
+                            ctx.lineTo(i * scaleX + vx, j * scaleY + vy);
+                            ctx.stroke();
+                            
+                            // Draw arrowhead
+                            const angle = Math.atan2(vy, vx);
+                            const headLen = 3;
+                            ctx.beginPath();
+                            ctx.moveTo(i * scaleX + vx, j * scaleY + vy);
+                            ctx.lineTo(i * scaleX + vx - headLen * Math.cos(angle - Math.PI / 6), 
+                                       j * scaleY + vy - headLen * Math.sin(angle - Math.PI / 6));
+                            ctx.lineTo(i * scaleX + vx - headLen * Math.cos(angle + Math.PI / 6), 
+                                       j * scaleY + vy - headLen * Math.sin(angle + Math.PI / 6));
+                            ctx.closePath();
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                            ctx.fill();
+                        }
+                    }
+                }
+            }
+
+            // Update stats
+            updateStats();
+        }
+
+        // Update statistics
+        function updateStats() {
+            let fluidCount = 0;
+            let obstacleCount = 0;
+            for (let i = 0; i < density.length; i++) {
+                if (density[i] > 0.01) fluidCount++;
+                if (obstacles[i]) obstacleCount++;
+            }
+            document.getElementById('fluidCells').textContent = fluidCount.toLocaleString();
+            document.getElementById('obstacleCount').textContent = obstacleCount.toLocaleString();
+            document.getElementById('particleCount').textContent = fluidCount.toLocaleString();
+        }
+
+        // Animation loop with fixed timestep
+        let lastTime = 0;
+        let accumulator = 0;
+        let frameCount = 0;
+        let fps = 60;
+        let lastFpsTime = 0;
+
+        function animate(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            // FPS counter
+            frameCount++;
+            if (currentTime - lastFpsTime >= 500) {
+                fps = Math.round(frameCount * 1000 / (currentTime - lastFpsTime));
+                document.getElementById('fps').textContent = fps;
+                frameCount = 0;
+                lastFpsTime = currentTime;
+            }
+
+            // Fixed timestep for physics stability
+            accumulator += deltaTime;
+            while (accumulator >= DT) {
+                step();
+                accumulator -= DT;
+            }
+            
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        // Canvas interaction
+        function getGridPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = WIDTH / rect.width;
+            const scaleY = HEIGHT / rect.height;
+            return {
+                x: Math.floor((e.clientX - rect.left) * scaleX),
+                y: Math.floor((e.clientY - rect.top) * scaleY)
+            };
+        }
+
+        function drawAt(x, y, vx = 0, vy = 0) {
+            const radius = brushSize;
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    if (dx * dx + dy * dy <= radius * radius) {
+                        const px = x + dx;
+                        const py = y + dy;
+                        if (px >= 1 && px < WIDTH - 1 && py >= 1 && py < HEIGHT - 1) {
+                            if (currentTool === 'obstacle') {
+                                addObstacle(px, py);
+                            } else if (currentTool === 'eraser') {
+                                clearCell(px, py);
+                            } else {
+                                // Add density with some randomness for natural look
+                                const amount = 0.5 + Math.random() * 0.5;
+                                addDensity(px, py, amount, currentTool);
+                                // Add velocity based on mouse movement
+                                addVelocity(px, py, vx * 2, vy * 2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const pos = getGridPos(e);
+            lastMouseX = pos.x;
+            lastMouseY = pos.y;
+            drawAt(pos.x, pos.y);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                const pos = getGridPos(e);
+                const vx = pos.x - lastMouseX;
+                const vy = pos.y - lastMouseY;
+                lastMouseX = pos.x;
+                lastMouseY = pos.y;
+                drawAt(pos.x, pos.y, vx, vy);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDrawing = true;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = WIDTH / rect.width;
+            const scaleY = HEIGHT / rect.height;
+            const x = Math.floor((touch.clientX - rect.left) * scaleX);
+            const y = Math.floor((touch.clientY - rect.top) * scaleY);
+            lastMouseX = x;
+            lastMouseY = y;
+            drawAt(x, y);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isDrawing) {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = WIDTH / rect.width;
+                const scaleY = HEIGHT / rect.height;
+                const x = Math.floor((touch.clientX - rect.left) * scaleX);
+                const y = Math.floor((touch.clientY - rect.top) * scaleY);
+                const vx = x - lastMouseX;
+                const vy = y - lastMouseY;
+                lastMouseX = x;
+                lastMouseY = y;
+                drawAt(x, y, vx, vy);
+            }
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isDrawing = false;
+        });
+
+        // Tool selection
+        document.querySelectorAll('.fluid-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.dataset.type;
+            });
+        });
+
+        // Slider controls
+        document.getElementById('viscositySlider').addEventListener('input', (e) => {
+            viscosity = parseFloat(e.target.value);
+            document.getElementById('viscosityValue').textContent = viscosity.toFixed(5);
+        });
+
+        document.getElementById('diffusionSlider').addEventListener('input', (e) => {
+            diffusion = parseFloat(e.target.value);
+            document.getElementById('diffusionValue').textContent = diffusion.toFixed(5);
+        });
+
+        document.getElementById('gravitySlider').addEventListener('input', (e) => {
+            gravity = parseFloat(e.target.value);
+            document.getElementById('gravityValue').textContent = gravity.toFixed(1);
+        });
+
+        document.getElementById('windXSlider').addEventListener('input', (e) => {
+            windX = parseFloat(e.target.value);
+            document.getElementById('windXValue').textContent = windX.toFixed(1);
+        });
+
+        document.getElementById('windYSlider').addEventListener('input', (e) => {
+            windY = parseFloat(e.target.value);
+            document.getElementById('windYValue').textContent = windY.toFixed(1);
+        });
+
+        document.getElementById('brushSlider').addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            document.getElementById('brushValue').textContent = brushSize;
+            document.getElementById('brushPreview').style.width = (brushSize * 4) + 'px';
+            document.getElementById('brushPreview').style.height = (brushSize * 4) + 'px';
+        });
+
+        document.getElementById('showVelocity').addEventListener('change', (e) => {
+            showVelocityField = e.target.checked;
+        });
+
+        document.getElementById('colorMixing').addEventListener('change', (e) => {
+            colorMixingEnabled = e.target.checked;
+        });
+
+        document.getElementById('glowEffect').addEventListener('change', (e) => {
+            glowEffect = e.target.checked;
+        });
+
+        document.getElementById('paused').addEventListener('change', (e) => {
+            isPaused = e.target.checked;
+        });
+
+        // Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            density.fill(0);
+            density0.fill(0);
+            velX.fill(0);
+            velY.fill(0);
+            velX0.fill(0);
+            velY0.fill(0);
+            pressure.fill(0);
+            divergence.fill(0);
+            obstacles.fill(0);
+            colorR.fill(0);
+            colorG.fill(0);
+            colorB.fill(0);
+            colorR0.fill(0);
+            colorG0.fill(0);
+            colorB0.fill(0);
+        });
+
+        // Save/Load functionality
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            const saveData = {
+                density: Array.from(density),
+                obstacles: Array.from(obstacles),
+                colorR: Array.from(colorR),
+                colorG: Array.from(colorG),
+                colorB: Array.from(colorB),
+                settings: {
+                    viscosity,
+                    diffusion,
+                    gravity,
+                    windX,
+                    windY
+                }
+            };
+            const blob = new Blob([JSON.stringify(saveData)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fluid-simulation.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const saveData = JSON.parse(event.target.result);
+                        density.set(saveData.density);
+                        obstacles.set(saveData.obstacles);
+                        colorR.set(saveData.colorR);
+                        colorG.set(saveData.colorG);
+                        colorB.set(saveData.colorB);
+                        if (saveData.settings) {
+                            viscosity = saveData.settings.viscosity || 0.0001;
+                            diffusion = saveData.settings.diffusion || 0.0001;
+                            gravity = saveData.settings.gravity || 9.8;
+                            windX = saveData.settings.windX || 0;
+                            windY = saveData.settings.windY || 0;
+                            
+                            document.getElementById('viscositySlider').value = viscosity;
+                            document.getElementById('viscosityValue').textContent = viscosity.toFixed(5);
+                            document.getElementById('gravitySlider').value = gravity;
+                            document.getElementById('gravityValue').textContent = gravity.toFixed(1);
+                            document.getElementById('windXSlider').value = windX;
+                            document.getElementById('windXValue').textContent = windX.toFixed(1);
+                            document.getElementById('windYSlider').value = windY;
+                            document.getElementById('windYValue').textContent = windY.toFixed(1);
+                        }
+                    } catch (err) {
+                        alert('Error loading file: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Mini-games
+        const gameModal = document.getElementById('gameModal');
+
+        // ==================== LOFI HIP-HOP MUSIC SYSTEM ====================
+        class LofiMusicSystem {
+            constructor() {
+                this.audioContext = null;
+                this.isPlaying = false;
+                this.masterGain = null;
+                this.compressor = null;
+                this.nextNoteTime = 0;
+                this.beatCount = 0;
+                this.chordIndex = 0;
+                this.vinylBuffer = null;
+                this.vinylSource = null;
+                this.vinylGain = null;
+                this.volume = 0.15; // Default 15%
+                
+                // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
+                this.chords = [
+                    [261.63, 329.63, 392.00, 493.88], // Cmaj7 (C4, E4, G4, B4)
+                    [220.00, 261.63, 329.63, 392.00], // Am7 (A3, C4, E4, G4)
+                    [349.23, 440.00, 523.25, 659.26], // Fmaj7 (F4, A4, C5, E5)
+                    [196.00, 246.94, 293.66, 392.00]  // G7 (G3, B3, D4, G4)
+                ];
+                
+                this.currentChord = 0;
+                this.bpm = 75;
+                this.beatDuration = 60 / this.bpm;
+                this.lookahead = 25.0; // ms
+                this.scheduleAheadTime = 0.1; // s
+                this.timerID = null;
+            }
+
+            init() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+            }
+
+            // Create vinyl crackle noise buffer
+            createVinylCrackle() {
+                const sampleRate = this.audioContext.sampleRate;
+                const length = sampleRate * 4; // 4 seconds of noise
+                const buffer = this.audioContext.createBuffer(1, length, sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < length; i++) {
+                    // Create sparse crackle noise
+                    const crackleProb = 0.0008;
+                    if (Math.random() < crackleProb) {
+                        // Crackle burst
+                        const burstLen = Math.floor(Math.random() * 30) + 5;
+                        const amplitude = (Math.random() * 0.3 + 0.1) * 0.05; // Very subtle
+                        for (let j = 0; j < burstLen && (i + j) < length; j++) {
+                            data[i + j] = (Math.random() * 2 - 1) * amplitude * (1 - j / burstLen);
+                        }
+                        i += burstLen;
+                    } else {
+                        data[i] = 0;
+                    }
+                }
+                
+                return buffer;
+            }
+
+            // Create soft kick drum
+            playKick(time) {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.frequency.setValueAtTime(60, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.15);
+                
+                const vol = 0.025 * this.volume;
+                gain.gain.setValueAtTime(vol, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(this.compressor);
+                
+                osc.start(time);
+                osc.stop(time + 0.15);
+            }
+
+            // Create soft snare/rim shot
+            playSnare(time) {
+                // Noise component
+                const noiseBuffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.1, this.audioContext.sampleRate);
+                const noiseData = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < noiseData.length; i++) {
+                    noiseData[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = this.audioContext.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const noiseFilter = this.audioContext.createBiquadFilter();
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 800;
+                
+                const noiseGain = this.audioContext.createGain();
+                const vol = 0.015 * this.volume;
+                noiseGain.gain.setValueAtTime(vol, time);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+                
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(this.compressor);
+                
+                noise.start(time);
+                noise.stop(time + 0.1);
+            }
+
+            // Play chord with sine waves
+            playChord(time, frequencies) {
+                frequencies.forEach((freq, index) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    
+                    // Stagger the notes slightly for human feel
+                    const stagger = index * 0.03;
+                    const attack = 1.5;
+                    const release = 1.0;
+                    const duration = this.beatDuration * 4; // 4 beats per chord
+                    
+                    const vol = 0.02 * this.volume; // Very low volume per oscillator
+                    
+                    gain.gain.setValueAtTime(0, time + stagger);
+                    gain.gain.linearRampToValueAtTime(vol, time + stagger + attack);
+                    gain.gain.setValueAtTime(vol, time + duration - release);
+                    gain.gain.linearRampToValueAtTime(0, time + duration);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.compressor);
+                    
+                    osc.start(time + stagger);
+                    osc.stop(time + duration + 0.1);
+                });
+            }
+
+            // Start vinyl crackle loop
+            startVinylCrackle() {
+                if (!this.vinylBuffer) {
+                    this.vinylBuffer = this.createVinylCrackle();
+                }
+                
+                this.vinylSource = this.audioContext.createBufferSource();
+                this.vinylSource.buffer = this.vinylBuffer;
+                this.vinylSource.loop = true;
+                
+                this.vinylGain = this.audioContext.createGain();
+                this.vinylGain.gain.value = 0.04 * this.volume;
+                
+                // Lowpass filter for warmer vinyl sound
+                const filter = this.audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 4000;
+                
+                this.vinylSource.connect(filter);
+                filter.connect(this.vinylGain);
+                this.vinylGain.connect(this.compressor);
+                
+                this.vinylSource.start(0);
+            }
+
+            stopVinylCrackle() {
+                if (this.vinylSource) {
+                    this.vinylSource.stop();
+                    this.vinylSource.disconnect();
+                    this.vinylSource = null;
+                }
+            }
+
+            scheduler() {
+                while (this.nextNoteTime < this.audioContext.currentTime + this.scheduleAheadTime) {
+                    this.scheduleNote(this.beatCount, this.nextNoteTime);
+                    this.nextNote();
+                }
+                this.timerID = setTimeout(() => this.scheduler(), this.lookahead);
+            }
+
+            scheduleNote(beatNumber, time) {
+                // Play chord every 4 beats (one chord per measure at 75 BPM)
+                if (beatNumber % 4 === 0) {
+                    this.playChord(time, this.chords[this.currentChord]);
+                    this.currentChord = (this.currentChord + 1) % this.chords.length;
+                }
+                
+                // Downtempo beat pattern: kick on 1 and 3, snare on 2 and 4 (but softer)
+                if (beatNumber % 4 === 0) {
+                    this.playKick(time);
+                } else if (beatNumber % 4 === 2) {
+                    this.playKick(time); // Softer second kick
+                }
+                
+                // Ghost snares on 2 and 4
+                if (beatNumber % 4 === 1 || beatNumber % 4 === 3) {
+                    // Only play snare sometimes for variation
+                    if (Math.random() > 0.3) {
+                        this.playSnare(time);
+                    }
+                }
+            }
+
+            nextNote() {
+                const secondsPerBeat = 60.0 / this.bpm;
+                this.nextNoteTime += secondsPerBeat;
+                this.beatCount++;
+            }
+
+            start() {
+                if (this.isPlaying) return;
+                
+                this.init();
+                
+                // Create master compressor
+                this.compressor = this.audioContext.createDynamicsCompressor();
+                this.compressor.threshold.value = -24;
+                this.compressor.knee.value = 30;
+                this.compressor.ratio.value = 4;
+                this.compressor.attack.value = 0.003;
+                this.compressor.release.value = 0.25;
+                
+                // Master gain
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.gain.value = this.volume;
+                
+                this.compressor.connect(this.masterGain);
+                this.masterGain.connect(this.audioContext.destination);
+                
+                this.isPlaying = true;
+                this.beatCount = 0;
+                this.currentChord = 0;
+                this.nextNoteTime = this.audioContext.currentTime + 0.1;
+                
+                this.startVinylCrackle();
+                this.scheduler();
+            }
+
+            stop() {
+                this.isPlaying = false;
+                if (this.timerID) {
+                    clearTimeout(this.timerID);
+                    this.timerID = null;
+                }
+                this.stopVinylCrackle();
+                
+                // Fade out master
+                if (this.masterGain) {
+                    this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
+                    setTimeout(() => {
+                        if (this.masterGain) {
+                            this.masterGain.disconnect();
+                            this.masterGain = null;
+                        }
+                        if (this.compressor) {
+                            this.compressor.disconnect();
+                            this.compressor = null;
+                        }
+                    }, 600);
+                }
+            }
+
+            setVolume(vol) {
+                this.volume = vol / 100;
+                if (this.masterGain) {
+                    this.masterGain.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
+                }
+                if (this.vinylGain) {
+                    this.vinylGain.gain.setValueAtTime(0.04 * this.volume, this.audioContext.currentTime);
+                }
+            }
+        }
+
+        // Initialize music system
+        const lofiMusic = new LofiMusicSystem();
+
+        // Music toggle
+        document.getElementById('musicToggle').addEventListener('click', () => {
+            const btn = document.getElementById('musicToggle');
+            if (!lofiMusic.isPlaying) {
+                lofiMusic.start();
+                btn.textContent = '🎵 Music: ON';
+                btn.style.background = 'linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(123, 44, 191, 0.3))';
+            } else {
+                lofiMusic.stop();
+                btn.textContent = '🎵 Music: OFF';
+                btn.style.background = '';
+            }
+        });
+
+        // Music volume slider
+        document.getElementById('musicVolumeSlider').addEventListener('input', (e) => {
+            lofiMusic.setVolume(parseInt(e.target.value));
+        });
+        const modalTitle = document.getElementById('modalTitle');
+        const modalText = document.getElementById('modalText');
+
+        function showGameModal(title, text) {
+            modalTitle.textContent = title;
+            modalText.textContent = text;
+            gameModal.classList.add('active');
+        }
+
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            gameModal.classList.remove('active');
+        });
+
+        // Fill Container Game
+        document.getElementById('gameFill').addEventListener('click', () => {
+            showGameModal('🎯 Fill the Container', 
+                'Create walls to form a container, then fill it with water! ' +
+                'Try to fill at least 50% of the enclosed area.');
+            
+            // Clear and set up container walls
+            document.getElementById('clearBtn').click();
+            
+            // Create container walls
+            for (let i = 50; i < 150; i++) {
+                addObstacle(i, 50);
+                addObstacle(i, 130);
+            }
+            for (let j = 50; j <= 130; j++) {
+                addObstacle(50, j);
+                addObstacle(150, j);
+            }
+            
+            // Switch to water tool
+            document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.fluid-btn.water').classList.add('active');
+            currentTool = 'water';
+        });
+
+        // Mix Colors Game
+        document.getElementById('gameMix').addEventListener('click', () => {
+            showGameModal('🎨 Mix Colors Challenge', 
+                'Add red, blue, and yellow dyes to create secondary colors! ' +
+                'Red + Blue = Purple, Red + Yellow = Orange, Blue + Yellow = Green');
+            document.getElementById('clearBtn').click();
+            
+            // Switch to dye tool
+            document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.fluid-btn.dye-red').classList.add('active');
+            currentTool = 'dye-red';
+        });
+
+        // Obstacle Course Game
+        document.getElementById('gameObstacle').addEventListener('click', () => {
+            showGameModal('🚧 Obstacle Course', 
+                'Guide water from the top to the bottom using wind and obstacles! ' +
+                'Create a path that directs the fluid flow.');
+            document.getElementById('clearBtn').click();
+            
+            // Create some obstacles
+            for (let i = 70; i < 130; i++) {
+                addObstacle(i, 60);
+            }
+            for (let i = 40; i < 100; i++) {
+                addObstacle(i, 110);
+            }
+            
+            // Add water at top
+            for (let i = 90; i < 110; i++) {
+                for (let j = 5; j < 15; j++) {
+                    addDensity(i, j, 1.0, 'water');
+                    addVelocity(i, j, 0, 2);
+                }
+            }
+            
+            // Set some wind
+            windX = 2;
+            document.getElementById('windXSlider').value = 2;
+            document.getElementById('windXValue').textContent = '2.0';
+        });
+
+        // Lava Cooling Game
+        document.getElementById('gameLava').addEventListener('click', () => {
+            showGameModal('🔥 Lava Cooling', 
+                'Add water to cool down the lava flow! ' +
+                'Try to contain the lava using walls before adding water.');
+            document.getElementById('clearBtn').click();
+            
+            // Add lava source
+            for (let i = 90; i < 110; i++) {
+                for (let j = 5; j < 20; j++) {
+                    addDensity(i, j, 2.0, 'lava');
+                    addVelocity(i, j, 0, 1);
+                }
+            }
+            
+            // Switch to water tool
+            document.querySelectorAll('.fluid-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.fluid-btn.water').classList.add('active');
+            currentTool = 'water';
+        });
+
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            gameModal.classList.remove('active');
+        });
+
+        // Initialize
+        initArrays();
+        requestAnimationFrame(animate);
+
+        // Demo: Add some initial fluid
+        setTimeout(() => {
+            for (let i = 85; i < 115; i++) {
+                for (let j = 10; j < 25; j++) {
+                    addDensity(i, j, 1.0, 'water');
+                }
+            }
+        }, 100);
+    </script>
+</body>
+</html>

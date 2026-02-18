@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Builder Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --bg-hover: #252535;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text-primary: #f1f1f4;
+            --text-secondary: #a1a1aa;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --residential: #22c55e;
+            --commercial: #3b82f6;
+            --industrial: #f59e0b;
+            --road: #52525b;
+            --power: #fbbf24;
+            --water: #06b6d4;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #game-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--bg-tertiary);
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--bg-hover);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* Stats Panel */
+        .panel {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--bg-hover);
+        }
+
+        .panel-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .stat-value.positive { color: var(--success); }
+        .stat-value.negative { color: var(--danger); }
+        .stat-value.warning { color: var(--warning); }
+
+        /* Tools */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .tool-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 8px;
+            background: var(--bg-primary);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+
+        .tool-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .tool-btn.active {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent);
+        }
+
+        .tool-icon {
+            font-size: 20px;
+        }
+
+        /* Action Buttons */
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--bg-tertiary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Main Game Area */
+        #game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Top Bar */
+        #top-bar {
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .time-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .time-badge {
+            background: var(--bg-tertiary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-family: 'SF Mono', monospace;
+            font-weight: 600;
+        }
+
+        .day-night-indicator {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+            transition: all 0.5s;
+        }
+
+        .day-night-indicator.night {
+            background: linear-gradient(135deg, #94a3b8, #64748b);
+            box-shadow: 0 0 12px rgba(148, 163, 184, 0.3);
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid var(--bg-tertiary);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .icon-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Canvas Container */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: crosshair;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Speed Control */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-tertiary);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .speed-btn {
+            padding: 4px 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .speed-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Notifications */
+        #notifications {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .notification {
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--accent);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+            pointer-events: auto;
+        }
+
+        .notification.success { border-left-color: var(--success); }
+        .notification.warning { border-left-color: var(--warning); }
+        .notification.danger { border-left-color: var(--danger); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            min-width: 400px;
+            max-width: 500px;
+            border: 1px solid var(--bg-tertiary);
+            transform: scale(0.9);
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .modal-content {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* Mini Map */
+        .minimap-container {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--bg-hover);
+        }
+
+        #minimap {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Tooltip */
+        #tooltip {
+            position: fixed;
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-hover);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Info Panel */
+        .info-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <div class="logo">🏙️ City Builder</div>
+            
+            <a href="/games" class="back-btn">
+                <span>🎮</span>
+                <span>Back to Games</span>
+            </a>
+
+            <div class="panel">
+                <div class="panel-title">📊 City Stats</div>
+                <div class="stat-row">
+                    <span class="stat-label">💰 Funds</span>
+                    <span class="stat-value" id="stat-funds">$20,000</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">👥 Population</span>
+                    <span class="stat-value" id="stat-pop">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">😊 Happiness</span>
+                    <span class="stat-value" id="stat-happiness">50%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="happiness-bar" style="width: 50%"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📈 Economy</div>
+                <div class="stat-row">
+                    <span class="stat-label">📥 Income</span>
+                    <span class="stat-value positive" id="stat-income">+$0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">📤 Expenses</span>
+                    <span class="stat-value negative" id="stat-expenses">-$0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">⚡ Power</span>
+                    <span class="stat-value" id="stat-power">0/0 MW</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">💧 Water</span>
+                    <span class="stat-value" id="stat-water">0/0 kL</span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">🛠️ Building Tools</div>
+                <div class="tools-grid">
+                    <button class="tool-btn active" data-tool="select">
+                        <span class="tool-icon">👆</span>
+                        <span>Select</span>
+                    </button>
+                    <button class="tool-btn" data-tool="bulldoze">
+                        <span class="tool-icon">💥</span>
+                        <span>Bulldoze</span>
+                    </button>
+                    <button class="tool-btn" data-tool="road">
+                        <span class="tool-icon">🛣️</span>
+                        <span>Road</span>
+                    </button>
+                    <button class="tool-btn" data-tool="residential">
+                        <span class="tool-icon">🏠</span>
+                        <span>Residential</span>
+                    </button>
+                    <button class="tool-btn" data-tool="commercial">
+                        <span class="tool-icon">🏪</span>
+                        <span>Commercial</span>
+                    </button>
+                    <button class="tool-btn" data-tool="industrial">
+                        <span class="tool-icon">🏭</span>
+                        <span>Industrial</span>
+                    </button>
+                    <button class="tool-btn" data-tool="power">
+                        <span class="tool-icon">⚡</span>
+                        <span>Power Plant</span>
+                    </button>
+                    <button class="tool-btn" data-tool="water">
+                        <span class="tool-icon">💧</span>
+                        <span>Water Tower</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">🌪️ Disasters</div>
+                <div class="tools-grid">
+                    <button class="tool-btn" data-tool="fire">
+                        <span class="tool-icon">🔥</span>
+                        <span>Fire</span>
+                    </button>
+                    <button class="tool-btn" data-tool="earthquake">
+                        <span class="tool-icon">🌋</span>
+                        <span>Quake</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">🗺️ Overview</div>
+                <div class="minimap-container">
+                    <canvas id="minimap"></canvas>
+                </div>
+            </div>
+
+            <div class="action-btns">
+                <button class="btn btn-secondary" id="btn-save">
+                    <span>💾</span>
+                    <span>Save City</span>
+                </button>
+                <button class="btn btn-secondary" id="btn-load">
+                    <span>📂</span>
+                    <span>Load City</span>
+                </button>
+                <button class="btn btn-danger" id="btn-reset">
+                    <span>🗑️</span>
+                    <span>New City</span>
+                </button>
+            </div>
+
+            <div class="info-text">
+                💡 Click and drag to place roads. Use zones to attract residents and businesses.
+            </div>
+        </aside>
+
+        <!-- Game Area -->
+        <main id="game-area">
+            <div id="top-bar">
+                <div class="time-display">
+                    <div class="day-night-indicator" id="day-indicator"></div>
+                    <span class="time-badge" id="game-time">Day 1, 08:00</span>
+                </div>
+                
+                <div class="speed-control">
+                    <button class="speed-btn" data-speed="0">⏸️</button>
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="4">4x</button>
+                </div>
+
+                <div class="top-controls">
+                    <button class="icon-btn" id="btn-music" title="Toggle Music">
+                        🎵
+                    </button>
+                    <input type="range" id="music-volume" min="0" max="100" value="15" 
+                           style="width: 80px; cursor: pointer; accent-color: #6366f1;" 
+                           title="Music Volume">
+                    <button class="icon-btn" id="btn-sound" title="Toggle Sound">
+                        🔊
+                    </button>
+                    <button class="icon-btn" id="btn-help" title="Help">
+                        ❓
+                    </button>
+                </div>
+            </div>
+
+            <div id="canvas-container">
+                <canvas id="game-canvas"></canvas>
+            </div>
+
+            <div id="notifications"></div>
+        </main>
+    </div>
+
+    <div id="tooltip"></div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay" id="help-modal">
+        <div class="modal">
+            <div class="modal-title">🏙️ How to Play</div>
+            <div class="modal-content">
+                <p><strong>Building Your City:</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+                    <li>🛣️ <strong>Roads</strong> - Click and drag to connect areas</li>
+                    <li>🏠 <strong>Residential</strong> - Zones for citizens to live</li>
+                    <li>🏪 <strong>Commercial</strong> - Zones for shopping</li>
+                    <li>🏭 <strong>Industrial</strong> - Zones for jobs</li>
+                    <li>⚡ <strong>Power Plant</strong> - Provides electricity</li>
+                    <li>💧 <strong>Water Tower</strong> - Provides water</li>
+                </ul>
+                <p><strong>Tips:</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+                    <li>Citizens need power, water, and roads</li>
+                    <li>Balance residential, commercial, and industrial zones</li>
+                    <li>Watch your budget - don't go bankrupt!</li>
+                    <li>Disasters can strike at any time...</li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="document.getElementById('help-modal').classList.remove('active')">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Modal -->
+    <div class="modal-overlay" id="load-modal">
+        <div class="modal">
+            <div class="modal-title">📂 Load City</div>
+            <div class="modal-content">
+                <p>Paste your save code below:</p>
+                <textarea id="save-input" style="width: 100%; height: 100px; background: var(--bg-primary); border: 1px solid var(--bg-hover); border-radius: 8px; padding: 12px; color: var(--text-primary); font-family: monospace; resize: none; margin-top: 12px;"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="document.getElementById('load-modal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" id="btn-confirm-load">Load</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Modal -->
+    <div class="modal-overlay" id="save-modal">
+        <div class="modal">
+            <div class="modal-title">💾 Save City</div>
+            <div class="modal-content">
+                <p>Copy this code to save your city:</p>
+                <textarea id="save-output" readonly style="width: 100%; height: 100px; background: var(--bg-primary); border: 1px solid var(--bg-hover); border-radius: 8px; padding: 12px; color: var(--text-primary); font-family: monospace; resize: none; margin-top: 12px;"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="document.getElementById('save-modal').classList.remove('active')">Close</button>
+                <button class="btn btn-primary" id="btn-copy-save">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME CONSTANTS & CONFIG
+        // ============================================
+        const GRID_SIZE = 64;
+        const TILE_SIZE = 24;
+        const CANVAS_WIDTH = GRID_SIZE * TILE_SIZE;
+        const CANVAS_HEIGHT = GRID_SIZE * TILE_SIZE;
+
+        const TILE_TYPES = {
+            EMPTY: 0,
+            ROAD: 1,
+            RESIDENTIAL: 2,
+            COMMERCIAL: 3,
+            INDUSTRIAL: 4,
+            POWER_PLANT: 5,
+            WATER_TOWER: 6,
+            FIRE: 7,
+            RUBBLE: 8
+        };
+
+        const TILE_COLORS = {
+            [TILE_TYPES.EMPTY]: '#0f0f15',
+            [TILE_TYPES.ROAD]: '#3f3f46',
+            [TILE_TYPES.RESIDENTIAL]: '#166534',
+            [TILE_TYPES.COMMERCIAL]: '#1e40af',
+            [TILE_TYPES.INDUSTRIAL]: '#92400e',
+            [TILE_TYPES.POWER_PLANT]: '#fbbf24',
+            [TILE_TYPES.WATER_TOWER]: '#0891b2',
+            [TILE_TYPES.FIRE]: '#dc2626',
+            [TILE_TYPES.RUBBLE]: '#52525b'
+        };
+
+        const TILE_ICONS = {
+            [TILE_TYPES.RESIDENTIAL]: '🏠',
+            [TILE_TYPES.COMMERCIAL]: '🏪',
+            [TILE_TYPES.INDUSTRIAL]: '🏭',
+            [TILE_TYPES.POWER_PLANT]: '⚡',
+            [TILE_TYPES.WATER_TOWER]: '💧',
+            [TILE_TYPES.FIRE]: '🔥',
+            [TILE_TYPES.RUBBLE]: '💀'
+        };
+
+        const COSTS = {
+            [TILE_TYPES.ROAD]: 10,
+            [TILE_TYPES.RESIDENTIAL]: 100,
+            [TILE_TYPES.COMMERCIAL]: 200,
+            [TILE_TYPES.INDUSTRIAL]: 300,
+            [TILE_TYPES.POWER_PLANT]: 2000,
+            [TILE_TYPES.WATER_TOWER]: 1500,
+            BULLDOZE: 5
+        };
+
+        const BUILDING_SIZES = {
+            [TILE_TYPES.POWER_PLANT]: 2,
+            [TILE_TYPES.WATER_TOWER]: 2
+        };
+
+        // ============================================
+        // AUDIO SYSTEM - Chill Lofi Hip-Hop
+        // ============================================
+        class AudioSystem {
+            constructor() {
+                this.enabled = true;
+                this.musicEnabled = false; // Start off, user must toggle on
+                this.ctx = null;
+                this.masterGain = null;
+                this.compressor = null;
+                this.musicVolume = 0.15; // Default 15%
+                this.sfxVolume = 0.3;
+                
+                // Lofi music components
+                this.isPlaying = false;
+                this.nextNoteTime = 0;
+                this.beatCount = 0;
+                this.barCount = 0;
+                this.chordIndex = 0;
+                this.scheduleAheadTime = 0.1;
+                this.lookahead = 25;
+                this.timerID = null;
+                
+                // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
+                this.chords = [
+                    { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] }, // C4, E4, G4, B4
+                    { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },   // A3, C4, E4, G4
+                    { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 329.63] }, // F3, A3, C4, E4
+                    { name: 'G7', notes: [196.00, 246.94, 293.66, 392.00] }     // G3, B3, D4, G4
+                ];
+                
+                // Vinyl crackle buffer
+                this.vinylNode = null;
+                this.vinylGain = null;
+                
+                this.init();
+            }
+
+            init() {
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.setupMasterChain();
+                    this.generateVinylCrackle();
+                } catch (e) {
+                    console.log('Audio not supported');
+                }
+            }
+
+            setupMasterChain() {
+                // Master compressor: threshold -24dB, ratio 4:1
+                this.compressor = this.ctx.createDynamicsCompressor();
+                this.compressor.threshold.value = -24;
+                this.compressor.knee.value = 30;
+                this.compressor.ratio.value = 4;
+                this.compressor.attack.value = 0.003;
+                this.compressor.release.value = 0.25;
+                
+                // Master gain for music volume control
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.musicEnabled ? this.musicVolume : 0;
+                
+                this.masterGain.connect(this.compressor);
+                this.compressor.connect(this.ctx.destination);
+            }
+
+            generateVinylCrackle() {
+                // Create vinyl crackle noise buffer
+                const bufferSize = 2 * this.ctx.sampleRate;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < bufferSize; i++) {
+                    // Vinyl crackle is mostly silence with occasional pops
+                    const rand = Math.random();
+                    if (rand > 0.995) {
+                        data[i] = (Math.random() - 0.5) * 0.3;
+                    } else if (rand > 0.98) {
+                        data[i] = (Math.random() - 0.5) * 0.05;
+                    } else {
+                        data[i] = (Math.random() - 0.5) * 0.01;
+                    }
+                }
+                
+                this.vinylBuffer = buffer;
+            }
+
+            startVinylCrackle() {
+                if (this.vinylNode) return;
+                
+                this.vinylNode = this.ctx.createBufferSource();
+                this.vinylNode.buffer = this.vinylBuffer;
+                this.vinylNode.loop = true;
+                
+                this.vinylGain = this.ctx.createGain();
+                this.vinylGain.gain.value = 0.015; // Very subtle vinyl texture
+                
+                // Lowpass filter to soften the crackle
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 8000;
+                
+                this.vinylNode.connect(filter);
+                filter.connect(this.vinylGain);
+                this.vinylGain.connect(this.masterGain);
+                
+                this.vinylNode.start();
+            }
+
+            stopVinylCrackle() {
+                if (this.vinylNode) {
+                    try {
+                        this.vinylNode.stop();
+                    } catch (e) {}
+                    this.vinylNode = null;
+                }
+            }
+
+            playChord(time, chord) {
+                if (!this.musicEnabled || !this.ctx) return;
+                
+                // Play each note in the chord with sine waves
+                chord.notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    
+                    // Very low volume per oscillator (0.02-0.03)
+                    const baseVolume = 0.025;
+                    // Root note slightly louder for warmth
+                    const volume = index === 0 ? baseVolume * 1.2 : baseVolume;
+                    
+                    // Slow attack/release envelopes (1.5s attack, 1s release)
+                    gain.gain.setValueAtTime(0, time);
+                    gain.gain.linearRampToValueAtTime(volume, time + 1.5);
+                    gain.gain.setValueAtTime(volume, time + 3.0);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 4.0);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    osc.start(time);
+                    osc.stop(time + 4.1);
+                });
+            }
+
+            playKick(time) {
+                if (!this.musicEnabled || !this.ctx) return;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.15);
+                
+                gain.gain.setValueAtTime(0.25, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + 0.16);
+            }
+
+            playSnare(time) {
+                if (!this.musicEnabled || !this.ctx) return;
+                
+                // Snare body
+                const osc = this.ctx.createOscillator();
+                const oscGain = this.ctx.createGain();
+                
+                osc.type = 'triangle';
+                osc.frequency.value = 200;
+                
+                oscGain.gain.setValueAtTime(0.08, time);
+                oscGain.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+                
+                osc.connect(oscGain);
+                oscGain.connect(this.masterGain);
+                
+                // Snare noise
+                const noiseBuffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
+                const noiseData = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < noiseData.length; i++) {
+                    noiseData[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const noiseFilter = this.ctx.createBiquadFilter();
+                noiseFilter.type = 'highpass';
+                noiseFilter.frequency.value = 1000;
+                
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.06, time);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+                
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + 0.09);
+                noise.start(time);
+            }
+
+            scheduler() {
+                // Schedule notes ahead of time
+                while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
+                    this.scheduleBeat(this.nextNoteTime);
+                    this.nextNote();
+                }
+                
+                if (this.isPlaying) {
+                    this.timerID = setTimeout(() => this.scheduler(), this.lookahead);
+                }
+            }
+
+            nextNote() {
+                // 75 BPM = 0.8 seconds per beat
+                const secondsPerBeat = 60.0 / 75;
+                this.nextNoteTime += secondsPerBeat;
+                this.beatCount++;
+                
+                if (this.beatCount % 4 === 0) {
+                    this.barCount++;
+                    this.chordIndex = this.barCount % this.chords.length;
+                }
+            }
+
+            scheduleBeat(time) {
+                // Beat pattern: kick on 1 and 3, snare on 2 and 4 (downtempo)
+                // Also add chord on beat 1 of each bar
+                
+                const beatInBar = this.beatCount % 4;
+                
+                // Kick on beats 1 and 3 (with slight variation)
+                if (beatInBar === 0 || beatInBar === 2) {
+                    this.playKick(time);
+                }
+                
+                // Snare on beats 2 and 4 (soft)
+                if (beatInBar === 1 || beatInBar === 3) {
+                    this.playSnare(time);
+                }
+                
+                // Play chord progression on beat 1 of each bar
+                if (beatInBar === 0) {
+                    this.playChord(time, this.chords[this.chordIndex]);
+                }
+            }
+
+            startMusic() {
+                if (this.isPlaying) return;
+                
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                
+                this.isPlaying = true;
+                this.beatCount = 0;
+                this.barCount = 0;
+                this.chordIndex = 0;
+                this.nextNoteTime = this.ctx.currentTime + 0.1;
+                
+                this.startVinylCrackle();
+                this.scheduler();
+            }
+
+            stopMusic() {
+                this.isPlaying = false;
+                if (this.timerID) {
+                    clearTimeout(this.timerID);
+                    this.timerID = null;
+                }
+                this.stopVinylCrackle();
+            }
+
+            toggleSound() {
+                this.enabled = !this.enabled;
+                return this.enabled;
+            }
+
+            toggleMusic() {
+                this.musicEnabled = !this.musicEnabled;
+                
+                if (this.musicEnabled) {
+                    this.masterGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.1);
+                    this.startMusic();
+                } else {
+                    this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+                    setTimeout(() => this.stopMusic(), 200);
+                }
+                
+                return this.musicEnabled;
+            }
+
+            setMusicVolume(volume) {
+                this.musicVolume = Math.max(0, Math.min(1, volume));
+                if (this.musicEnabled && this.masterGain) {
+                    this.masterGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.1);
+                }
+            }
+
+            playTone(freq, duration, type = 'sine', volume = 0.3) {
+                if (!this.enabled || !this.ctx) return;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(volume * this.sfxVolume, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playBuild() {
+                this.playTone(440, 0.1, 'sine', 0.2);
+                setTimeout(() => this.playTone(554, 0.1, 'sine', 0.2), 50);
+            }
+
+            playDestroy() {
+                this.playTone(220, 0.2, 'sawtooth', 0.3);
+            }
+
+            playError() {
+                this.playTone(150, 0.3, 'sawtooth', 0.3);
+            }
+
+            playCash() {
+                this.playTone(880, 0.1, 'sine', 0.2);
+                setTimeout(() => this.playTone(1109, 0.15, 'sine', 0.2), 50);
+            }
+
+            playDisaster() {
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        this.playTone(100 + Math.random() * 200, 0.3, 'sawtooth', 0.4);
+                    }, i * 100);
+                }
+            }
+        }
+
+        // ============================================
+        // CITY CLASS
+        // ============================================
+        class City {
+            constructor() {
+                this.grid = new Array(GRID_SIZE).fill(null).map(() => new Array(GRID_SIZE).fill(TILE_TYPES.EMPTY));
+                this.buildings = new Map(); // x,y -> building data
+                this.citizens = [];
+                this.cars = [];
+                this.particles = [];
+                
+                // Stats
+                this.funds = 20000;
+                this.population = 0;
+                this.happiness = 50;
+                this.day = 1;
+                this.hour = 8;
+                this.minute = 0;
+                this.isNight = false;
+                
+                // Economy
+                this.powerCapacity = 0;
+                this.powerUsed = 0;
+                this.waterCapacity = 0;
+                this.waterUsed = 0;
+                this.income = 0;
+                this.expenses = 0;
+                
+                // Services
+                this.powerGrid = new Set();
+                this.waterGrid = new Set();
+                
+                // Simulation
+                this.speed = 1;
+                this.lastUpdate = Date.now();
+                this.accumulator = 0;
+            }
+
+            getTile(x, y) {
+                if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return null;
+                return this.grid[y][x];
+            }
+
+            setTile(x, y, type) {
+                if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return false;
+                this.grid[y][x] = type;
+                return true;
+            }
+
+            canBuild(x, y, type) {
+                const size = BUILDING_SIZES[type] || 1;
+                
+                for (let dy = 0; dy < size; dy++) {
+                    for (let dx = 0; dx < size; dx++) {
+                        const tile = this.getTile(x + dx, y + dy);
+                        if (tile === null || tile !== TILE_TYPES.EMPTY) return false;
+                    }
+                }
+                return true;
+            }
+
+            build(x, y, type) {
+                const cost = COSTS[type] || 0;
+                if (this.funds < cost) return false;
+
+                const size = BUILDING_SIZES[type] || 1;
+                if (!this.canBuild(x, y, type)) return false;
+
+                for (let dy = 0; dy < size; dy++) {
+                    for (let dx = 0; dx < size; dx++) {
+                        this.setTile(x + dx, y + dy, type);
+                    }
+                }
+
+                this.funds -= cost;
+                
+                // Add building data
+                this.buildings.set(`${x},${y}`, {
+                    type,
+                    x, y,
+                    size,
+                    level: 1,
+                    residents: 0,
+                    workers: 0,
+                    hasPower: false,
+                    hasWater: false
+                });
+
+                // Update power/water capacity
+                if (type === TILE_TYPES.POWER_PLANT) this.powerCapacity += 100;
+                if (type === TILE_TYPES.WATER_TOWER) this.waterCapacity += 100;
+
+                this.updateInfrastructure();
+                return true;
+            }
+
+            bulldoze(x, y) {
+                const type = this.getTile(x, y);
+                if (type === TILE_TYPES.EMPTY) return false;
+                if (this.funds < COSTS.BULLDOZE) return false;
+
+                // Find building origin
+                let bx = x, by = y;
+                for (let [key, building] of this.buildings) {
+                    const size = building.size || 1;
+                    if (x >= building.x && x < building.x + size &&
+                        y >= building.y && y < building.y + size) {
+                        bx = building.x;
+                        by = building.y;
+                        break;
+                    }
+                }
+
+                const building = this.buildings.get(`${bx},${by}`);
+                if (building) {
+                    const size = building.size || 1;
+                    
+                    // Update capacity
+                    if (building.type === TILE_TYPES.POWER_PLANT) this.powerCapacity -= 100;
+                    if (building.type === TILE_TYPES.WATER_TOWER) this.waterCapacity -= 100;
+                    
+                    // Remove building
+                    for (let dy = 0; dy < size; dy++) {
+                        for (let dx = 0; dx < size; dx++) {
+                            this.setTile(bx + dx, by + dy, TILE_TYPES.EMPTY);
+                        }
+                    }
+                    this.buildings.delete(`${bx},${by}`);
+                } else {
+                    this.setTile(x, y, TILE_TYPES.EMPTY);
+                }
+
+                this.funds -= COSTS.BULLDOZE;
+                this.updateInfrastructure();
+                return true;
+            }
+
+            updateInfrastructure() {
+                this.powerGrid.clear();
+                this.waterGrid.clear();
+                
+                // Find all power plants and water towers
+                const powerSources = [];
+                const waterSources = [];
+                
+                for (let [key, building] of this.buildings) {
+                    if (building.type === TILE_TYPES.POWER_PLANT) powerSources.push(building);
+                    if (building.type === TILE_TYPES.WATER_TOWER) waterSources.push(building);
+                }
+
+                // Spread power through roads
+                powerSources.forEach(source => this.spreadService(source.x, source.y, this.powerGrid));
+                waterSources.forEach(source => this.spreadService(source.x, source.y, this.waterGrid));
+
+                // Update buildings
+                for (let [key, building] of this.buildings) {
+                    building.hasPower = this.powerGrid.has(`${building.x},${building.y}`);
+                    building.hasWater = this.waterGrid.has(`${building.x},${building.y}`);
+                }
+            }
+
+            spreadService(startX, startY, serviceSet) {
+                const queue = [[startX, startY]];
+                const visited = new Set();
+                
+                while (queue.length > 0) {
+                    const [x, y] = queue.shift();
+                    const key = `${x},${y}`;
+                    
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+                    serviceSet.add(key);
+                    
+                    // Spread to adjacent tiles (only through roads and buildings)
+                    const neighbors = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+                    for (let [dx, dy] of neighbors) {
+                        const nx = x + dx, ny = y + dy;
+                        const tile = this.getTile(nx, ny);
+                        if (tile !== null && tile !== TILE_TYPES.EMPTY && !visited.has(`${nx},${ny}`)) {
+                            queue.push([nx, ny]);
+                        }
+                    }
+                }
+            }
+
+            spawnDisaster(type, x, y) {
+                if (type === 'fire') {
+                    this.setTile(x, y, TILE_TYPES.FIRE);
+                    // Spread fire
+                    const neighbors = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, 1], [-1, 1], [1, -1]];
+                    neighbors.forEach(([dx, dy]) => {
+                        if (Math.random() < 0.3) {
+                            const nx = x + dx, ny = y + dy;
+                            if (this.getTile(nx, ny) !== null && this.getTile(nx, ny) !== TILE_TYPES.EMPTY) {
+                                setTimeout(() => {
+                                    if (this.getTile(nx, ny) !== TILE_TYPES.EMPTY) {
+                                        this.setTile(nx, ny, TILE_TYPES.FIRE);
+                                    }
+                                }, 2000);
+                            }
+                        }
+                    });
+                    return true;
+                } else if (type === 'earthquake') {
+                    // Destroy random tiles in area
+                    for (let dy = -3; dy <= 3; dy++) {
+                        for (let dx = -3; dx <= 3; dx++) {
+                            if (Math.random() < 0.4) {
+                                const nx = x + dx, ny = y + dy;
+                                if (this.getTile(nx, ny) !== null && this.getTile(nx, ny) !== TILE_TYPES.EMPTY) {
+                                    this.setTile(nx, ny, TILE_TYPES.RUBBLE);
+                                }
+                            }
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            update(deltaTime) {
+                this.accumulator += deltaTime * this.speed;
+                
+                // Update time (1 real second = 1 game minute at 1x speed)
+                while (this.accumulator >= 1000) {
+                    this.accumulator -= 1000;
+                    this.minute++;
+                    
+                    if (this.minute >= 60) {
+                        this.minute = 0;
+                        this.hour++;
+                        
+                        if (this.hour >= 24) {
+                            this.hour = 0;
+                            this.day++;
+                            this.dailyUpdate();
+                        }
+                        
+                        this.isNight = this.hour < 6 || this.hour >= 20;
+                    }
+                    
+                    // Random disasters (rare)
+                    if (Math.random() < 0.0001) {
+                        const x = Math.floor(Math.random() * GRID_SIZE);
+                        const y = Math.floor(Math.random() * GRID_SIZE);
+                        if (this.getTile(x, y) !== TILE_TYPES.EMPTY) {
+                            this.spawnDisaster('fire', x, y);
+                            game.showNotification('🔥 Fire broke out!', 'warning');
+                            game.audio.playDisaster();
+                        }
+                    }
+                }
+
+                // Update cars
+                this.cars = this.cars.filter(car => {
+                    car.progress += deltaTime * 0.002 * this.speed;
+                    if (car.progress >= 1) {
+                        car.x = car.targetX;
+                        car.y = car.targetY;
+                        return this.moveCar(car);
+                    }
+                    return true;
+                });
+
+                // Spawn cars occasionally
+                if (this.cars.length < this.population / 20 && Math.random() < 0.01 * this.speed) {
+                    this.spawnCar();
+                }
+
+                // Update particles
+                this.particles = this.particles.filter(p => {
+                    p.life -= deltaTime * 0.001;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    return p.life > 0;
+                });
+
+                // Calculate stats
+                this.calculateStats();
+            }
+
+            moveCar(car) {
+                // Find adjacent road
+                const neighbors = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+                const validMoves = [];
+                
+                for (let [dx, dy] of neighbors) {
+                    const nx = car.x + dx, ny = car.y + dy;
+                    const tile = this.getTile(nx, ny);
+                    if (tile === TILE_TYPES.ROAD) {
+                        validMoves.push([nx, ny]);
+                    }
+                }
+                
+                if (validMoves.length === 0) return false;
+                
+                // Don't go back immediately
+                const backMove = validMoves.find(([nx, ny]) => nx === car.lastX && ny === car.lastY);
+                const otherMoves = validMoves.filter(([nx, ny]) => nx !== car.lastX || ny !== car.lastY);
+                
+                let next;
+                if (otherMoves.length > 0 && Math.random() < 0.7) {
+                    next = otherMoves[Math.floor(Math.random() * otherMoves.length)];
+                } else if (validMoves.length > 0) {
+                    next = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    return false;
+                }
+                
+                car.lastX = car.x;
+                car.lastY = car.y;
+                car.targetX = next[0];
+                car.targetY = next[1];
+                car.progress = 0;
+                return true;
+            }
+
+            spawnCar() {
+                // Find a random road
+                const roads = [];
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        if (this.grid[y][x] === TILE_TYPES.ROAD) {
+                            roads.push([x, y]);
+                        }
+                    }
+                }
+                
+                if (roads.length === 0) return;
+                
+                const [x, y] = roads[Math.floor(Math.random() * roads.length)];
+                this.cars.push({
+                    x, y,
+                    targetX: x, targetY: y,
+                    lastX: x, lastY: y,
+                    progress: 0,
+                    color: ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'][Math.floor(Math.random() * 5)]
+                });
+            }
+
+            dailyUpdate() {
+                // Calculate income from taxes
+                const taxIncome = this.population * 0.5 + this.buildings.size * 2;
+                const maintenance = Math.floor(this.buildings.size * 1.5);
+                
+                this.income = taxIncome;
+                this.expenses = maintenance;
+                this.funds += taxIncome - maintenance;
+                
+                // Grow population based on services
+                const residentialCount = Array.from(this.buildings.values()).filter(b => b.type === TILE_TYPES.RESIDENTIAL).length;
+                const availableHousing = residentialCount * 10 - this.population;
+                
+                if (availableHousing > 0 && this.powerUsed < this.powerCapacity && this.waterUsed < this.waterCapacity) {
+                    const growth = Math.min(availableHousing, Math.floor(this.happiness / 10));
+                    this.population += growth;
+                    
+                    // Update residential buildings
+                    let remaining = growth;
+                    for (let [key, building] of this.buildings) {
+                        if (building.type === TILE_TYPES.RESIDENTIAL && building.residents < 10) {
+                            const add = Math.min(remaining, 10 - building.residents);
+                            building.residents += add;
+                            remaining -= add;
+                        }
+                    }
+                }
+
+                // Update commercial and industrial
+                for (let [key, building] of this.buildings) {
+                    if (building.type === TILE_TYPES.COMMERCIAL) {
+                        building.workers = Math.min(5, this.population / 10);
+                    }
+                    if (building.type === TILE_TYPES.INDUSTRIAL) {
+                        building.workers = Math.min(10, this.population / 5);
+                    }
+                }
+            }
+
+            calculateStats() {
+                // Calculate power/water usage
+                let powerUsed = 0;
+                let waterUsed = 0;
+                
+                for (let [key, building] of this.buildings) {
+                    if (building.hasPower) powerUsed += 5;
+                    if (building.hasWater) waterUsed += 5;
+                }
+                
+                this.powerUsed = powerUsed;
+                this.waterUsed = waterUsed;
+
+                // Calculate happiness
+                let happiness = 50;
+                
+                // Bonus for services
+                if (this.powerUsed >= this.buildings.size * 5 * 0.8) happiness += 10;
+                if (this.waterUsed >= this.buildings.size * 5 * 0.8) happiness += 10;
+                
+                // Bonus for balanced zoning
+                const res = Array.from(this.buildings.values()).filter(b => b.type === TILE_TYPES.RESIDENTIAL).length;
+                const com = Array.from(this.buildings.values()).filter(b => b.type === TILE_TYPES.COMMERCIAL).length;
+                const ind = Array.from(this.buildings.values()).filter(b => b.type === TILE_TYPES.INDUSTRIAL).length;
+                
+                if (res > 0 && com > 0 && ind > 0) happiness += 10;
+                
+                // Penalty for disasters
+                let fireCount = 0;
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        if (this.grid[y][x] === TILE_TYPES.FIRE) fireCount++;
+                    }
+                }
+                happiness -= fireCount * 5;
+                
+                this.happiness = Math.max(0, Math.min(100, happiness));
+            }
+
+            serialize() {
+                return btoa(JSON.stringify({
+                    grid: this.grid,
+                    buildings: Array.from(this.buildings.entries()),
+                    funds: this.funds,
+                    population: this.population,
+                    happiness: this.happiness,
+                    day: this.day,
+                    hour: this.hour
+                }));
+            }
+
+            deserialize(data) {
+                try {
+                    const parsed = JSON.parse(atob(data));
+                    this.grid = parsed.grid;
+                    this.buildings = new Map(parsed.buildings);
+                    this.funds = parsed.funds;
+                    this.population = parsed.population;
+                    this.happiness = parsed.happiness;
+                    this.day = parsed.day;
+                    this.hour = parsed.hour;
+                    this.updateInfrastructure();
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+        }
+
+        // ============================================
+        // GAME CLASS
+        // ============================================
+        class Game {
+            constructor() {
+                this.city = new City();
+                this.canvas = document.getElementById('game-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.minimap = document.getElementById('minimap');
+                this.minimapCtx = this.minimap.getContext('2d');
+                
+                this.canvas.width = CANVAS_WIDTH;
+                this.canvas.height = CANVAS_HEIGHT;
+                this.minimap.width = 240;
+                this.minimap.height = 120;
+                
+                this.currentTool = 'select';
+                this.isDragging = false;
+                this.dragStart = null;
+                this.lastMouse = { x: 0, y: 0 };
+                this.hoverTile = null;
+                
+                this.audio = new AudioSystem();
+                
+                this.setupEventListeners();
+                this.loop();
+            }
+
+            setupEventListeners() {
+                // Tool buttons
+                document.querySelectorAll('.tool-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.currentTool = btn.dataset.tool;
+                        this.canvas.style.cursor = this.currentTool === 'select' ? 'default' : 'crosshair';
+                    });
+                });
+
+                // Speed buttons
+                document.querySelectorAll('.speed-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.city.speed = parseInt(btn.dataset.speed);
+                    });
+                });
+
+                // Canvas interactions
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('mouseleave', () => this.onMouseUp());
+
+                // Action buttons
+                document.getElementById('btn-save').addEventListener('click', () => this.save());
+                document.getElementById('btn-load').addEventListener('click', () => this.load());
+                document.getElementById('btn-confirm-load').addEventListener('click', () => this.confirmLoad());
+                document.getElementById('btn-copy-save').addEventListener('click', () => this.copySave());
+                document.getElementById('btn-reset').addEventListener('click', () => this.reset());
+                document.getElementById('btn-music').addEventListener('click', () => this.toggleMusic());
+                document.getElementById('btn-sound').addEventListener('click', () => this.toggleSound());
+                document.getElementById('music-volume').addEventListener('input', (e) => {
+                    const volume = e.target.value / 100;
+                    this.audio.setMusicVolume(volume);
+                });
+                document.getElementById('btn-help').addEventListener('click', () => {
+                    document.getElementById('help-modal').classList.add('active');
+                });
+            }
+
+            getTileFromMouse(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                const x = Math.floor(((e.clientX - rect.left) * scaleX) / TILE_SIZE);
+                const y = Math.floor(((e.clientY - rect.top) * scaleY) / TILE_SIZE);
+                return { x, y };
+            }
+
+            onMouseDown(e) {
+                this.isDragging = true;
+                const tile = this.getTileFromMouse(e);
+                this.dragStart = tile;
+                this.lastMouse = tile;
+                
+                if (this.currentTool !== 'select' && this.currentTool !== 'road') {
+                    this.useTool(tile.x, tile.y);
+                }
+            }
+
+            onMouseMove(e) {
+                const tile = this.getTileFromMouse(e);
+                this.hoverTile = tile;
+                
+                if (!this.isDragging) return;
+                
+                if (this.currentTool === 'road' && this.dragStart) {
+                    // Draw road line
+                    this.drawRoadLine(this.dragStart.x, this.dragStart.y, tile.x, tile.y);
+                }
+                
+                this.lastMouse = tile;
+            }
+
+            onMouseUp(e) {
+                if (!this.isDragging) return;
+                
+                if (this.currentTool === 'road' && this.dragStart && e) {
+                    const tile = this.getTileFromMouse(e);
+                    this.drawRoadLine(this.dragStart.x, this.dragStart.y, tile.x, tile.y);
+                }
+                
+                this.isDragging = false;
+                this.dragStart = null;
+            }
+
+            drawRoadLine(x0, y0, x1, y1) {
+                // Bresenham's line algorithm
+                const dx = Math.abs(x1 - x0);
+                const dy = Math.abs(y1 - y0);
+                const sx = x0 < x1 ? 1 : -1;
+                const sy = y0 < y1 ? 1 : -1;
+                let err = dx - dy;
+                
+                while (true) {
+                    this.useTool(x0, y0);
+                    
+                    if (x0 === x1 && y0 === y1) break;
+                    const e2 = 2 * err;
+                    if (e2 > -dy) {
+                        err -= dy;
+                        x0 += sx;
+                    }
+                    if (e2 < dx) {
+                        err += dx;
+                        y0 += sy;
+                    }
+                }
+            }
+
+            useTool(x, y) {
+                let success = false;
+                
+                switch (this.currentTool) {
+                    case 'road':
+                        success = this.city.build(x, y, TILE_TYPES.ROAD);
+                        break;
+                    case 'residential':
+                        success = this.city.build(x, y, TILE_TYPES.RESIDENTIAL);
+                        break;
+                    case 'commercial':
+                        success = this.city.build(x, y, TILE_TYPES.COMMERCIAL);
+                        break;
+                    case 'industrial':
+                        success = this.city.build(x, y, TILE_TYPES.INDUSTRIAL);
+                        break;
+                    case 'power':
+                        success = this.city.build(x, y, TILE_TYPES.POWER_PLANT);
+                        break;
+                    case 'water':
+                        success = this.city.build(x, y, TILE_TYPES.WATER_TOWER);
+                        break;
+                    case 'bulldoze':
+                        success = this.city.bulldoze(x, y);
+                        break;
+                    case 'fire':
+                        success = this.city.spawnDisaster('fire', x, y);
+                        this.currentTool = 'select';
+                        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelector('[data-tool="select"]').classList.add('active');
+                        break;
+                    case 'earthquake':
+                        success = this.city.spawnDisaster('earthquake', x, y);
+                        this.audio.playDisaster();
+                        this.currentTool = 'select';
+                        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelector('[data-tool="select"]').classList.add('active');
+                        break;
+                }
+                
+                if (success) {
+                    if (this.currentTool === 'bulldoze' || this.currentTool === 'fire' || this.currentTool === 'earthquake') {
+                        this.audio.playDestroy();
+                    } else {
+                        this.audio.playBuild();
+                    }
+                    this.spawnParticles(x, y, success ? '#22c55e' : '#ef4444');
+                }
+            }
+
+            spawnParticles(x, y, color) {
+                for (let i = 0; i < 5; i++) {
+                    this.city.particles.push({
+                        x: x * TILE_SIZE + TILE_SIZE / 2,
+                        y: y * TILE_SIZE + TILE_SIZE / 2,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2 - 1,
+                        life: 1,
+                        color
+                    });
+                }
+            }
+
+            loop() {
+                const now = Date.now();
+                const deltaTime = now - this.city.lastUpdate;
+                this.city.lastUpdate = now;
+                
+                this.city.update(deltaTime);
+                this.render();
+                this.updateUI();
+                
+                requestAnimationFrame(() => this.loop());
+            }
+
+            render() {
+                const ctx = this.ctx;
+                
+                // Clear canvas
+                ctx.fillStyle = '#0f0f15';
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                
+                // Draw grid
+                ctx.strokeStyle = '#1a1a25';
+                ctx.lineWidth = 1;
+                for (let x = 0; x <= GRID_SIZE; x++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x * TILE_SIZE, 0);
+                    ctx.lineTo(x * TILE_SIZE, CANVAS_HEIGHT);
+                    ctx.stroke();
+                }
+                for (let y = 0; y <= GRID_SIZE; y++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y * TILE_SIZE);
+                    ctx.lineTo(CANVAS_WIDTH, y * TILE_SIZE);
+                    ctx.stroke();
+                }
+                
+                // Night overlay
+                if (this.city.isNight) {
+                    ctx.fillStyle = 'rgba(10, 15, 40, 0.4)';
+                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                }
+                
+                // Draw tiles
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        const tile = this.city.grid[y][x];
+                        if (tile !== TILE_TYPES.EMPTY) {
+                            const color = TILE_COLORS[tile];
+                            ctx.fillStyle = color;
+                            ctx.fillRect(x * TILE_SIZE + 1, y * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                            
+                            // Draw icon for buildings
+                            const icon = TILE_ICONS[tile];
+                            if (icon) {
+                                ctx.font = '14px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillStyle = 'white';
+                                ctx.fillText(icon, x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2);
+                            }
+                            
+                            // Power/water indicators
+                            const building = this.city.buildings.get(`${x},${y}`);
+                            if (building) {
+                                const bx = building.x * TILE_SIZE;
+                                const by = building.y * TILE_SIZE;
+                                const size = (building.size || 1) * TILE_SIZE;
+                                
+                                if (building.hasPower) {
+                                    ctx.fillStyle = '#fbbf24';
+                                    ctx.fillRect(bx + 2, by + 2, 4, 4);
+                                }
+                                if (building.hasWater) {
+                                    ctx.fillStyle = '#06b6d4';
+                                    ctx.fillRect(bx + 8, by + 2, 4, 4);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Draw cars
+                this.city.cars.forEach(car => {
+                    const x = (car.x + (car.targetX - car.x) * car.progress) * TILE_SIZE + TILE_SIZE / 2;
+                    const y = (car.y + (car.targetY - car.y) * car.progress) * TILE_SIZE + TILE_SIZE / 2;
+                    
+                    ctx.fillStyle = car.color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Headlights at night
+                    if (this.city.isNight) {
+                        ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x - 15, y - 10);
+                        ctx.lineTo(x - 15, y + 10);
+                        ctx.fill();
+                    }
+                });
+                
+                // Draw particles
+                this.city.particles.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+                    ctx.globalAlpha = 1;
+                });
+                
+                // Hover highlight
+                if (this.hoverTile) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(
+                        this.hoverTile.x * TILE_SIZE,
+                        this.hoverTile.y * TILE_SIZE,
+                        TILE_SIZE,
+                        TILE_SIZE
+                    );
+                }
+                
+                // Render minimap
+                this.renderMinimap();
+            }
+
+            renderMinimap() {
+                const ctx = this.minimapCtx;
+                const scaleX = this.minimap.width / GRID_SIZE;
+                const scaleY = this.minimap.height / GRID_SIZE;
+                
+                ctx.fillStyle = '#0f0f15';
+                ctx.fillRect(0, 0, this.minimap.width, this.minimap.height);
+                
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        const tile = this.city.grid[y][x];
+                        if (tile !== TILE_TYPES.EMPTY) {
+                            ctx.fillStyle = TILE_COLORS[tile];
+                            ctx.fillRect(x * scaleX, y * scaleY, scaleX, scaleY);
+                        }
+                    }
+                }
+            }
+
+            updateUI() {
+                // Update stats
+                document.getElementById('stat-funds').textContent = `$${this.city.funds.toLocaleString()}`;
+                document.getElementById('stat-pop').textContent = this.city.population.toLocaleString();
+                document.getElementById('stat-happiness').textContent = `${this.city.happiness}%`;
+                document.getElementById('happiness-bar').style.width = `${this.city.happiness}%`;
+                
+                // Update colors based on values
+                const fundsEl = document.getElementById('stat-funds');
+                fundsEl.className = 'stat-value ' + (this.city.funds > 0 ? 'positive' : 'negative');
+                
+                const happyEl = document.getElementById('stat-happiness');
+                happyEl.className = 'stat-value ' + 
+                    (this.city.happiness > 70 ? 'positive' : this.city.happiness < 30 ? 'negative' : 'warning');
+                
+                // Economy
+                document.getElementById('stat-income').textContent = `+$${this.city.income}`;
+                document.getElementById('stat-expenses').textContent = `-$${this.city.expenses}`;
+                document.getElementById('stat-power').textContent = `${this.city.powerUsed}/${this.city.powerCapacity} MW`;
+                document.getElementById('stat-water').textContent = `${this.city.waterUsed}/${this.city.waterCapacity} kL`;
+                
+                // Time
+                const hour = this.city.hour.toString().padStart(2, '0');
+                const minute = this.city.minute.toString().padStart(2, '0');
+                document.getElementById('game-time').textContent = `Day ${this.city.day}, ${hour}:${minute}`;
+                
+                // Day/night indicator
+                const indicator = document.getElementById('day-indicator');
+                indicator.className = 'day-night-indicator' + (this.city.isNight ? ' night' : '');
+            }
+
+            showNotification(message, type = 'info') {
+                const container = document.getElementById('notifications');
+                const notif = document.createElement('div');
+                notif.className = `notification ${type}`;
+                notif.textContent = message;
+                container.appendChild(notif);
+                
+                setTimeout(() => {
+                    notif.style.opacity = '0';
+                    setTimeout(() => notif.remove(), 300);
+                }, 3000);
+            }
+
+            save() {
+                const data = this.city.serialize();
+                document.getElementById('save-output').value = data;
+                document.getElementById('save-modal').classList.add('active');
+                this.showNotification('💾 City saved!', 'success');
+            }
+
+            copySave() {
+                const output = document.getElementById('save-output');
+                output.select();
+                document.execCommand('copy');
+                this.showNotification('📋 Copied to clipboard!', 'success');
+            }
+
+            load() {
+                document.getElementById('load-modal').classList.add('active');
+            }
+
+            confirmLoad() {
+                const data = document.getElementById('save-input').value.trim();
+                if (this.city.deserialize(data)) {
+                    document.getElementById('load-modal').classList.remove('active');
+                    this.showNotification('📂 City loaded!', 'success');
+                } else {
+                    this.showNotification('❌ Invalid save code', 'danger');
+                }
+            }
+
+            reset() {
+                if (confirm('Start a new city? All progress will be lost.')) {
+                    this.city = new City();
+                    this.showNotification('🗑️ New city started', 'info');
+                }
+            }
+
+            toggleMusic() {
+                const enabled = this.audio.toggleMusic();
+                document.getElementById('btn-music').classList.toggle('active', enabled);
+                this.showNotification(enabled ? '🎵 Music enabled' : '🔇 Music disabled', 'info');
+            }
+
+            toggleSound() {
+                const enabled = this.audio.toggleSound();
+                document.getElementById('btn-sound').classList.toggle('active', enabled);
+                this.showNotification(enabled ? '🔊 Sound enabled' : '🔇 Sound disabled', 'info');
+            }
+        }
+
+        // Start game
+        let game;
+        window.addEventListener('load', () => {
+            game = new Game();
+        });
+    </script>
+</body>
+</html>

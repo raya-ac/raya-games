@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Read VERSION file
+        id: read_version
+        run: |
+          if [ -f VERSION ]; then
+            echo "FILE_VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+          else
+            echo "FILE_VERSION=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release Archive
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          mkdir -p dist
+          # Copy all game files
+          cp *.html dist/ 2>/dev/null || true
+          cp README.md CHANGELOG.md VERSION package.json dist/ 2>/dev/null || true
+          # Create zip archive
+          cd dist && zip -r "../raya-games-v${VERSION}.zip" . && cd ..
+          # Create tar.gz archive
+          cd dist && tar -czf "../raya-games-v${VERSION}.tar.gz" . && cd ..
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          if [ -f CHANGELOG.md ]; then
+            # Extract changelog section for this version
+            NOTES=$(awk "/^## \[$VERSION\]/ {flag=1; next} /^## \[/ {flag=0} flag" CHANGELOG.md)
+            if [ -z "$NOTES" ]; then
+              NOTES="Release version $VERSION"
+            fi
+          else
+            NOTES="Release version $VERSION"
+          fi
+          # Write to file to preserve multiline
+          echo "$NOTES" > release_notes.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release v${{ steps.get_version.outputs.VERSION }}
+          body_path: release_notes.txt
+          files: |
+            raya-games-v*.zip
+            raya-games-v*.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: raya-games-v${{ steps.get_version.outputs.VERSION }}
+          path: |
+            raya-games-v*.zip
+            raya-games-v*.tar.gz

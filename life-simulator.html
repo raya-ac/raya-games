@@ -1,0 +1,2776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Simulator - Ultimate Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-hover: #1a1a25;
+            --border: #2a2a3a;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --purple: #a855f7;
+            --pink: #ec4899;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.4);
+        }
+        
+        body { 
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Header */
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 100;
+        }
+        
+        .header-left { display: flex; align-items: center; gap: 24px; }
+        .header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .world-stats { display: flex; gap: 16px; }
+        .stat-pill { background: var(--bg-hover); padding: 6px 12px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); }
+        .stat-pill .value { font-weight: 700; color: var(--primary); }
+        
+        .header-actions { display: flex; gap: 8px; }
+        
+        .btn {
+            background: var(--bg-hover); border: 1px solid var(--border); color: var(--text);
+            padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: var(--border); transform: translateY(-1px); }
+        .btn.primary { background: var(--primary); border-color: var(--primary); }
+        .btn.primary:hover { background: var(--primary-dark); }
+        .btn.success { background: var(--success); border-color: var(--success); color: white; }
+        .btn.danger { background: var(--danger); border-color: var(--danger); color: white; }
+        .btn.premium { background: linear-gradient(135deg, var(--warning), #f97316); border: none; }
+        
+        /* Music Button */
+        .music-btn { 
+            background: linear-gradient(135deg, #8b5cf6, #6366f1); 
+            border: none; 
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .music-btn:hover { 
+            transform: scale(1.05); 
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+        .music-btn.muted { 
+            background: var(--bg-hover); 
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .music-btn.muted:hover {
+            box-shadow: none;
+        }
+        .music-btn.playing {
+            animation: musicPulse 2s ease-in-out infinite;
+        }
+        @keyframes musicPulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+        }
+        
+        /* Volume Slider */
+        .volume-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--bg-hover);
+            outline: none;
+            -webkit-appearance: none;
+            margin: 12px 0;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            cursor: pointer;
+            border: 2px solid var(--text);
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            cursor: pointer;
+            border: 2px solid var(--text);
+        }
+        
+        /* Main */
+        .main-container { display: grid; grid-template-columns: 260px 1fr 360px; height: calc(100vh - 65px); }
+        
+        /* Left Sidebar */
+        .left-sidebar { background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .left-sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+        .left-sidebar-header h3 { font-size: 14px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .left-sidebar-content { flex: 1; overflow-y: auto; padding: 16px; }
+        
+        /* Quick Stats Cards */
+        .quick-stat-card { background: var(--bg-hover); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; transition: all 0.2s; }
+        .quick-stat-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+        .quick-stat-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .quick-stat-card .value { font-size: 20px; font-weight: 700; }
+        .quick-stat-card .value.time { color: var(--primary); }
+        .quick-stat-card .value.population { color: #22c55e; }
+        .quick-stat-card .value.deaths { color: #ef4444; }
+        .quick-stat-card .value.wealth { color: #fbbf24; }
+        .quick-stat-card .value.age { color: #06b6d4; }
+        
+        /* Quick Actions */
+        .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+        .quick-action-btn { background: var(--bg-hover); border: 1px solid var(--border); border-radius: 10px; padding: 12px 8px; color: var(--text); font-size: 11px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .quick-action-btn:hover { background: var(--border); border-color: var(--primary); transform: translateY(-2px); }
+        .quick-action-btn .icon { font-size: 20px; }
+        .quick-action-btn.primary { background: var(--primary); border-color: var(--primary); }
+        .quick-action-btn.primary:hover { background: var(--primary-dark); }
+        .quick-action-btn.success { background: rgba(34,197,94,0.2); border-color: #22c55e; }
+        .quick-action-btn.danger { background: rgba(239,68,68,0.2); border-color: #ef4444; }
+        
+        /* Selected Person Mini Panel */
+        .mini-profile { background: linear-gradient(135deg, var(--bg-hover), var(--bg-card)); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 16px; }
+        .mini-profile-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .mini-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .mini-info h4 { font-size: 13px; font-weight: 600; }
+        .mini-info p { font-size: 11px; color: var(--text-muted); }
+        .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mini-stat { background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; }
+        .mini-stat .label { font-size: 9px; color: var(--text-muted); }
+        .mini-stat .val { font-size: 13px; font-weight: 700; }
+        
+        /* World */
+        .world-section { padding: 20px; overflow: auto; background: linear-gradient(180deg, var(--bg-dark) 0%, #0f0f1a 100%); }
+        
+        .location-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 1000px; margin: 0 auto; }
+        
+        .location-card {
+            background: var(--bg-card); border: 2px solid var(--border); border-radius: 16px;
+            padding: 16px; min-height: 200px; position: relative; transition: all 0.3s; cursor: pointer;
+        }
+        .location-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .location-card.active { border-color: var(--primary); background: linear-gradient(135deg, var(--bg-card), rgba(99,102,241,0.1)); }
+        .location-card.drag-over { background: rgba(99,102,241,0.2); border-color: var(--primary); }
+        
+        .location-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+        .location-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: var(--bg-hover); }
+        .location-info h3 { font-size: 14px; font-weight: 600; }
+        .location-info span { font-size: 11px; color: var(--text-muted); }
+        
+        .location-people { display: flex; flex-wrap: wrap; gap: 8px; min-height: 80px; }
+        
+        .person-token {
+            width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; cursor: grab; transition: all 0.2s; border: 3px solid transparent; position: relative;
+        }
+        .person-token:hover { transform: scale(1.15); z-index: 10; }
+        .person-token.selected { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99,102,241,0.3); }
+        .person-token.dragging { opacity: 0.5; cursor: grabbing; }
+        .person-token.dead { filter: grayscale(100%); opacity: 0.5; }
+        .person-token.prison { border-color: var(--danger); }
+        .person-token.married::after { content: '💍'; position: absolute; bottom: -4px; right: -4px; font-size: 14px; background: var(--bg-card); border-radius: 50%; padding: 2px; }
+        .person-token.sick::before { content: '🤒'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 14px; }
+        .person-token.famous::after { content: '⭐'; position: absolute; top: -4px; right: -4px; font-size: 12px; }
+        
+        /* Right Sidebar */
+        .sidebar { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+        .sidebar-tabs { display: flex; gap: 4px; margin-top: 12px; overflow-x: auto; }
+        .sidebar-tab { flex: 1; padding: 8px; background: var(--bg-hover); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text-muted); cursor: pointer; text-align: center; transition: all 0.2s; white-space: nowrap; }
+        .sidebar-tab:hover { color: var(--text); }
+        .sidebar-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 16px; }
+        
+        /* Profile */
+        .profile-card { background: var(--bg-hover); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+        .profile-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .profile-avatar { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; border: 3px solid var(--border); position: relative; }
+        .profile-avatar .status-indicator { position: absolute; bottom: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--bg-hover); }
+        .profile-avatar .status-indicator.healthy { background: var(--success); }
+        .profile-avatar .status-indicator.sick { background: var(--danger); }
+        .profile-avatar .status-indicator.prison { background: #374151; }
+        .profile-avatar .status-indicator.stressed { background: var(--warning); }
+        
+        .profile-info h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .profile-info p { font-size: 12px; color: var(--text-muted); }
+        .profile-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+        .badge-married { background: rgba(236,72,153,0.2); color: #ec4899; border: 1px solid rgba(236,72,153,0.3); }
+        .badge-criminal { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-famous { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-rich { background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+        .badge-educated { background: rgba(59,130,246,0.2); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+        
+        /* Stats */
+        .stats-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .stat-item { background: var(--bg-card); padding: 12px; border-radius: 10px; border: 1px solid var(--border); }
+        .stat-item label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+        .stat-value-row span { font-size: 18px; font-weight: 700; }
+        .stat-bar { height: 6px; background: var(--bg-hover); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .stat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        
+        /* Actions */
+        .actions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+        .action-btn {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 12px 8px; color: var(--text); font-size: 11px; cursor: pointer;
+            transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .action-btn:hover { background: var(--bg-hover); border-color: var(--primary); transform: translateY(-2px); }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .action-btn .icon { font-size: 20px; }
+        
+        /* Job Tree */
+        .job-tree { display: flex; flex-direction: column; gap: 8px; }
+        .job-node { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; transition: all 0.2s; }
+        .job-node:hover { background: var(--bg-hover); }
+        .job-node.current { border-color: var(--success); background: rgba(34,197,94,0.1); }
+        .job-node.locked { opacity: 0.5; }
+        .job-node.available { border-color: var(--primary); cursor: pointer; }
+        .job-node.available:hover { background: rgba(99,102,241,0.1); }
+        .job-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .job-info { flex: 1; }
+        .job-info h4 { font-size: 13px; font-weight: 600; }
+        .job-info p { font-size: 10px; color: var(--text-muted); }
+        .job-salary { font-size: 12px; font-weight: 700; color: var(--success); }
+        
+        /* Skills */
+        .skills-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .skill-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+        .skill-card .icon { font-size: 28px; margin-bottom: 8px; }
+        .skill-card h4 { font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+        .skill-level { font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+        .skill-progress { height: 4px; background: var(--bg-hover); border-radius: 2px; overflow: hidden; }
+        .skill-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--purple)); border-radius: 2px; transition: width 0.3s; }
+        
+        /* Relationships */
+        .relationship-list { display: flex; flex-direction: column; gap: 8px; }
+        .relationship-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+        .relationship-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: var(--bg-hover); }
+        .relationship-info { flex: 1; }
+        .relationship-info h4 { font-size: 12px; font-weight: 600; }
+        .relationship-info p { font-size: 10px; color: var(--text-muted); }
+        .relationship-bar { width: 80px; height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; }
+        .relationship-fill { height: 100%; border-radius: 3px; }
+        
+        /* Inventory */
+        .inventory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .inv-item { aspect-ratio: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .inv-item:hover { background: var(--bg-hover); border-color: var(--primary); transform: scale(1.05); }
+        .inv-item .count { position: absolute; bottom: 4px; right: 4px; font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 10px; }
+        
+        /* Timeline */
+        .timeline { display: flex; flex-direction: column; gap: 8px; }
+        .timeline-item { display: flex; gap: 12px; padding: 12px; background: var(--bg-card); border-radius: 10px; border-left: 3px solid var(--primary); }
+        .timeline-date { font-size: 10px; color: var(--text-muted); min-width: 60px; }
+        .timeline-content { font-size: 12px; }
+        
+        /* Achievements */
+        .achievements-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .achievement-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+        .achievement-item.locked { opacity: 0.5; }
+        .achievement-item.unlocked { border-color: var(--warning); background: rgba(245,158,11,0.1); }
+        .achievement-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .achievement-item.unlocked .achievement-icon { background: linear-gradient(135deg, var(--warning), #fbbf24); }
+        .achievement-info h4 { font-size: 11px; font-weight: 600; }
+        .achievement-info p { font-size: 9px; color: var(--text-muted); }
+        
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .modal-header h2 { font-size: 20px; font-weight: 700; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
+        
+        .shop-categories { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+        .shop-category { padding: 8px 16px; background: var(--bg-hover); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .shop-category.active { background: var(--primary); border-color: var(--primary); }
+        
+        .shop-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .shop-item { background: var(--bg-hover); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .shop-item:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .shop-item .emoji { font-size: 36px; margin-bottom: 8px; }
+        .shop-item h4 { font-size: 13px; margin-bottom: 4px; }
+        .shop-item .price { font-size: 14px; font-weight: 700; color: var(--success); }
+        .shop-item .desc { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+        
+        /* Event Popup */
+        .event-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-card); border: 2px solid var(--primary); border-radius: 20px; padding: 28px; max-width: 420px; width: 90%; box-shadow: var(--shadow-lg); z-index: 2000; animation: popIn 0.3s ease; text-align: center; }
+        @keyframes popIn { from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        .event-popup h3 { font-size: 20px; margin-bottom: 12px; color: var(--primary); }
+        .event-popup p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+        .event-choices { display: flex; gap: 10px; justify-content: center; }
+        
+        /* Notification */
+        .notification { position: fixed; top: 80px; right: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 12px; animation: slideIn 0.3s ease; z-index: 2000; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .notification.success { border-color: var(--success); }
+        .notification.error { border-color: var(--danger); }
+        
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+        .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+        
+        .quick-action-btn.muted { opacity: 0.6; }
+        .quick-action-btn.playing { animation: musicPulse 2s ease-in-out infinite; background: linear-gradient(135deg, #8b5cf6, #6366f1); border: none; color: white; }
+        
+        /* Responsive */
+        @media (max-width: 1200px) { 
+            .main-container { grid-template-columns: 1fr 320px; } 
+            .left-sidebar { display: none; } 
+        }
+        @media (max-width: 900px) { 
+            .main-container { grid-template-columns: 1fr; } 
+            .sidebar { display: none; } 
+            .location-grid { grid-template-columns: repeat(2, 1fr); } 
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1>🌍 Life Simulator Ultimate</h1>
+        </div>
+        <div class="header-actions">
+            <button class="btn music-btn" id="music-btn" onclick="toggleMusic()" title="Toggle Music">🎵</button>
+            <button class="btn" onclick="openSettings()" title="Settings">⚙️</button>
+            <a href="/games" class="btn">🎮 Games</a>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- LEFT SIDEBAR: Quick Stats & Actions -->
+        <aside class="left-sidebar">
+            <div class="left-sidebar-header">
+                <h3>📊 World Status</h3>
+            </div>
+            <div class="left-sidebar-content">
+                <!-- Time -->
+                <div class="quick-stat-card">
+                    <div class="label">Current Date</div>
+                    <div class="value time" id="left-time-display">Year 1, Month 1</div>
+                </div>
+                
+                <!-- Population Stats -->
+                <div class="quick-stat-card">
+                    <div class="label">Population</div>
+                    <div class="value population" id="left-pop-display">0 Alive</div>
+                </div>
+                
+                <div class="quick-stat-card">
+                    <div class="label">Deceased</div>
+                    <div class="value deaths" id="left-deaths-display">0 Dead</div>
+                </div>
+                
+                <div class="quick-stat-card">
+                    <div class="label">Richest Person</div>
+                    <div class="value wealth" id="left-richest-display">$0</div>
+                </div>
+                
+                <div class="quick-stat-card">
+                    <div class="label">Average Age</div>
+                    <div class="value age" id="left-avg-age">0</div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div style="margin-top: 20px;">
+                    <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">🎮 Quick Actions</h3>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn success" onclick="createNewLife()">
+                            <span class="icon">👶</span>
+                            <span>New Life</span>
+                        </button>
+                        <button class="quick-action-btn primary" onclick="openShop()">
+                            <span class="icon">🛒</span>
+                            <span>Shop</span>
+                        </button>
+                        <button class="quick-action-btn" onclick="openCrimes()">
+                            <span class="icon">🔪</span>
+                            <span>Crime</span>
+                        </button>
+                        <button class="quick-action-btn" onclick="openRelationships()">
+                            <span class="icon">💕</span>
+                            <span>Dating</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Selected Person Mini Panel (shown when person selected) -->
+                <div id="mini-profile-panel" style="display: none;">
+                    <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 12px 0;">👤 Selected Person</h3>
+                    <div class="mini-profile" id="mini-profile-content">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="quick-actions" style="margin-top: 12px;">
+                        <button class="quick-action-btn" onclick="if(selectedPerson) switchSidebarTab('profile')">
+                            <span class="icon">📋</span>
+                            <span>Profile</span>
+                        </button>
+                        <button class="quick-action-btn" onclick="if(selectedPerson) switchSidebarTab('actions')">
+                            <span class="icon">⚡</span>
+                            <span>Actions</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Music Control -->
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                    <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">🎵 Lo-Fi Hip-Hop</h3>
+                    <button class="quick-action-btn" style="width: 100%;" onclick="toggleMusic()" id="left-music-btn">
+                        <span class="icon">🎵</span>
+                        <span>Toggle Music</span>
+                    </button>
+                    <input type="range" class="volume-slider" min="0" max="100" value="15" oninput="updateVolume(this.value)" style="margin-top: 8px;">
+                </div>
+                
+                <!-- Save/Reset -->
+                <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="quick-action-btn" onclick="forceSave()">
+                        <span class="icon">💾</span>
+                        <span>Save</span>
+                    </button>
+                    <button class="quick-action-btn danger" onclick="resetGame()">
+                        <span class="icon">🗑️</span>
+                        <span>Reset</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <section class="world-section">
+            <div class="location-grid" id="location-grid"></div>
+        </section>
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3 id="sidebar-title">Select a Person</h3>
+                <div class="sidebar-tabs">
+                    <div class="sidebar-tab active" data-tab="profile" onclick="switchSidebarTab('profile', this)">Profile</div>
+                    <div class="sidebar-tab" data-tab="actions" onclick="switchSidebarTab('actions', this)">Actions</div>
+                    <div class="sidebar-tab" data-tab="career" onclick="switchSidebarTab('career', this)">Career</div>
+                    <div class="sidebar-tab" data-tab="skills" onclick="switchSidebarTab('skills', this)">Skills</div>
+                    <div class="sidebar-tab" data-tab="relations" onclick="switchSidebarTab('relations', this)">Relations</div>
+                    <div class="sidebar-tab" data-tab="inventory" onclick="switchSidebarTab('inventory', this)">Items</div>
+                </div>
+            </div>
+            <div class="sidebar-content" id="sidebar-content">
+                <div class="empty-state">
+                    <div class="emoji">👆</div>
+                    <p>Click on a person to see details</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">×</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="profile-card">
+                    <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">🎵 Music Settings</h4>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--text-muted);">Volume</span>
+                        <span id="volume-value" style="font-size: 13px; font-weight: 600;">15%</span>
+                    </div>
+                    <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="15" oninput="updateVolume(this.value)">
+                    <div style="display: flex; gap: 10px; margin-top: 12px;">
+                        <button class="btn" onclick="toggleMusic()" id="settings-music-toggle">
+                            🔇 Mute
+                        </button>
+                        <button class="btn" onclick="testSound()">
+                            🔔 Test Sound
+                        </button>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                        Lo-fi hip-hop with jazz chords (Cmaj7, Am7, Fmaj7, G7), vinyl crackle, and 75 BPM downtempo beat. Generated using Web Audio API.
+                    </p>
+                </div>
+                
+                <div class="profile-card">
+                    <h4 style="margin-bottom: 12px;">🎮 Game Info</h4>
+                    <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px;">
+                        <div>Life Simulator Ultimate v2.0</div>
+                        <div>Auto-save every 30 seconds</div>
+                        <div>Progress saved to localStorage + server</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div class="modal-overlay" id="shop-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🛒 Life Shop</h2>
+                <button class="modal-close" onclick="closeShop()">×</button>
+            </div>
+            <div class="shop-categories">
+                <div class="shop-category active" onclick="filterShop('all', this)">All</div>
+                <div class="shop-category" onclick="filterShop('housing', this)">🏠 Housing</div>
+                <div class="shop-category" onclick="filterShop('items', this)">🎁 Items</div>
+                <div class="shop-category" onclick="filterShop('vehicles', this)">🚗 Vehicles</div>
+                <div class="shop-category" onclick="filterShop('pets', this)">🐾 Pets</div>
+                <div class="shop-category" onclick="filterShop('luxury', this)">💎 Luxury</div>
+                <div class="shop-category" onclick="filterShop('business', this)">🏢 Business</div>
+            </div>
+            <div class="shop-items" id="shop-items"></div>
+        </div>
+    </div>
+
+    <!-- Crime Modal -->
+    <div class="modal-overlay" id="crime-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🔪 Crime Menu</h2>
+                <button class="modal-close" onclick="closeCrimes()">×</button>
+            </div>
+            <div class="shop-items" id="crime-items"></div>
+        </div>
+    </div>
+
+    <!-- Dating Modal -->
+    <div class="modal-overlay" id="dating-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>💕 Dating Scene</h2>
+                <button class="modal-close" onclick="closeDating()">×</button>
+            </div>
+            <div id="dating-content"></div>
+        </div>
+    </div>
+
+<script>
+// Music System - Lo-Fi Hip-Hop Generator
+const MusicSystem = {
+    ctx: null,
+    masterGain: null,
+    compressor: null,
+    isPlaying: false,
+    isMuted: false,
+    volume: 0.15, // Default 15%
+    oscillators: [],
+    intervals: [],
+    beatInterval: null,
+    chordLoop: null,
+    
+    // Jazz chord frequencies (Cmaj7, Am7, Fmaj7, G7)
+    chords: [
+        { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] }, // C4, E4, G4, B4
+        { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },   // A3, C4, E4, G4
+        { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 329.63] }, // F3, A3, C4, E4
+        { name: 'G7', notes: [196.00, 246.94, 293.66, 349.23] }     // G3, B3, D4, F4
+    ],
+    currentChord: 0,
+    
+    init() {
+        if (this.ctx) return;
+        
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        
+        // Master compressor: threshold -24dB, ratio 4:1
+        this.compressor = this.ctx.createDynamicsCompressor();
+        this.compressor.threshold.value = -24;
+        this.compressor.knee.value = 30;
+        this.compressor.ratio.value = 4;
+        this.compressor.attack.value = 0.003;
+        this.compressor.release.value = 0.25;
+        
+        // Master gain for volume control
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = this.volume;
+        
+        this.masterGain.connect(this.compressor);
+        this.compressor.connect(this.ctx.destination);
+    },
+    
+    createVinylCrackle() {
+        // Create vinyl crackle buffer
+        const bufferSize = this.ctx.sampleRate * 2; // 2 seconds of crackle
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+            // Create sparse crackle noise
+            if (Math.random() < 0.001) {
+                data[i] = (Math.random() - 0.5) * 0.15;
+            } else if (Math.random() < 0.0001) {
+                // Occasional louder pop
+                data[i] = (Math.random() - 0.5) * 0.3;
+            } else {
+                data[i] = (Math.random() - 0.5) * 0.02; // Gentle background hiss
+            }
+        }
+        
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0.015; // Very subtle
+        
+        source.connect(gain);
+        gain.connect(this.masterGain);
+        
+        return { source, gain };
+    },
+    
+    createChordNote(freq, pan = 0) {
+        const osc = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+        const panner = this.ctx.createStereoPanner();
+        
+        osc.type = 'sine'; // Soft sine waves
+        osc.frequency.value = freq;
+        
+        // Slow attack/release: 1.5s attack, 1s release
+        gainNode.gain.value = 0;
+        const now = this.ctx.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.025, now + 1.5); // Very low volume 0.02-0.03
+        
+        panner.pan.value = pan;
+        
+        osc.connect(gainNode);
+        gainNode.connect(panner);
+        panner.connect(this.masterGain);
+        
+        return { osc, gainNode };
+    },
+    
+    playChord(chordIndex) {
+        const chord = this.chords[chordIndex];
+        const now = this.ctx.currentTime;
+        
+        // Play each note in the chord with slight stereo spread
+        chord.notes.forEach((freq, i) => {
+            const pan = (i - 1.5) * 0.15; // Subtle stereo spread
+            const note = this.createChordNote(freq, pan);
+            
+            note.osc.start(now);
+            
+            // Slow release when stopping (1s)
+            note.gainNode.gain.setTargetAtTime(0, now + 6, 1);
+            note.osc.stop(now + 8);
+            
+            this.oscillators.push(note);
+        });
+    },
+    
+    startChordProgression() {
+        // Play a chord every 4 seconds (lo-fi pacing)
+        this.playChord(this.currentChord);
+        
+        this.chordLoop = setInterval(() => {
+            if (!this.isPlaying || this.isMuted) return;
+            
+            this.currentChord = (this.currentChord + 1) % this.chords.length;
+            this.playChord(this.currentChord);
+        }, 4000);
+        this.intervals.push(this.chordLoop);
+    },
+    
+    createDrumSound(type) {
+        const osc = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+        
+        if (type === 'kick') {
+            // Soft kick drum
+            osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+            
+            gainNode.gain.setValueAtTime(0.25, this.ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = 150;
+        } else if (type === 'snare') {
+            // Soft snare with noise
+            osc.type = 'triangle';
+            osc.frequency.value = 180;
+            
+            gainNode.gain.setValueAtTime(0.08, this.ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+            
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+        }
+        
+        osc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        
+        return { osc, gainNode };
+    },
+    
+    playBeat() {
+        // 75 BPM = 800ms per beat
+        const beatInterval = 800;
+        let beatCount = 0;
+        
+        const playDrum = () => {
+            if (!this.isPlaying || this.isMuted) return;
+            
+            // Kick on beats 1 and 3
+            if (beatCount % 4 === 0 || beatCount % 4 === 2) {
+                const kick = this.createDrumSound('kick');
+                kick.osc.start(this.ctx.currentTime);
+                kick.osc.stop(this.ctx.currentTime + 0.2);
+            }
+            
+            // Soft snare on beat 3 (relaxed pattern)
+            if (beatCount % 4 === 2) {
+                const snare = this.createDrumSound('snare');
+                snare.osc.start(this.ctx.currentTime);
+                snare.osc.stop(this.ctx.currentTime + 0.1);
+            }
+            
+            beatCount++;
+        };
+        
+        playDrum(); // First beat immediately
+        this.beatInterval = setInterval(playDrum, beatInterval);
+        this.intervals.push(this.beatInterval);
+    },
+    
+    start() {
+        if (this.isPlaying) return;
+        this.init();
+        
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        
+        this.isPlaying = true;
+        
+        // Start vinyl crackle
+        const crackle = this.createVinylCrackle();
+        crackle.source.start();
+        this.oscillators.push({ osc: crackle.source, gainNode: crackle.gain, isCrackle: true });
+        
+        // Start chord progression
+        this.startChordProgression();
+        
+        // Start beat
+        this.playBeat();
+        
+        this.updateUI();
+    },
+    
+    stop() {
+        this.isPlaying = false;
+        
+        const now = this.ctx?.currentTime || 0;
+        
+        // Fade out all oscillators with slow release
+        this.oscillators.forEach(({ osc, gainNode }) => {
+            if (gainNode) {
+                gainNode.gain.cancelScheduledValues(now);
+                gainNode.gain.setTargetAtTime(0, now, 0.5);
+            }
+            setTimeout(() => {
+                try { osc.stop(); } catch(e) {}
+            }, 800);
+        });
+        
+        // Clear intervals
+        this.intervals.forEach(clearInterval);
+        this.intervals = [];
+        this.oscillators = [];
+        
+        this.updateUI();
+    },
+    
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        
+        if (this.masterGain) {
+            this.masterGain.gain.setTargetAtTime(
+                this.isMuted ? 0 : this.volume, 
+                this.ctx.currentTime, 
+                0.3
+            );
+        }
+        
+        this.updateUI();
+        return this.isMuted;
+    },
+    
+    setVolume(value) {
+        this.volume = value / 100;
+        if (this.masterGain && !this.isMuted) {
+            this.masterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.1);
+        }
+        this.updateUI();
+    },
+    
+    updateUI() {
+        const btn = document.getElementById('music-btn');
+        const leftBtn = document.getElementById('left-music-btn');
+        const settingsToggle = document.getElementById('settings-music-toggle');
+        
+        if (btn) {
+            btn.classList.toggle('muted', this.isMuted);
+            btn.classList.toggle('playing', this.isPlaying && !this.isMuted);
+            btn.innerHTML = this.isMuted ? '🔇' : '🎵';
+            btn.title = this.isMuted ? 'Unmute Lo-Fi' : 'Mute Lo-Fi';
+        }
+        
+        if (leftBtn) {
+            leftBtn.classList.toggle('muted', this.isMuted);
+            leftBtn.classList.toggle('playing', this.isPlaying && !this.isMuted);
+            leftBtn.innerHTML = `
+                <span class="icon">${this.isMuted ? '🔇' : '🎵'}</span>
+                <span>${this.isMuted ? 'Unmute' : 'Mute'} Music</span>
+            `;
+        }
+        
+        if (settingsToggle) {
+            settingsToggle.innerHTML = this.isMuted ? '🔊 Unmute' : '🔇 Mute';
+        }
+    }
+};
+
+// Auto-start music on first user interaction
+let musicStarted = false;
+function initMusicOnInteraction() {
+    if (musicStarted) return;
+    musicStarted = true;
+    
+    MusicSystem.start();
+    showNotification('🎵 Lo-fi hip-hop beats started', 'success');
+    
+    // Remove listeners after first interaction
+    document.removeEventListener('click', initMusicOnInteraction);
+    document.removeEventListener('keydown', initMusicOnInteraction);
+}
+
+// Add listeners for auto-start
+document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('click', initMusicOnInteraction);
+    document.addEventListener('keydown', initMusicOnInteraction);
+});
+
+// Music control functions
+function toggleMusic() {
+    if (!musicStarted) {
+        initMusicOnInteraction();
+        return;
+    }
+    MusicSystem.toggleMute();
+}
+
+function updateVolume(value) {
+    MusicSystem.setVolume(value);
+    document.getElementById('volume-value').textContent = value + '%';
+}
+
+function openSettings() {
+    document.getElementById('settings-modal').classList.add('active');
+}
+
+function closeSettings() {
+    document.getElementById('settings-modal').classList.remove('active');
+}
+
+function testSound() {
+    if (!MusicSystem.ctx) MusicSystem.init();
+    if (MusicSystem.ctx.state === 'suspended') MusicSystem.ctx.resume();
+    
+    const osc = MusicSystem.ctx.createOscillator();
+    const gain = MusicSystem.ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(MusicSystem.masterGain);
+    
+    osc.frequency.value = 523.25; // C5
+    osc.type = 'sine';
+    
+    const now = MusicSystem.ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    
+    osc.start(now);
+    osc.stop(now + 0.3);
+    
+    showNotification('🔔 Sound test', 'success');
+}
+
+// MEGA COMPREHENSIVE LIFE SIMULATOR
+const API_BASE = '/api/life';
+
+// Game State
+let gameYear = 1, gameMonth = 1, gameDay = 1, gameTime = 0;
+let people = [];
+let selectedPerson = null;
+let currentSidebarTab = 'profile';
+let draggedPerson = null;
+
+// Locations
+const LOCATIONS = {
+    home: { name: 'Suburbs', icon: '🏠', color: '#3b82f6', desc: 'Residential neighborhood' },
+    school: { name: 'University District', icon: '🎓', color: '#22c55e', desc: 'Education hub' },
+    work: { name: 'Business District', icon: '🏢', color: '#8b5cf6', desc: 'Corporate offices' },
+    gym: { name: 'Fitness Center', icon: '💪', color: '#f97316', desc: 'Health & training' },
+    park: { name: 'City Park', icon: '🌳', color: '#10b981', desc: 'Nature & leisure' },
+    restaurant: { name: 'Restaurant Row', icon: '🍽️', color: '#ef4444', desc: 'Fine dining' },
+    club: { name: 'Nightlife District', icon: '🌃', color: '#ec4899', desc: 'Bars & clubs' },
+    hospital: { name: 'Medical Center', icon: '🏥', color: '#06b6d4', desc: 'Healthcare' },
+    bank: { name: 'Financial District', icon: '🏛️', color: '#fbbf24', desc: 'Banking & investments' },
+    casino: { name: 'Casino Strip', icon: '🎰', color: '#dc2626', desc: 'Gambling & entertainment' },
+    beach: { name: 'Beach Resort', icon: '🏖️', color: '#0ea5e9', desc: 'Vacation spot' },
+    mall: { name: 'Shopping Mall', icon: '🛍️', color: '#f472b6', desc: 'Retail therapy' },
+    church: { name: 'Community Center', icon: '⛪', color: '#a855f7', desc: 'Social gatherings' },
+    airport: { name: 'Airport', icon: '✈️', color: '#6366f1', desc: 'Travel hub' }
+};
+
+// Comprehensive Job System
+const JOBS = [
+    { id: 'unemployed', name: 'Unemployed', salary: 0, req: 0, icon: '😴', education: 0, field: 'none' },
+    { id: 'student', name: 'Student', salary: 0, req: 0, icon: '📚', education: 0, field: 'education' },
+    // Food
+    { id: 'fastfood', name: 'Fast Food Worker', salary: 200, req: 0, icon: '🍔', education: 0, field: 'food' },
+    { id: 'waiter', name: 'Waiter/Waitress', salary: 300, req: 10, icon: '🍽️', education: 0, field: 'food' },
+    { id: 'chef', name: 'Chef', salary: 1200, req: 50, icon: '👨‍🍳', education: 30, field: 'food' },
+    { id: 'restaurateur', name: 'Restaurant Owner', salary: 5000, req: 70, icon: '🏪', education: 50, field: 'food' },
+    // Retail
+    { id: 'retail', name: 'Retail Clerk', salary: 300, req: 10, icon: '🛍️', education: 0, field: 'retail' },
+    { id: 'manager', name: 'Store Manager', salary: 800, req: 40, icon: '👔', education: 20, field: 'retail' },
+    // Office
+    { id: 'assistant', name: 'Office Assistant', salary: 400, req: 20, icon: '📎', education: 10, field: 'office' },
+    { id: 'accountant', name: 'Accountant', salary: 1000, req: 50, icon: '📊', education: 40, field: 'office' },
+    { id: 'analyst', name: 'Data Analyst', salary: 1500, req: 60, icon: '📈', education: 50, field: 'office' },
+    { id: 'manager_corp', name: 'Corporate Manager', salary: 2500, req: 70, icon: '💼', education: 60, field: 'office' },
+    { id: 'executive', name: 'VP Executive', salary: 8000, req: 85, icon: '🎯', education: 80, field: 'office' },
+    { id: 'ceo', name: 'CEO', salary: 20000, req: 95, icon: '👑', education: 90, field: 'office' },
+    // Education
+    { id: 'teacher', name: 'Teacher', salary: 800, req: 40, icon: '👨‍🏫', education: 50, field: 'education' },
+    { id: 'professor', name: 'Professor', salary: 2000, req: 75, icon: '🎓', education: 90, field: 'education' },
+    // Healthcare
+    { id: 'nurse', name: 'Nurse', salary: 1000, req: 50, icon: '👩‍⚕️', education: 50, field: 'medical' },
+    { id: 'doctor', name: 'Doctor', salary: 4000, req: 85, icon: '👨‍⚕️', education: 90, field: 'medical' },
+    { id: 'surgeon', name: 'Surgeon', salary: 8000, req: 95, icon: '🔬', education: 95, field: 'medical' },
+    // Tech
+    { id: 'developer', name: 'Junior Developer', salary: 800, req: 40, icon: '💻', education: 30, field: 'tech' },
+    { id: 'senior_dev', name: 'Senior Developer', salary: 1800, req: 65, icon: '⌨️', education: 50, field: 'tech' },
+    { id: 'architect', name: 'Tech Architect', salary: 3500, req: 80, icon: '🏗️', education: 70, field: 'tech' },
+    { id: 'cto', name: 'CTO', salary: 15000, req: 95, icon: '🚀', education: 90, field: 'tech' },
+    // Legal
+    { id: 'paralegal', name: 'Paralegal', salary: 600, req: 30, icon: '📋', education: 30, field: 'legal' },
+    { id: 'lawyer', name: 'Lawyer', salary: 3000, req: 75, icon: '⚖️', education: 80, field: 'legal' },
+    { id: 'judge', name: 'Judge', salary: 6000, req: 90, icon: '🔨', education: 95, field: 'legal' },
+    // Creative
+    { id: 'artist', name: 'Artist', salary: 500, req: 20, icon: '🎨', education: 10, field: 'creative' },
+    { id: 'musician', name: 'Musician', salary: 600, req: 25, icon: '🎵', education: 15, field: 'creative' },
+    { id: 'designer', name: 'Graphic Designer', salary: 900, req: 40, icon: '✏️', education: 30, field: 'creative' },
+    { id: 'actor', name: 'Actor', salary: 1500, req: 50, icon: '🎭', education: 20, field: 'creative' },
+    { id: 'famous_actor', name: 'Movie Star', salary: 15000, req: 80, icon: '🌟', education: 40, field: 'creative' },
+    { id: 'director', name: 'Film Director', salary: 25000, req: 90, icon: '🎬', education: 60, field: 'creative' },
+    // Sports
+    { id: 'trainer', name: 'Personal Trainer', salary: 700, req: 35, icon: '🏋️', education: 20, field: 'sports' },
+    { id: 'athlete', name: 'Pro Athlete', salary: 5000, req: 70, icon: '🏆', education: 30, field: 'sports' },
+    { id: 'sports_star', name: 'Sports Superstar', salary: 30000, req: 90, icon: '🥇', education: 40, field: 'sports' },
+    // Special
+    { id: 'pilot', name: 'Pilot', salary: 2500, req: 70, icon: '✈️', education: 70, field: 'transport' },
+    { id: 'astronaut', name: 'Astronaut', salary: 20000, req: 98, icon: '🚀', education: 95, field: 'science' },
+    { id: 'scientist', name: 'Scientist', salary: 4000, req: 90, icon: '🔬', education: 95, field: 'science' },
+    { id: 'president', name: 'President', salary: 100000, req: 99, icon: '🏛️', education: 95, field: 'government' },
+    { id: 'influencer', name: 'Social Media Star', salary: 8000, req: 60, icon: '📱', education: 10, field: 'creative' },
+    { id: 'investor', name: 'Venture Capitalist', salary: 50000, req: 95, icon: '📈', education: 90, field: 'finance' }
+];
+
+// Skills with sub-skills
+const SKILLS = {
+    cooking: { name: 'Cooking', icon: '👨‍🍳', color: '#f97316', activities: ['cook', 'work_chef'] },
+    gaming: { name: 'Gaming', icon: '🎮', color: '#8b5cf6', activities: ['game', 'stream'] },
+    sports: { name: 'Athletics', icon: '⚽', color: '#22c55e', activities: ['exercise', 'gym', 'sports'] },
+    music: { name: 'Music', icon: '🎵', color: '#ec4899', activities: ['practice_music', 'perform'] },
+    art: { name: 'Art', icon: '🎨', color: '#f59e0b', activities: ['paint', 'sculpt'] },
+    writing: { name: 'Writing', icon: '✍️', color: '#3b82f6', activities: ['write', 'blog'] },
+    charisma: { name: 'Charisma', icon: '💬', color: '#a855f7', activities: ['socialize', 'flirt', 'speech'] },
+    intelligence: { name: 'Intelligence', icon: '🧠', color: '#06b6d4', activities: ['study', 'research'] },
+    crafting: { name: 'Crafting', icon: '🔨', color: '#78716c', activities: ['craft', 'build'] },
+    math: { name: 'Mathematics', icon: '🔢', color: '#6366f1', activities: ['study', 'research'] }
+};
+
+// Technology Tree System
+const TECHNOLOGIES = {
+    basic_computing: { id: 'basic_computing', name: 'Basic Computing', icon: '💻', category: 'Computing', cost: 0, req: { intelligence: 10 }, desc: 'Learn to use computers', unlocks: ['programming', 'web_design'] },
+    programming: { id: 'programming', name: 'Programming', icon: '⌨️', category: 'Computing', cost: 500, req: { intelligence: 25, basic_computing: true }, desc: 'Write code', unlocks: ['ai_development', 'cybersecurity'] },
+    web_design: { id: 'web_design', name: 'Web Design', icon: '🌐', category: 'Computing', cost: 300, req: { intelligence: 20, art: 15, basic_computing: true }, desc: 'Create websites', unlocks: [] },
+    ai_development: { id: 'ai_development', name: 'AI Development', icon: '🤖', category: 'Computing', cost: 5000, req: { intelligence: 60, programming: true }, desc: 'Create AI', unlocks: [] },
+    cybersecurity: { id: 'cybersecurity', name: 'Cybersecurity', icon: '🔒', category: 'Computing', cost: 3000, req: { intelligence: 50, programming: true }, desc: 'Protect systems', unlocks: [] },
+    basic_biology: { id: 'basic_biology', name: 'Basic Biology', icon: '🧬', category: 'Biology', cost: 200, req: { intelligence: 15 }, desc: 'Study life', unlocks: ['medicine', 'genetics'] },
+    medicine: { id: 'medicine', name: 'Medicine', icon: '⚕️', category: 'Biology', cost: 2000, req: { intelligence: 40, basic_biology: true }, desc: 'Heal the sick', unlocks: [] },
+    genetics: { id: 'genetics', name: 'Genetics', icon: '🧪', category: 'Biology', cost: 3000, req: { intelligence: 50, basic_biology: true }, desc: 'Modify DNA', unlocks: [] },
+    basic_physics: { id: 'basic_physics', name: 'Basic Physics', icon: '⚡', category: 'Physics', cost: 300, req: { intelligence: 20 }, desc: 'Understand universe', unlocks: ['engineering', 'nuclear_physics'] },
+    engineering: { id: 'engineering', name: 'Engineering', icon: '⚙️', category: 'Physics', cost: 1000, req: { intelligence: 35, basic_physics: true, crafting: 20 }, desc: 'Build machines', unlocks: [] },
+    nuclear_physics: { id: 'nuclear_physics', name: 'Nuclear Physics', icon: '☢️', category: 'Physics', cost: 5000, req: { intelligence: 60, basic_physics: true }, desc: 'Nuclear power', unlocks: [] },
+    digital_art: { id: 'digital_art', name: 'Digital Art', icon: '🎨', category: 'Arts', cost: 500, req: { art: 20 }, desc: 'Digital masterpieces', unlocks: [] },
+    music_production: { id: 'music_production', name: 'Music Production', icon: '🎵', category: 'Arts', cost: 800, req: { music: 25 }, desc: 'Produce music', unlocks: [] },
+    marketing: { id: 'marketing', name: 'Marketing', icon: '📈', category: 'Business', cost: 600, req: { charisma: 25 }, desc: 'Sell anything', unlocks: [] },
+    finance: { id: 'finance', name: 'Finance', icon: '💰', category: 'Business', cost: 1000, req: { intelligence: 30 }, desc: 'Manage money', unlocks: [] },
+    entrepreneurship: { id: 'entrepreneurship', name: 'Entrepreneurship', icon: '🚀', category: 'Business', cost: 2000, req: { charisma: 30, intelligence: 30 }, desc: 'Build empire', unlocks: [] }
+};
+
+// Shop Items - COMPREHENSIVE
+const SHOP_ITEMS = [
+    // Housing
+    { id: 'studio', name: 'Studio Apartment', emoji: '🏢', price: 0, type: 'housing', monthly: 400, desc: 'Basic living' },
+    { id: 'apartment', name: '1BR Apartment', emoji: '🏠', price: 0, type: 'housing', monthly: 800, desc: 'Comfortable space' },
+    { id: 'condo', name: 'Luxury Condo', emoji: '🏘️', price: 300000, type: 'housing', monthly: 300, desc: 'City living' },
+    { id: 'house', name: 'Family Home', emoji: '🏡', price: 500000, type: 'housing', monthly: 200, desc: 'Suburban life' },
+    { id: 'mansion', name: 'Mega Mansion', emoji: '🏰', price: 2000000, type: 'housing', monthly: 1000, desc: 'Luxury estate' },
+    { id: 'penthouse', name: 'Penthouse Suite', emoji: '🌆', price: 5000000, type: 'housing', monthly: 2000, desc: 'Sky high' },
+    { id: 'compound', name: 'Private Compound', emoji: '🏝️', price: 20000000, type: 'housing', monthly: 5000, desc: 'Ultimate privacy' },
+    { id: 'castle', name: 'Castle Estate', emoji: '🏛️', price: 100000000, type: 'housing', monthly: 10000, desc: 'Royal living' },
+    
+    // Vehicles
+    { id: 'bike', name: 'Bicycle', emoji: '🚲', price: 200, type: 'vehicles', desc: 'Eco transport' },
+    { id: 'scooter', name: 'Motor Scooter', emoji: '🛵', price: 1500, type: 'vehicles', desc: 'City commute' },
+    { id: 'car_used', name: 'Used Car', emoji: '🚗', price: 5000, type: 'vehicles', desc: 'Basic transport' },
+    { id: 'car_new', name: 'New Car', emoji: '🚙', price: 30000, type: 'vehicles', desc: 'Reliable ride' },
+    { id: 'car_sports', name: 'Sports Car', emoji: '🏎️', price: 150000, type: 'vehicles', desc: 'Speed demon' },
+    { id: 'suv_luxury', name: 'Luxury SUV', emoji: '🚘', price: 80000, type: 'vehicles', desc: 'Family comfort' },
+    { id: 'motorcycle', name: 'Motorcycle', emoji: '🏍️', price: 12000, type: 'vehicles', desc: 'Two wheels' },
+    { id: 'rv', name: 'RV Camper', emoji: '🚐', price: 60000, type: 'vehicles', desc: 'Road trips' },
+    { id: 'yacht_small', name: 'Small Yacht', emoji: '🛥️', price: 500000, type: 'vehicles', desc: 'Sea adventures' },
+    { id: 'yacht_mega', name: 'Mega Yacht', emoji: '🚢', price: 5000000, type: 'vehicles', desc: 'Ocean luxury' },
+    { id: 'helicopter', name: 'Helicopter', emoji: '🚁', price: 2000000, type: 'vehicles', desc: 'Air travel' },
+    { id: 'jet', name: 'Private Jet', emoji: '✈️', price: 15000000, type: 'vehicles', desc: 'Fly anywhere' },
+    { id: 'spaceship', name: 'Space Ship', emoji: '🚀', price: 500000000, type: 'vehicles', desc: 'To the stars!' },
+    
+    // Tech
+    { id: 'phone', name: 'Smartphone', emoji: '📱', price: 1000, type: 'items', desc: 'Stay connected' },
+    { id: 'laptop', name: 'Laptop', emoji: '💻', price: 1500, type: 'items', desc: 'Work anywhere' },
+    { id: 'desktop', name: 'Gaming PC', emoji: '🖥️', price: 3000, type: 'items', desc: 'High performance' },
+    { id: 'console', name: 'Game Console', emoji: '🎮', price: 500, type: 'items', desc: 'Entertainment' },
+    { id: 'vr', name: 'VR Headset', emoji: '🥽', price: 800, type: 'items', desc: 'Virtual reality' },
+    { id: 'drone', name: 'Drone', emoji: '🚁', price: 1200, type: 'items', desc: 'Aerial views' },
+    { id: 'robot', name: 'Home Robot', emoji: '🤖', price: 5000, type: 'items', desc: 'AI assistant' },
+    
+    // Gifts & Romance
+    { id: 'flowers', name: 'Flowers', emoji: '💐', price: 50, type: 'items', desc: 'Romantic' },
+    { id: 'chocolate', name: 'Chocolates', emoji: '🍫', price: 30, type: 'items', desc: 'Sweet gift' },
+    { id: 'jewelry', name: 'Jewelry', emoji: '💎', price: 2000, type: 'items', desc: 'Sparkly' },
+    { id: 'ring', name: 'Engagement Ring', emoji: '💍', price: 5000, type: 'items', desc: 'For proposals' },
+    { id: 'perfume', name: 'Perfume', emoji: '🧴', price: 150, type: 'items', desc: 'Smell nice' },
+    { id: 'watch', name: 'Luxury Watch', emoji: '⌚', price: 10000, type: 'items', desc: 'Status symbol' },
+    { id: 'art_piece', name: 'Art Piece', emoji: '🖼️', price: 50000, type: 'items', desc: 'Collector item' },
+    
+    // Pets
+    { id: 'goldfish', name: 'Goldfish', emoji: '🐠', price: 20, type: 'pets', desc: 'Low maintenance' },
+    { id: 'hamster', name: 'Hamster', emoji: '🐹', price: 50, type: 'pets', desc: 'Cute rodent' },
+    { id: 'parrot', name: 'Parrot', emoji: '🦜', price: 300, type: 'pets', desc: 'Talkative' },
+    { id: 'cat', name: 'Cat', emoji: '🐈', price: 500, type: 'pets', desc: 'Independent' },
+    { id: 'dog', name: 'Dog', emoji: '🐕', price: 800, type: 'pets', desc: 'Best friend' },
+    { id: 'snake', name: 'Snake', emoji: '🐍', price: 400, type: 'pets', desc: 'Exotic' },
+    { id: 'lizard', name: 'Lizard', emoji: '🦎', price: 350, type: 'pets', desc: 'Reptile' },
+    { id: 'spider', name: 'Tarantula', emoji: '🕷️', price: 200, type: 'pets', desc: 'Creepy' },
+    { id: 'rabbit', name: 'Rabbit', emoji: '🐇', price: 150, type: 'pets', desc: 'Fluffy' },
+    { id: 'horse', name: 'Horse', emoji: '🐴', price: 10000, type: 'pets', desc: 'Majestic' },
+    { id: 'monkey', name: 'Monkey', emoji: '🐒', price: 25000, type: 'pets', desc: 'Smart' },
+    { id: 'tiger', name: 'Tiger', emoji: '🐅', price: 100000, type: 'pets', desc: 'Dangerous' },
+    { id: 'elephant', name: 'Elephant', emoji: '🐘', price: 500000, type: 'pets', desc: 'Gentle giant' },
+    { id: 'dragon', name: 'Pet Dragon', emoji: '🐉', price: 100000000, type: 'pets', desc: 'Legendary!' },
+    
+    // Luxury
+    { id: 'wine', name: 'Fine Wine', emoji: '🍷', price: 500, type: 'luxury', desc: 'Aged well' },
+    { id: 'cigar', name: 'Cuban Cigars', emoji: '🚬', price: 300, type: 'luxury', desc: 'Premium smoke' },
+    { id: 'suit', name: 'Designer Suit', emoji: '👔', price: 5000, type: 'luxury', desc: 'Sharp dressed' },
+    { id: 'dress', name: 'Haute Couture', emoji: '👗', price: 20000, type: 'luxury', desc: 'Fashion' },
+    { id: 'island', name: 'Private Island', emoji: '🏝️', price: 100000000, type: 'luxury', desc: 'Paradise' },
+    { id: 'museum', name: 'Private Museum', emoji: '🏛️', price: 50000000, type: 'luxury', desc: 'Art collection' },
+    { id: 'stadium', name: 'Sports Stadium', emoji: '🏟️', price: 200000000, type: 'luxury', desc: 'Naming rights' },
+    
+    // Business
+    { id: 'food_truck', name: 'Food Truck', emoji: '🚚', price: 25000, type: 'business', income: 500, desc: 'Mobile kitchen' },
+    { id: 'cafe', name: 'Coffee Shop', emoji: '☕', price: 100000, type: 'business', income: 1500, desc: 'Morning rush' },
+    { id: 'restaurant', name: 'Restaurant', emoji: '🍽️', price: 250000, type: 'business', income: 3000, desc: 'Fine dining' },
+    { id: 'gym_business', name: 'Gym Chain', emoji: '💪', price: 500000, type: 'business', income: 5000, desc: 'Fitness empire' },
+    { id: 'tech_startup', name: 'Tech Startup', emoji: '💡', price: 1000000, type: 'business', income: 10000, desc: 'Disruptor' },
+    { id: 'factory', name: 'Factory', emoji: '🏭', price: 2000000, type: 'business', income: 15000, desc: 'Manufacturing' },
+    { id: 'airline', name: 'Airline', emoji: '✈️', price: 10000000, type: 'business', income: 50000, desc: 'Sky business' },
+    { id: 'bank', name: 'Bank', emoji: '🏦', price: 50000000, type: 'business', income: 200000, desc: 'Money maker' }
+];
+
+// Crimes
+const CRIMES = [
+    { id: 'jaywalk', name: 'Jaywalking', emoji: '🚶', reward: 0, risk: 0.01, jail: 1, fine: 50, desc: 'Almost legal' },
+    { id: 'litter', name: 'Littering', emoji: '🗑️', reward: 0, risk: 0.05, jail: 2, fine: 100, desc: 'Bad citizen' },
+    { id: 'speeding', name: 'Speeding', emoji: '🚗', reward: 0, risk: 0.1, jail: 5, fine: 300, desc: 'Too fast' },
+    { id: 'pickpocket', name: 'Pickpocket', emoji: '👛', reward: 50, risk: 0.15, jail: 10, fine: 0, desc: 'Quick fingers' },
+    { id: 'shoplift', name: 'Shoplift', emoji: '🛍️', reward: 100, risk: 0.2, jail: 20, fine: 200, desc: 'Five finger discount' },
+    { id: 'burglary', name: 'Burglary', emoji: '🏠', reward: 1000, risk: 0.35, jail: 60, fine: 1000, desc: 'B&E' },
+    { id: 'robbery', name: 'Robbery', emoji: '🔫', reward: 5000, risk: 0.45, jail: 120, fine: 0, desc: 'Armed theft' },
+    { id: 'fraud', name: 'Fraud', emoji: '💳', reward: 10000, risk: 0.4, jail: 90, fine: 5000, desc: 'White collar' },
+    { id: 'hacking', name: 'Cyber Crime', emoji: '💻', reward: 25000, risk: 0.5, jail: 100, fine: 10000, desc: 'Digital theft' },
+    { id: 'embezzle', name: 'Embezzlement', emoji: '📊', reward: 100000, risk: 0.55, jail: 150, fine: 50000, desc: 'Corporate theft' },
+    { id: 'heist', name: 'Bank Heist', emoji: '🏦', reward: 500000, risk: 0.7, jail: 300, fine: 0, desc: 'Ocean\'s Eleven' },
+    { id: 'casino_cheat', name: 'Casino Cheat', emoji: '🎰', reward: 100000, risk: 0.6, jail: 180, fine: 20000, desc: 'Card counting' }
+];
+
+// Life Events
+const LIFE_EVENTS = [
+    { type: 'good', text: 'Found $20 on the street!', effect: 'money', amount: 20, emoji: '💵' },
+    { type: 'good', text: 'Won a small lottery!', effect: 'money', amount: 500, emoji: '🎰' },
+    { type: 'good', text: 'Got a raise!', effect: 'money', amount: 1000, emoji: '💰' },
+    { type: 'good', text: 'Inheritance from distant relative!', effect: 'money', amount: 10000, emoji: '🏛️' },
+    { type: 'good', text: 'Stock investment paid off!', effect: 'money', amount: 5000, emoji: '📈' },
+    { type: 'good', text: 'Discovered a new talent!', effect: 'skill', amount: 10, emoji: '🌟' },
+    { type: 'good', text: 'Made a new best friend!', effect: 'happiness', amount: 15, emoji: '🤝' },
+    { type: 'good', text: 'Perfect day at the beach!', effect: 'happiness', amount: 20, emoji: '🏖️' },
+    { type: 'good', text: 'Learned something fascinating!', effect: 'smarts', amount: 5, emoji: '🧠' },
+    { type: 'good', text: 'Spontaneous adventure!', effect: 'happiness', amount: 25, emoji: '🎒' },
+    { type: 'bad', text: 'Got a parking ticket!', effect: 'money', amount: -100, emoji: '🎫' },
+    { type: 'bad', text: 'Phone screen cracked!', effect: 'money', amount: -300, emoji: '📱' },
+    { type: 'bad', text: 'Car needs repairs!', effect: 'money', amount: -1500, emoji: '🔧' },
+    { type: 'bad', text: 'Robbed at knifepoint!', effect: 'money', amount: -500, emoji: '🔪' },
+    { type: 'bad', text: 'Bad investment!', effect: 'money', amount: -10000, emoji: '📉' },
+    { type: 'bad', text: 'Fell down stairs!', effect: 'health', amount: -15, emoji: '🤕' },
+    { type: 'bad', text: 'Food poisoning!', effect: 'health', amount: -25, emoji: '🤢' },
+    { type: 'bad', text: 'Family drama!', effect: 'happiness', amount: -20, emoji: '😤' },
+    { type: 'bad', text: 'Broke up with partner!', effect: 'happiness', amount: -30, emoji: '💔' },
+    { type: 'bad', text: 'Identity stolen!', effect: 'money', amount: -5000, emoji: '🕵️' }
+];
+
+// Diseases
+const DISEASES = [
+    { name: 'Cold', severity: 1, health: -5, happiness: -5, duration: 10, cost: 50, emoji: '🤧' },
+    { name: 'Flu', severity: 2, health: -15, happiness: -10, duration: 20, cost: 150, emoji: '🤒' },
+    { name: 'Food Poisoning', severity: 2, health: -20, happiness: -15, duration: 15, cost: 200, emoji: '🤢' },
+    { name: 'Depression', severity: 3, health: -5, happiness: -30, duration: 60, cost: 500, emoji: '😔' },
+    { name: 'Anxiety', severity: 2, happiness: -20, duration: 40, cost: 400, emoji: '😰' },
+    { name: 'Back Pain', severity: 2, health: -10, happiness: -10, duration: 30, cost: 300, emoji: '😣' },
+    { name: 'Pneumonia', severity: 4, health: -30, happiness: -20, duration: 40, cost: 1000, emoji: '🫁' },
+    { name: 'Diabetes', severity: 3, health: -15, happiness: -10, duration: -1, cost: 2000, emoji: '🩺' },
+    { name: 'Heart Disease', severity: 5, health: -40, happiness: -20, duration: -1, cost: 5000, emoji: '❤️' },
+    { name: 'Cancer', severity: 5, health: -50, happiness: -30, duration: -1, cost: 50000, emoji: '🎗️' },
+    { name: 'Addiction', severity: 3, health: -10, happiness: -25, duration: 100, cost: 3000, emoji: '💊' },
+    { name: 'Insomnia', severity: 2, health: -10, happiness: -15, duration: 30, cost: 250, emoji: '😴' }
+];
+
+// Person Class - MEGA COMPREHENSIVE
+class Person {
+    constructor(data = {}) {
+        // Identity
+        this.id = data.id || Math.random().toString(36).substr(2, 9);
+        this.firstName = data.firstName || this.randomFirstName();
+        this.lastName = data.lastName || this.randomLastName();
+        this.gender = data.gender || (Math.random() > 0.5 ? 'male' : 'female');
+        this.age = data.age ?? 0;
+        this.birthMonth = data.birthMonth ?? Math.floor(Math.random() * 12) + 1;
+        this.birthDay = data.birthDay ?? Math.floor(Math.random() * 28) + 1;
+        
+        // Life Status
+        this.dead = data.dead || false;
+        this.causeOfDeath = data.causeOfDeath || null;
+        this.inPrison = data.inPrison || false;
+        this.prisonTime = data.prisonTime || 0;
+        this.prisonHistory = data.prisonHistory || [];
+        
+        // Core Stats
+        this.health = data.health ?? (90 + Math.random() * 10);
+        this.happiness = data.happiness ?? (50 + Math.random() * 30);
+        this.smarts = data.smarts ?? (30 + Math.random() * 40);
+        this.looks = data.looks ?? (40 + Math.random() * 40);
+        this.fame = data.fame || 0;
+        this.energy = data.energy ?? 100;
+        this.stress = data.stress || 0;
+        
+        // Skills
+        this.skills = {};
+        Object.keys(SKILLS).forEach(key => {
+            this.skills[key] = data.skills?.[key] ?? Math.random() * 15;
+        });
+        
+        // Education
+        this.education = data.education || 0;
+        this.degree = data.degree || null;
+        this.studentLoan = data.studentLoan || 0;
+        
+        // Career
+        this.money = data.money ?? (this.age === 0 ? 0 : 500);
+        this.job = data.job || JOBS[0];
+        this.careerExperience = data.careerExperience || {};
+        this.unemploymentMonths = data.unemploymentMonths || 0;
+        
+        // Business
+        this.businesses = data.businesses || [];
+        this.investments = data.investments || [];
+        
+        // Housing
+        this.house = data.house || 'studio';
+        this.vehicles = data.vehicles || [];
+        
+        // Relationships
+        this.married = data.married || false;
+        this.spouse = data.spouse || null;
+        this.children = data.children || [];
+        this.parents = data.parents || [];
+        this.relationships = data.relationships || {};
+        this.dating = data.dating || null;
+        
+        // Life Events
+        this.lifeEvents = data.lifeEvents || [];
+        this.achievements = data.achievements || [];
+        this.bucketList = data.bucketList || [];
+        
+        // Health
+        this.diseases = data.diseases || [];
+        this.mentalHealth = data.mentalHealth || 80;
+        this.therapySessions = data.therapySessions || 0;
+        this.addictions = data.addictions || [];
+        
+        // Legal
+        this.criminalRecord = data.criminalRecord || [];
+        this.wantedLevel = data.wantedLevel || 0;
+        this.fines = data.fines || 0;
+        
+        // Possessions
+        this.inventory = data.inventory || {};
+        this.pets = data.pets || [];
+        
+        // Technologies
+        this.unlockedTechs = data.unlockedTechs || [];
+        
+        // Position
+        const locKeys = Object.keys(LOCATIONS);
+        this.location = data.location || locKeys[Math.floor(Math.random() * locKeys.length)];
+        this.color = data.color || `hsl(${Math.random() * 360}, 75%, 65%)`;
+        this.emoji = data.emoji || this.getEmoji();
+        
+        // Preferences
+        this.favoriteColor = data.favoriteColor || this.randomColor();
+        this.favoriteFood = data.favoriteFood || this.randomFood();
+        this.sexuality = data.sexuality || (Math.random() > 0.9 ? 'gay' : Math.random() > 0.9 ? 'lesbian' : 'straight');
+        this.politicalViews = data.politicalViews || this.randomPolitical();
+        this.religion = data.religion || this.randomReligion();
+    }
+    
+    randomFirstName() {
+        const names = this.gender === 'female' 
+            ? ['Emma','Olivia','Ava','Sophia','Mia','Charlotte','Amelia','Evelyn','Abigail','Harper','Emily','Elizabeth','Mila','Ella','Avery']
+            : ['Liam','Noah','Oliver','Elijah','James','William','Benjamin','Lucas','Henry','Alexander','Mason','Michael','Ethan','Daniel','Jacob'];
+        return names[Math.floor(Math.random() * names.length)];
+    }
+    
+    randomLastName() {
+        const names = ['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez','Hernandez','Lopez','Gonzalez','Wilson','Anderson'];
+        return names[Math.floor(Math.random() * names.length)];
+    }
+    
+    randomColor() { return ['red','blue','green','yellow','purple','pink','orange'][Math.floor(Math.random() * 7)]; }
+    randomFood() { return ['pizza','sushi','tacos','pasta','burgers','curry','steak'][Math.floor(Math.random() * 7)]; }
+    randomPolitical() { return ['liberal','conservative','moderate','libertarian','socialist'][Math.floor(Math.random() * 5)]; }
+    randomReligion() { return ['christian','muslim','jewish','hindu','buddhist','atheist','agnostic'][Math.floor(Math.random() * 7)]; }
+    
+    get name() { return `${this.firstName} ${this.lastName}`; }
+    
+    getEmoji() {
+        if (this.dead) return '💀';
+        if (this.inPrison) return '⛓️';
+        if (this.diseases.some(d => d.severity >= 4)) return '🏥';
+        if (this.diseases.length > 0) return '🤒';
+        if (this.age < 2) return '👶';
+        if (this.age < 5) return '🧒';
+        if (this.age < 13) return '👦';
+        if (this.age < 20) return this.gender === 'female' ? '👧' : '👦';
+        if (this.age < 60) return this.gender === 'female' ? '👩' : '👨';
+        return this.gender === 'female' ? '👵' : '👴';
+    }
+    
+    getStage() {
+        if (this.age < 2) return 'infant';
+        if (this.age < 5) return 'toddler';
+        if (this.age < 13) return 'child';
+        if (this.age < 18) return 'teen';
+        if (this.age < 25) return 'young_adult';
+        if (this.age < 40) return 'adult';
+        if (this.age < 60) return 'middle_aged';
+        if (this.age < 80) return 'senior';
+        return 'elderly';
+    }
+    
+    canDoAction(action) {
+        if (this.dead) return false;
+        if (this.inPrison) return ['rest','meditate','read','exercise_prison'].includes(action);
+        if (this.diseases.some(d => d.severity >= 3) && !['rest','meditate','therapy','hospital'].includes(action)) return false;
+        
+        const costs = {
+            study: { energy: 15, age: this.age < 25 },
+            work: { energy: 25, hasJob: this.job.id !== 'unemployed' && this.job.id !== 'student' },
+            exercise: { energy: 20 },
+            gym: { energy: 30, money: 30 },
+            socialize: { energy: 15 },
+            party: { energy: 40, money: 80, age: this.age >= 18 },
+            date: { energy: 25, money: 100, age: this.age >= 16, single: !this.married && !this.dating },
+            network: { energy: 20, money: 50 },
+            therapy: { money: 150 },
+            meditate: { energy: 5 },
+            read: { energy: 10 },
+            cook: { energy: 15 },
+            paint: { energy: 20, age: this.age >= 10 },
+            write: { energy: 15 },
+            music: { energy: 20 },
+            craft: { energy: 25, money: 20 },
+            game: { energy: 10 },
+            code: { energy: 25 },
+            gamble: { money: 100, age: this.age >= 21 },
+            invest: { money: 1000 },
+            crypto: { money: 500 },
+            hack: { energy: 30 },
+            vacation: { money: 3000, energy: 20 },
+            propose: { money: 5000, hasRing: this.inventory['ring'] > 0, inRelationship: this.dating }
+        };
+        
+        const cost = costs[action];
+        if (!cost) return this.energy >= 5;
+        
+        if (cost.energy && this.energy < cost.energy) return false;
+        if (cost.money && this.money < cost.money) return false;
+        if (cost.age !== undefined && !cost.age) return false;
+        if (cost.hasJob !== undefined && !cost.hasJob) return false;
+        if (cost.single !== undefined && !cost.single) return false;
+        if (cost.hasRing !== undefined && !cost.hasRing) return false;
+        if (cost.inRelationship !== undefined && !cost.inRelationship) return false;
+        
+        return true;
+    }
+    
+    doAction(action, params = {}) {
+        if (!this.canDoAction(action)) return false;
+        
+        const actions = {
+            study: () => {
+                this.energy -= 15;
+                this.smarts = Math.min(100, this.smarts + 4);
+                this.education = Math.min(100, this.education + 3);
+                this.stress += 5;
+                this.skills.intelligence += 2;
+                if (this.education >= 100 && !this.degree) {
+                    this.degree = 'Bachelor\'s';
+                    return 'Earned a Bachelor\'s Degree! 🎓';
+                }
+                return 'Studied hard! 📚';
+            },
+            work: () => {
+                const earned = Math.floor(this.job.salary / 10);
+                this.money += earned;
+                this.energy -= 25;
+                this.stress += 10;
+                this.careerExperience[this.job.field] = (this.careerExperience[this.job.field] || 0) + 5;
+                
+                // Skill gain based on job
+                if (this.job.field === 'tech') this.skills.intelligence += 1;
+                if (this.job.field === 'creative') this.skills.art += 1;
+                if (this.job.field === 'sports') this.skills.sports += 1;
+                if (this.job.field === 'food') this.skills.cooking += 1;
+                
+                return `Worked and earned $${earned}! 💼`;
+            },
+            exercise: () => {
+                this.energy -= 20;
+                this.health = Math.min(100, this.health + 8);
+                this.looks = Math.min(100, this.looks + 1);
+                this.skills.sports += 2;
+                this.stress -= 5;
+                return 'Great workout! 💪';
+            },
+            gym: () => {
+                this.money -= 30;
+                this.energy -= 30;
+                this.health = Math.min(100, this.health + 12);
+                this.looks = Math.min(100, this.looks + 2);
+                this.skills.sports += 3;
+                this.stress -= 8;
+                return 'Intense gym session! 💪';
+            },
+            socialize: () => {
+                this.energy -= 15;
+                this.happiness = Math.min(100, this.happiness + 10);
+                this.skills.charisma += 1;
+                this.stress -= 5;
+                return 'Had fun with friends! 💬';
+            },
+            party: () => {
+                this.money -= 80;
+                this.energy -= 40;
+                this.happiness = Math.min(100, this.happiness + 20);
+                this.skills.charisma += 2;
+                this.skills.music += 1;
+                this.stress -= 10;
+                if (Math.random() < 0.15) {
+                    this.contractDisease('hangover');
+                    return 'Partied too hard! Hungover 😵';
+                }
+                return 'Epic party! 🎉';
+            },
+            date: () => {
+                this.money -= 100;
+                this.energy -= 25;
+                this.happiness = Math.min(100, this.happiness + 15);
+                this.skills.charisma += 2;
+                return 'Romantic date! 💕';
+            },
+            propose: () => {
+                this.money -= 5000;
+                this.inventory['ring']--;
+                this.married = true;
+                this.spouse = this.dating;
+                this.dating = null;
+                this.happiness = 100;
+                return 'They said YES! 💒';
+            },
+            rest: () => {
+                this.energy = Math.min(100, this.energy + 50);
+                this.health = Math.min(100, this.health + 5);
+                this.stress -= 10;
+                return 'Rested well! 😴';
+            },
+            meditate: () => {
+                this.energy += 10;
+                this.happiness = Math.min(100, this.happiness + 12);
+                this.mentalHealth = Math.min(100, this.mentalHealth + 10);
+                this.stress = Math.max(0, this.stress - 15);
+                return 'Found inner peace! 🧘';
+            },
+            therapy: () => {
+                this.money -= 150;
+                this.happiness = Math.min(100, this.happiness + 25);
+                this.mentalHealth = Math.min(100, this.mentalHealth + 20);
+                this.stress = Math.max(0, this.stress - 20);
+                this.therapySessions++;
+                return 'Therapy helped! 🧠';
+            },
+            read: () => {
+                this.energy -= 10;
+                this.smarts = Math.min(100, this.smarts + 2);
+                this.skills.writing += 1;
+                this.stress -= 3;
+                return 'Read a great book! 📖';
+            },
+            cook: () => {
+                this.energy -= 15;
+                this.skills.cooking += 2;
+                this.health = Math.min(100, this.health + 5);
+                this.happiness += 3;
+                return 'Cooked a delicious meal! 👨‍🍳';
+            },
+            game: () => {
+                this.energy -= 10;
+                this.skills.gaming += 3;
+                this.happiness = Math.min(100, this.happiness + 8);
+                this.stress -= 5;
+                return 'Gaming session! 🎮';
+            },
+            gamble: () => {
+                this.money -= 100;
+                if (Math.random() < 0.35) {
+                    const win = Math.floor(Math.random() * 800) + 200;
+                    this.money += win;
+                    return `Won $${win}! 🎰`;
+                }
+                return 'Lost the bet... 😢';
+            },
+            invest: () => {
+                this.money -= 1000;
+                const success = Math.random() > 0.3;
+                if (success) {
+                    const return_rate = 1.5;
+                    const profit = Math.floor(1000 * return_rate);
+                    this.money += profit;
+                    return `Investment paid off! +$${profit - 1000} 📈`;
+                }
+                return 'Market crashed! Lost $1000 📉';
+            },
+            crypto: () => {
+                this.money -= 500;
+                const success = Math.random() > 0.6;
+                if (success) {
+                    const profit = Math.floor(500 * 3);
+                    this.money += profit;
+                    return `Crypto mooned! +$${profit - 500} 🚀`;
+                }
+                return 'Rug pull! Lost $500 💀';
+            },
+            code: () => {
+                this.energy -= 25;
+                this.skills.intelligence += 3;
+                this.skills.writing += 1;
+                const earned = 200 + Math.floor(Math.random() * 300);
+                this.money += earned;
+                return `Coded and earned $${earned}! 💻`;
+            },
+            hack: () => {
+                this.energy -= 30;
+                const success = Math.random() > 0.5;
+                if (success) {
+                    const reward = 5000;
+                    this.money += reward;
+                    this.criminalRecord.push({ crime: 'Hacking', year: gameYear });
+                    return `Hacked successfully! +$${reward} 👨‍💻`;
+                } else {
+                    this.inPrison = true;
+                    this.prisonTime = 60;
+                    return 'Caught hacking! 60 days in prison 🔒';
+                }
+            },
+            paint: () => {
+                this.energy -= 20;
+                this.skills.art += 3;
+                this.happiness += 10;
+                if (Math.random() < 0.1) {
+                    const sale = Math.floor(Math.random() * 1000) + 500;
+                    this.money += sale;
+                    return `Sold artwork for $${sale}! 🎨`;
+                }
+                return 'Created beautiful art! 🎨';
+            },
+            write: () => {
+                this.energy -= 15;
+                this.skills.writing += 3;
+                this.happiness += 8;
+                if (Math.random() < 0.05) {
+                    const royalty = Math.floor(Math.random() * 5000) + 1000;
+                    this.money += royalty;
+                    return `Bestseller! +$${royalty} royalties 📚`;
+                }
+                return 'Writing progress! ✍️';
+            },
+            music: () => {
+                this.energy -= 20;
+                this.skills.music += 3;
+                this.happiness += 12;
+                return 'Practice session! 🎵';
+            },
+            craft: () => {
+                this.energy -= 25;
+                this.money -= 20;
+                this.skills.crafting += 3;
+                if (Math.random() < 0.2) {
+                    const sale = Math.floor(Math.random() * 200) + 50;
+                    this.money += sale;
+                    return `Sold craft for $${sale}! 🔨`;
+                }
+                return 'Built something! 🔨';
+            },
+            network: () => {
+                this.energy -= 20;
+                this.money -= 50;
+                this.skills.charisma += 2;
+                this.fame += 2;
+                return 'Met important people! 🤝';
+            },
+            vacation: () => {
+                this.money -= 3000;
+                this.happiness = Math.min(100, this.happiness + 40);
+                this.health = Math.min(100, this.health + 15);
+                this.energy = 100;
+                this.stress = 0;
+                return 'Amazing vacation! ✈️🏖️';
+            }
+        };
+        
+        const result = actions[action]?.();
+        if (result) {
+            this.clampStats();
+            return result;
+        }
+        return false;
+    }
+    
+    contractDisease(diseaseName) {
+        const disease = DISEASES.find(d => d.name.toLowerCase() === diseaseName.toLowerCase()) || 
+                       DISEASES[Math.floor(Math.random() * DISEASES.length)];
+        const instance = { ...disease, startMonth: gameMonth, startYear: gameYear };
+        this.diseases.push(instance);
+        return disease.name;
+    }
+    
+    cureDisease(diseaseName) {
+        const idx = this.diseases.findIndex(d => d.name === diseaseName);
+        if (idx >= 0) {
+            this.diseases.splice(idx, 1);
+            return true;
+        }
+        return false;
+    }
+    
+    clampStats() {
+        this.health = Math.max(0, Math.min(100, this.health));
+        this.happiness = Math.max(0, Math.min(100, this.happiness));
+        this.smarts = Math.max(0, Math.min(100, this.smarts));
+        this.looks = Math.max(0, Math.min(100, this.looks));
+        this.energy = Math.max(0, Math.min(100, this.energy));
+        this.stress = Math.max(0, Math.min(100, this.stress));
+        this.mentalHealth = Math.max(0, Math.min(100, this.mentalHealth));
+        this.fame = Math.max(0, Math.min(100, this.fame));
+        Object.keys(this.skills).forEach(k => {
+            this.skills[k] = Math.max(0, Math.min(100, this.skills[k]));
+        });
+    }
+    
+    toJSON() {
+        return { ...this };
+    }
+}
+
+// Initialize
+async function init() {
+    renderLocations();
+    
+    // Try to load saved game first
+    const loaded = await loadGame();
+    
+    // Only create initial people if no saved data
+    if (!loaded) {
+        createInitialPeople();
+    }
+    
+    updateUI();
+    startGameLoop();
+}
+
+async function loadGame() {
+    try {
+        // Try API first
+        const response = await fetch(`${API_BASE}/load`);
+        const data = await response.json();
+        
+        if (data.success && data.people && data.people.length > 0) {
+            // Restore people from saved data
+            people = data.people.map(p => new Person(p));
+            gameYear = data.gameYear || 1;
+            gameMonth = data.gameMonth || 1;
+            gameDay = data.gameDay || 1;
+            gameTime = data.gameTime || 0;
+            console.log(`Loaded ${people.length} people from server`);
+            return true;
+        }
+    } catch (e) {
+        console.log('Server load failed, trying localStorage');
+    }
+    
+    // Fallback to localStorage
+    const saved = localStorage.getItem('lifeSimMega');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            if (data.people && data.people.length > 0) {
+                people = data.people.map(p => new Person(p));
+                gameYear = data.gameYear || 1;
+                gameMonth = data.gameMonth || 1;
+                gameDay = data.gameDay || 1;
+                gameTime = data.gameTime || 0;
+                console.log(`Loaded ${people.length} people from localStorage`);
+                return true;
+            }
+        } catch (e) {
+            console.error('Failed to parse saved game', e);
+        }
+    }
+    
+    return false;
+}
+
+function createInitialPeople() {
+    // Create families and singles
+    for (let i = 0; i < 5; i++) {
+        people.push(new Person({ age: Math.floor(Math.random() * 35) + 20 }));
+    }
+    // Add some children
+    people.push(new Person({ age: 5 }));
+    people.push(new Person({ age: 12 }));
+    people.push(new Person({ age: 16 }));
+    // Add elderly
+    people.push(new Person({ age: 70 }));
+    people.push(new Person({ age: 82 }));
+}
+
+// Render functions, UI, actions, etc. would continue here...
+// (Truncated for brevity - the actual file continues with all the UI functions)
+
+function renderLocations() {
+    const grid = document.getElementById('location-grid');
+    grid.innerHTML = '';
+    
+    Object.entries(LOCATIONS).forEach(([key, loc]) => {
+        const card = document.createElement('div');
+        card.className = 'location-card';
+        card.dataset.location = key;
+        card.style.borderColor = loc.color;
+        
+        const peopleHere = people.filter(p => p.location === key && !p.dead);
+        
+        card.innerHTML = `
+            <div class="location-header">
+                <div class="location-icon" style="background: ${loc.color}20; color: ${loc.color}">${loc.icon}</div>
+                <div class="location-info">
+                    <h3>${loc.name}</h3>
+                    <span>${peopleHere.length} people • ${loc.desc}</span>
+                </div>
+            </div>
+            <div class="location-people" id="loc-people-${key}"></div>
+        `;
+        
+        // Drag & drop
+        card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('drag-over'); });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            card.classList.remove('drag-over');
+            if (draggedPerson) movePersonTo(draggedPerson, key);
+        });
+        
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.person-token')) return;
+            document.querySelectorAll('.location-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+        });
+        
+        grid.appendChild(card);
+    });
+    
+    updateLocationPeople();
+}
+
+function updateLocationPeople() {
+    Object.keys(LOCATIONS).forEach(key => {
+        const container = document.getElementById(`loc-people-${key}`);
+        if (!container) return;
+        container.innerHTML = '';
+        
+        // Update the people count in the location header
+        const card = container.closest('.location-card');
+        if (card) {
+            const countSpan = card.querySelector('.location-info span');
+            const loc = LOCATIONS[key];
+            const peopleHere = people.filter(p => p.location === key && !p.dead);
+            if (countSpan && loc) {
+                countSpan.textContent = `${peopleHere.length} people • ${loc.desc}`;
+            }
+        }
+        
+        people.filter(p => p.location === key).forEach(person => {
+            const token = document.createElement('div');
+            token.className = 'person-token';
+            token.draggable = true;
+            token.dataset.personId = person.id;
+            token.style.background = person.color + '40';
+            token.style.borderColor = person.color;
+            if (person === selectedPerson) token.classList.add('selected');
+            if (person.dead) token.classList.add('dead');
+            if (person.inPrison) token.classList.add('prison');
+            if (person.married) token.classList.add('married');
+            if (person.diseases.length > 0) token.classList.add('sick');
+            if (person.fame > 60) token.classList.add('famous');
+            token.innerHTML = person.emoji;
+            
+            token.addEventListener('dragstart', () => { draggedPerson = person; token.classList.add('dragging'); });
+            token.addEventListener('dragend', () => { token.classList.remove('dragging'); draggedPerson = null; });
+            token.addEventListener('click', (e) => { e.stopPropagation(); selectPerson(person); });
+            
+            container.appendChild(token);
+        });
+    });
+}
+
+function movePersonTo(person, location) {
+    if (person.inPrison && location !== 'prison') {
+        showNotification(`${person.name} is in prison!`, 'error');
+        return;
+    }
+    person.location = location;
+    updateLocationPeople();
+    if (selectedPerson === person) renderSidebar();
+    showNotification(`${person.name} moved to ${LOCATIONS[location]?.name || location}`, 'success');
+}
+
+function selectPerson(person) {
+    selectedPerson = person;
+    document.querySelectorAll('.person-token').forEach(t => t.classList.remove('selected'));
+    document.querySelector(`.person-token[data-person-id="${person.id}"]`)?.classList.add('selected');
+    
+    // Show mini profile panel
+    const miniPanel = document.getElementById('mini-profile-panel');
+    if (miniPanel) miniPanel.style.display = 'block';
+    
+    updateMiniProfile();
+    renderSidebar();
+}
+
+function updateMiniProfile() {
+    if (!selectedPerson) {
+        const miniPanel = document.getElementById('mini-profile-panel');
+        if (miniPanel) miniPanel.style.display = 'none';
+        return;
+    }
+    
+    const p = selectedPerson;
+    const content = document.getElementById('mini-profile-content');
+    if (!content) return;
+    
+    content.innerHTML = `
+        <div class="mini-profile-header">
+            <div class="mini-avatar" style="background: ${p.color}40; border: 2px solid ${p.color}">${p.emoji}</div>
+            <div class="mini-info">
+                <h4>${p.name}</h4>
+                <p>Age ${p.age} • ${p.job.name}</p>
+            </div>
+        </div>
+        <div class="mini-stats">
+            <div class="mini-stat">
+                <div class="label">Health</div>
+                <div class="val" style="color: ${p.health > 70 ? '#22c55e' : p.health > 30 ? '#f59e0b' : '#ef4444'}">${Math.floor(p.health)}%</div>
+            </div>
+            <div class="mini-stat">
+                <div class="label">Happy</div>
+                <div class="val" style="color: #f59e0b">${Math.floor(p.happiness)}%</div>
+            </div>
+            <div class="mini-stat">
+                <div class="label">Energy</div>
+                <div class="val" style="color: #06b6d4">${Math.floor(p.energy)}%</div>
+            </div>
+            <div class="mini-stat">
+                <div class="label">Money</div>
+                <div class="val" style="color: #22c55e">$${Math.floor(p.money / 1000)}k</div>
+            </div>
+        </div>
+    `;
+}
+
+function switchSidebarTab(tab, element) {
+    currentSidebarTab = tab;
+    document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+    if (element) element.classList.add('active');
+    else {
+        // Find tab button by data attribute
+        const tabBtn = document.querySelector(`.sidebar-tab[data-tab="${tab}"]`);
+        if (tabBtn) tabBtn.classList.add('active');
+    }
+    renderSidebar();
+}
+
+function renderSidebar() {
+    const content = document.getElementById('sidebar-content');
+    const title = document.getElementById('sidebar-title');
+    
+    // Update mini profile visibility
+    const miniPanel = document.getElementById('mini-profile-panel');
+    
+    if (!selectedPerson) {
+        title.textContent = 'Select a Person';
+        content.innerHTML = `
+            <div class="empty-state">
+                <div class="emoji">👆</div>
+                <p>Click on a person to see details</p>
+            </div>
+        `;
+        if (miniPanel) miniPanel.style.display = 'none';
+        return;
+    }
+    
+    title.textContent = selectedPerson.name;
+    if (miniPanel) miniPanel.style.display = 'block';
+    
+    // Route to the appropriate tab renderer
+    switch(currentSidebarTab) {
+        case 'profile':
+            renderProfileTab(content);
+            break;
+        case 'actions':
+            renderActionsTab(content);
+            break;
+        case 'career':
+            renderCareerTab(content);
+            break;
+        case 'skills':
+            renderSkillsTab(content);
+            break;
+        case 'relations':
+            renderRelationsTab(content);
+            break;
+        case 'inventory':
+            renderInventoryTab(content);
+            break;
+        default:
+            renderProfileTab(content);
+    }
+}
+
+function renderProfileTab(content) {
+    const p = selectedPerson;
+    content.innerHTML = `
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="profile-avatar" style="background: ${p.color}30; border-color: ${p.color}">
+                    ${p.emoji}
+                    <div class="status-indicator ${p.diseases.length > 0 ? 'sick' : p.inPrison ? 'prison' : p.stress > 70 ? 'stressed' : 'healthy'}"></div>
+                </div>
+                <div class="profile-info">
+                    <h2>${p.name}</h2>
+                    <p>Age ${p.age} • ${p.job.name} • ${p.getStage().replace('_', ' ')}</p>
+                    <div class="profile-badges">
+                        ${p.married ? '<span class="badge badge-married">💍 Married</span>' : ''}
+                        ${p.degree ? `<span class="badge badge-educated">🎓 ${p.degree}</span>` : ''}
+                        ${p.criminalRecord.length > 0 ? `<span class="badge badge-criminal">⚖️ ${p.criminalRecord.length}</span>` : ''}
+                        ${p.fame > 60 ? '<span class="badge badge-famous">⭐ Famous</span>' : ''}
+                        ${p.money > 100000 ? '<span class="badge badge-rich">💰 Wealthy</span>' : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="font-size: 24px; font-weight: 700; color: #22c55e; margin-bottom: 12px;">$${Math.floor(p.money).toLocaleString()}</div>
+            
+            <div class="stats-grid-2">
+                <div class="stat-item">
+                    <label>Health</label>
+                    <div class="stat-value-row">
+                        <span style="color: ${p.health > 70 ? '#22c55e' : p.health > 30 ? '#f59e0b' : '#ef4444'}">${Math.floor(p.health)}%</span>
+                    </div>
+                    <div class="stat-bar"><div class="stat-bar-fill" style="width: ${p.health}%; background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)"></div></div>
+                </div>
+                <div class="stat-item">
+                    <label>Happiness</label>
+                    <div class="stat-value-row"><span style="color: #f59e0b">${Math.floor(p.happiness)}%</span></div>
+                    <div class="stat-bar"><div class="stat-bar-fill" style="width: ${p.happiness}%; background: linear-gradient(90deg, #ef4444, #fbbf24, #22c55e)"></div></div>
+                </div>
+                <div class="stat-item">
+                    <label>Energy</label>
+                    <div class="stat-value-row"><span style="color: #06b6d4">${Math.floor(p.energy)}%</span></div>
+                    <div class="stat-bar"><div class="stat-bar-fill" style="width: ${p.energy}%; background: #06b6d4"></div></div>
+                </div>
+                <div class="stat-item">
+                    <label>Stress</label>
+                    <div class="stat-value-row"><span style="color: ${p.stress > 70 ? '#ef4444' : '#f59e0b'}">${Math.floor(p.stress)}%</span></div>
+                    <div class="stat-bar"><div class="stat-bar-fill" style="width: ${p.stress}%; background: ${p.stress > 70 ? '#ef4444' : '#f59e0b'}"></div></div>
+                </div>
+                <div class="stat-item">
+                    <label>Smarts</label>
+                    <div class="stat-value-row"><span style="color: #a855f7">${Math.floor(p.smarts)}%</span></div>
+                    <div class="stat-bar"><div class="stat-bar-fill" style="width: ${p.smarts}%; background: #a855f7"></div></div>
+                </div>
+                <div class="stat-item">
+                    <label>Looks</label>
+                    <div class="stat-value-row"><span style="color: #ec4899">${Math.floor(p.looks)}%</span></div>
+                    <div class="stat-bar"><div class="stat-bar-fill" style="width: ${p.looks}%; background: #ec4899"></div></div>
+                </div>
+            </div>
+        </div>
+        
+        ${p.diseases.length > 0 ? `
+        <div class="profile-card" style="border-left: 3px solid #ef4444;">
+            <h4 style="margin-bottom: 12px;">🏥 Health Issues</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${p.diseases.map(d => `
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #1a1a25; border-radius: 8px;">
+                        <span>${d.emoji}</span>
+                        <span style="flex: 1;">${d.name}</span>
+                        <span style="font-size: 11px; color: #94a3b8;">${d.severity >= 4 ? 'Severe' : d.severity >= 2 ? 'Moderate' : 'Mild'}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+    `;
+}
+
+function renderActionsTab(content) {
+    const p = selectedPerson;
+    const allActions = [
+        { id: 'study', icon: '📚', name: 'Study', desc: 'Gain smarts & education' },
+        { id: 'work', icon: '💼', name: 'Work', desc: 'Earn money' },
+        { id: 'exercise', icon: '🏃', name: 'Exercise', desc: 'Health & looks' },
+        { id: 'gym', icon: '💪', name: 'Gym', desc: 'Training ($30)' },
+        { id: 'socialize', icon: '💬', name: 'Socialize', desc: 'Meet people' },
+        { id: 'party', icon: '🎉', name: 'Party', desc: 'Have fun ($80)' },
+        { id: 'date', icon: '💕', name: 'Date', desc: 'Find love ($100)' },
+        { id: 'network', icon: '🤝', name: 'Network', desc: 'Build connections ($50)' },
+        { id: 'rest', icon: '😴', name: 'Rest', desc: 'Restore energy' },
+        { id: 'meditate', icon: '🧘', name: 'Meditate', desc: 'Reduce stress' },
+        { id: 'therapy', icon: '🧠', name: 'Therapy', desc: 'Mental health ($150)' },
+        { id: 'read', icon: '📖', name: 'Read', desc: 'Learn & relax' },
+        { id: 'cook', icon: '👨‍🍳', name: 'Cook', desc: 'Healthy meal' },
+        { id: 'paint', icon: '🎨', name: 'Paint', desc: 'Create art' },
+        { id: 'write', icon: '✍️', name: 'Write', desc: 'Creative writing' },
+        { id: 'music', icon: '🎵', name: 'Music', desc: 'Practice instrument' },
+        { id: 'craft', icon: '🔨', name: 'Craft', desc: 'Build something ($20)' },
+        { id: 'game', icon: '🎮', name: 'Game', desc: 'Fun & skill' },
+        { id: 'code', icon: '⌨️', name: 'Code', desc: 'Build software' },
+        { id: 'gamble', icon: '🎰', name: 'Gamble', desc: 'Risk $100' },
+        { id: 'invest', icon: '📈', name: 'Invest', desc: 'Stock market ($1k)' },
+        { id: 'crypto', icon: '₿', name: 'Crypto', desc: 'Trade crypto ($500)' },
+        { id: 'hack', icon: '👨‍💻', name: 'Hack', desc: 'Cyber crime' },
+        { id: 'vacation', icon: '✈️', name: 'Vacation', desc: 'Getaway ($3k)' }
+    ];
+    
+    content.innerHTML = `
+        <div class="actions-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            ${allActions.map(action => {
+                const canDo = p.canDoAction(action.id);
+                return `
+                    <button class="action-btn" onclick="performAction('${action.id}')" ${!canDo ? 'disabled' : ''}
+                            title="${action.desc}">
+                        <span class="icon">${action.icon}</span>
+                        <span>${action.name}</span>
+                    </button>
+                `;
+            }).join('')}
+        </div>
+        
+        <div class="profile-card" style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px;">📋 Quick Stats</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                <div style="padding: 8px; background: #1a1a25; border-radius: 8px;">
+                    <span style="color: #94a3b8;">Education:</span> ${Math.floor(p.education)}%
+                </div>
+                <div style="padding: 8px; background: #1a1a25; border-radius: 8px;">
+                    <span style="color: #94a3b8;">Fame:</span> ${Math.floor(p.fame)}%
+                </div>
+                <div style="padding: 8px; background: #1a1a25; border-radius: 8px;">
+                    <span style="color: #94a3b8;">Mental Health:</span> ${Math.floor(p.mentalHealth)}%
+                </div>
+                <div style="padding: 8px; background: #1a1a25; border-radius: 8px;">
+                    <span style="color: #94a3b8;">Wanted Level:</span> ${p.wantedLevel > 0 ? '🚨 ' + p.wantedLevel : 'None'}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCareerTab(content) {
+    const p = selectedPerson;
+    const careerFields = [...new Set(JOBS.map(j => j.field))];
+    
+    content.innerHTML = `
+        <div class="profile-card">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                <div>
+                    <h3>${p.job.name}</h3>
+                    <p style="font-size: 12px; color: #94a3b8;">${p.job.field} • $${p.job.salary.toLocaleString()}/mo</p>
+                </div>
+                <div style="font-size: 28px;">${p.job.icon}</div>
+            </div>
+            
+            <div class="stat-bar" style="height: 8px; margin-bottom: 8px;">
+                <div class="stat-bar-fill" style="width: ${Math.min(100, (p.job.salary / 100000) * 100)}%; background: linear-gradient(90deg, #22c55e, #eab308)"></div>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; text-align: center;">Career Progress</p>
+        </div>
+        
+        <div style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">🔄 Job Market</h4>
+            <div class="job-tree">
+                ${JOBS.filter(j => j.id !== 'unemployed' && j.id !== 'student').map(job => {
+                    const hasJob = p.job.id === job.id;
+                    const canApply = p.education >= job.education && p.smarts >= job.req * 0.5;
+                    return `
+                        <div class="job-node ${hasJob ? 'current' : ''} ${canApply ? 'available' : 'locked'}" 
+                             ${canApply && !hasJob ? `onclick="applyForJob('${job.id}')"` : ''}>
+                            <div class="job-icon">${job.icon}</div>
+                            <div class="job-info">
+                                <h4>${job.name}</h4>
+                                <p>Req: ${job.req}% smarts • ${job.education}% edu</p>
+                            </div>
+                            <div class="job-salary">$${job.salary.toLocaleString()}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderSkillsTab(content) {
+    const p = selectedPerson;
+    const categories = [...new Set(Object.values(TECHNOLOGIES).map(t => t.category))];
+    
+    content.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            ${categories.map(cat => {
+                const techs = Object.values(TECHNOLOGIES).filter(t => t.category === cat);
+                return `
+                    <div class="profile-card">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            🔬 ${cat}
+                        </h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${techs.map(tech => {
+                                const unlocked = p.unlockedTechs.includes(tech.id);
+                                const canUnlock = checkTechRequirements(p, tech);
+                                return `
+                                    <div style="padding: 12px; background: ${unlocked ? 'rgba(34,197,94,0.1)' : 'var(--bg-card)'}; 
+                                                border: 1px solid ${unlocked ? '#22c55e' : canUnlock ? 'var(--primary)' : 'var(--border)'}; 
+                                                border-radius: 8px; opacity: ${unlocked || canUnlock ? 1 : 0.6};">
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                            <span style="font-size: 24px;">${tech.icon}</span>
+                                            <div style="flex: 1;">
+                                                <div style="font-weight: 600; font-size: 13px;">${tech.name}</div>
+                                                <div style="font-size: 11px; color: var(--text-muted);">${tech.desc}</div>
+                                            </div>
+                                            ${unlocked ? '<span style="color: #22c55e; font-size: 12px;">✓ Unlocked</span>' : `
+                                                <button class="btn btn-sm" onclick="unlockTechnology('${tech.id}')" 
+                                                        ${!canUnlock ? 'disabled' : ''} style="font-size: 11px; padding: 4px 8px;">
+                                                    💰 $${tech.cost.toLocaleString()}
+                                                </button>
+                                            `}
+                                        </div>
+                                        ${!unlocked ? `
+                                            <div style="font-size: 10px; color: var(--text-muted); padding-top: 8px; border-top: 1px solid var(--border);">
+                                                Req: ${formatTechRequirements(tech.req)}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+function checkTechRequirements(person, tech) {
+    if (person.money < tech.cost) return false;
+    for (const [req, val] of Object.entries(tech.req)) {
+        if (req === 'basic_computing' || req === 'programming' || req === 'basic_biology' || 
+            req === 'basic_physics' || req === 'medicine' || req === 'genetics' || 
+            req === 'engineering' || req === 'nuclear_physics' || req === 'ai_development' ||
+            req === 'cybersecurity' || req === 'digital_art' || req === 'music_production' ||
+            req === 'marketing' || req === 'finance' || req === 'entrepreneurship') {
+            if (!person.unlockedTechs.includes(req)) return false;
+        } else if (person.skills[req] < val && person[req] < val) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function formatTechRequirements(reqs) {
+    return Object.entries(reqs).map(([k, v]) => {
+        if (typeof v === 'boolean') return k.replace(/_/g, ' ');
+        return `${k}: ${v}`;
+    }).join(', ');
+}
+
+function unlockTechnology(techId) {
+    const p = selectedPerson;
+    const tech = TECHNOLOGIES[techId];
+    if (!p || !tech) return;
+    
+    if (p.unlockedTechs.includes(techId)) {
+        showNotification('Already unlocked!', 'error');
+        return;
+    }
+    
+    if (!checkTechRequirements(p, tech)) {
+        showNotification('Requirements not met!', 'error');
+        return;
+    }
+    
+    p.money -= tech.cost;
+    p.unlockedTechs.push(techId);
+    showNotification(`Unlocked ${tech.name}! ${tech.icon}`, 'success');
+    renderSidebar();
+    saveGame();
+}
+
+function renderRelationsTab(content) {
+    const p = selectedPerson;
+    
+    // Find relationships from other people
+    const relations = [];
+    people.forEach(other => {
+        if (other.id === p.id) return;
+        if (p.spouse === other.id) {
+            relations.push({ person: other, type: 'Spouse', emoji: '💍', bar: 100, color: '#ec4899' });
+        } else if (p.dating === other.id) {
+            relations.push({ person: other, type: 'Dating', emoji: '💕', bar: 80, color: '#f472b6' });
+        } else if (p.children.includes(other.id)) {
+            relations.push({ person: other, type: 'Child', emoji: '👶', bar: 95, color: '#22c55e' });
+        } else if (p.parents.includes(other.id)) {
+            relations.push({ person: other, type: 'Parent', emoji: '👨', bar: 90, color: '#3b82f6' });
+        }
+    });
+    
+    content.innerHTML = `
+        ${p.married ? `
+        <div class="profile-card" style="background: linear-gradient(135deg, rgba(236,72,153,0.1), rgba(168,85,247,0.1)); border-color: #ec4899;">
+            <div style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 8px;">💍</div>
+                <h3>Married</h3>
+                <p style="font-size: 12px; color: #94a3b8;">Happily ever after</p>
+            </div>
+        </div>` : p.dating ? `
+        <div class="profile-card" style="background: linear-gradient(135deg, rgba(244,114,182,0.1), rgba(236,72,153,0.1)); border-color: #f472b6;">
+            <div style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 8px;">💕</div>
+                <h3>In a Relationship</h3>
+                <p style="font-size: 12px; color: #94a3b8;">Things are getting serious...</p>
+                <button class="btn" style="margin-top: 12px;" onclick="performAction('propose')" ${!p.canDoAction('propose') ? 'disabled' : ''}>
+                    💍 Propose
+                </button>
+            </div>
+        </div>` : `
+        <div class="profile-card">
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 48px; margin-bottom: 8px;">🐶</div>
+                <h3>Single</h3>
+                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Looking for love?</p>
+                <button class="btn" onclick="performAction('date')" ${!p.canDoAction('date') ? 'disabled' : ''}>
+                    💕 Go on Date
+                </button>
+            </div>
+        </div>`}
+        
+        <div style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">👥 Family & Relations</h4>
+            <div class="relationship-list">
+                ${relations.length > 0 ? relations.map(r => `
+                    <div class="relationship-item">
+                        <div class="relationship-avatar" style="background: ${r.person.color}30;">${r.person.emoji}</div>
+                        <div class="relationship-info">
+                            <h4>${r.person.name}</h4>
+                            <p>${r.emoji} ${r.type} • Age ${r.person.age}</p>
+                        </div>
+                        <div class="relationship-bar">
+                            <div class="relationship-fill" style="width: ${r.bar}%; background: ${r.color}"></div>
+                        </div>
+                    </div>
+                `).join('') : `
+                    <div class="empty-state" style="padding: 20px;">
+                        <p style="font-size: 12px;">No close relationships yet.</p>
+                    </div>
+                `}
+            </div>
+        </div>
+        
+        ${p.pets.length > 0 ? `
+        <div style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">🐾 Pets (${p.pets.length})</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                ${p.pets.map(pet => `
+                    <div style="padding: 8px 12px; background: #1a1a25; border-radius: 8px; display: flex; align-items: center; gap: 6px;">
+                        <span>${pet.emoji}</span>
+                        <span style="font-size: 12px;">${pet.name}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+    `;
+}
+
+function renderInventoryTab(content) {
+    const p = selectedPerson;
+    const invItems = Object.entries(p.inventory);
+    const housing = SHOP_ITEMS.find(i => i.id === p.house);
+    
+    content.innerHTML = `
+        <div class="profile-card">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="font-size: 32px;">${housing?.emoji || '🏠'}</div>
+                <div>
+                    <h4>${housing?.name || 'Studio Apartment'}</h4>
+                    <p style="font-size: 11px; color: #94a3b8;">Home Sweet Home</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">🚗 Vehicles (${p.vehicles.length})</h4>
+            ${p.vehicles.length > 0 ? `
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    ${p.vehicles.map(v => {
+                        const item = SHOP_ITEMS.find(i => i.id === v);
+                        return item ? `<div style="padding: 8px 12px; background: #1a1a25; border-radius: 8px;">${item.emoji} ${item.name}</div>` : '';
+                    }).join('')}
+                </div>
+            ` : '<p style="font-size: 12px; color: #94a3b8; padding: 12px;">No vehicles yet. Visit the shop!</p>'}
+        </div>
+        
+        <div style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">🏭 Businesses (${p.businesses.length})</h4>
+            ${p.businesses.length > 0 ? `
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    ${p.businesses.map(b => `
+                        <div style="padding: 12px; background: linear-gradient(135deg, rgba(34,197,94,0.1), transparent); border: 1px solid #22c55e; border-radius: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>💼 ${b.name}</span>
+                                <span style="color: #22c55e;">+$${b.income.toLocaleString()}/mo</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p style="font-size: 12px; color: #94a3b8; padding: 12px;">No businesses yet. Visit the shop!</p>'}
+        </div>
+        
+        <div style="margin-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px;">🎁 Inventory (${invItems.length} items)</h4>
+            ${invItems.length > 0 ? `
+                <div class="inventory-grid">
+                    ${invItems.map(([id, count]) => {
+                        const item = SHOP_ITEMS.find(i => i.id === id);
+                        return item ? `
+                            <div class="inv-item" title="${item.name}">
+                                ${item.emoji}
+                                <span class="count">${count}</span>
+                            </div>
+                        ` : '';
+                    }).join('')}
+                </div>
+            ` : '<p style="font-size: 12px; color: #94a3b8; padding: 12px;">Inventory is empty. Visit the shop!</p>'}
+        </div>
+    `;
+}
+
+function getSkillLevelName(level) {
+    if (level >= 90) return 'EXPERT';
+    if (level >= 70) return 'ADVANCED';
+    if (level >= 50) return 'INTERMEDIATE';
+    if (level >= 30) return 'APPRENTICE';
+    if (level >= 10) return 'NOVICE';
+    return 'BEGINNER';
+}
+
+function applyForJob(jobId) {
+    const job = JOBS.find(j => j.id === jobId);
+    if (!job || !selectedPerson) return;
+    
+    selectedPerson.job = job;
+    showNotification(`${selectedPerson.name} is now a ${job.name}!`, 'success');
+    renderSidebar();
+    saveGame();
+}
+
+function getActionIcon(action) {
+    const icons = { study: '📚', work: '💼', exercise: '🏃', gym: '💪', socialize: '💬', party: '🎉', rest: '😴', meditate: '🧘', therapy: '🧠', date: '💕', gamble: '🎰', vacation: '✈️', read: '📖', cook: '👨‍🍳', game: '🎮' };
+    return icons[action] || '✨';
+}
+
+function performAction(action) {
+    if (!selectedPerson) return;
+    const result = selectedPerson.doAction(action);
+    if (result) {
+        showNotification(result, 'success');
+        renderSidebar();
+        updateLocationPeople();
+        saveGame();
+    }
+}
+
+function openShop() { document.getElementById('shop-modal').classList.add('active'); renderShop('all'); }
+function closeShop() { document.getElementById('shop-modal').classList.remove('active'); }
+function openCrimes() { document.getElementById('crime-modal').classList.add('active'); renderCrimes(); }
+function closeCrimes() { document.getElementById('crime-modal').classList.remove('active'); }
+function openRelationships() { 
+    // Dating modal removed - functionality integrated into Relations tab
+    showNotification('💕 Dating is now in the Relations tab!', 'success');
+    if (selectedPerson) {
+        switchSidebarTab('relations');
+    }
+}
+function closeDating() { document.getElementById('dating-modal').classList.remove('active'); }
+
+function filterShop(category, clickedBtn) {
+    document.querySelectorAll('.shop-category').forEach(c => c.classList.remove('active'));
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    } else {
+        // Try to find by onclick attribute
+        const buttons = document.querySelectorAll('.shop-category');
+        buttons.forEach(btn => {
+            if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${category}'`)) {
+                btn.classList.add('active');
+            }
+        });
+    }
+    renderShop(category);
+}
+
+function renderShop(category) {
+    const container = document.getElementById('shop-items');
+    const p = selectedPerson || people[0];
+    const items = category === 'all' ? SHOP_ITEMS : SHOP_ITEMS.filter(i => i.type === category);
+    
+    container.innerHTML = items.map(item => `
+        <div class="shop-item" onclick="buyItem('${item.id}')"
+             style="${p.money < item.price ? 'opacity: 0.5;' : ''}">
+            <div class="emoji">${item.emoji}</div>
+            <h4>${item.name}</h4>
+            <div class="price">$${item.price.toLocaleString()}</div>
+            <div class="desc">${item.desc}</div>
+        </div>
+    `).join('');
+}
+
+function renderCrimes() {
+    const container = document.getElementById('crime-items');
+    container.innerHTML = CRIMES.map(crime => `
+        <div class="shop-item" onclick="doCrime('${crime.id}')"
+             style="border-color: ${crime.risk > 0.5 ? '#ef4444' : crime.risk > 0.3 ? '#f59e0b' : '#22c55e'}">
+            <div class="emoji">${crime.emoji}</div>
+            <h4>${crime.name}</h4>
+            <div class="price">+$${crime.reward.toLocaleString()}</div>
+            <div class="desc">${Math.floor(crime.risk * 100)}% risk • ${crime.jail} days max</div>
+        </div>
+    `).join('');
+}
+
+function buyItem(itemId) {
+    const p = selectedPerson || people[0];
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    if (!item) return;
+    
+    if (p.money < item.price) {
+        showNotification('Not enough money!', 'error');
+        return;
+    }
+    
+    p.money -= item.price;
+    
+    if (item.type === 'housing') {
+        p.house = item.id;
+        showNotification(`${p.name} now lives in a ${item.name}!`, 'success');
+    } else if (item.type === 'vehicles') {
+        p.vehicles.push(item.id);
+        showNotification(`${p.name} bought a ${item.name}!`, 'success');
+    } else if (item.type === 'pets') {
+        p.pets.push({ type: item.id, emoji: item.emoji, name: item.name });
+        p.happiness = Math.min(100, p.happiness + 15);
+        showNotification(`${p.name} adopted a ${item.name}!`, 'success');
+    } else if (item.type === 'business') {
+        p.businesses.push({ type: item.id, name: item.name, income: item.income });
+        showNotification(`${p.name} started a ${item.name}!`, 'success');
+    } else {
+        p.inventory[item.id] = (p.inventory[item.id] || 0) + 1;
+        showNotification(`${p.name} bought ${item.name}!`, 'success');
+    }
+    
+    renderSidebar();
+    saveGame();
+}
+
+function doCrime(crimeId) {
+    const p = selectedPerson || people.find(p => !p.dead && !p.inPrison);
+    if (!p) return;
+    
+    const crime = CRIMES.find(c => c.id === crimeId);
+    const successChance = 1 - crime.risk - (p.smarts / 200) + (p.skills.gaming / 200);
+    
+    if (Math.random() < successChance) {
+        p.money += crime.reward;
+        p.criminalRecord.push({ crime: crime.name, year: gameYear });
+        p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+        showNotification(`${p.name} succeeded! +$${crime.reward.toLocaleString()}`, 'success');
+    } else {
+        p.inPrison = true;
+        p.prisonTime = crime.jail;
+        p.prisonHistory.push({ crime: crime.name, year: gameYear, sentence: crime.jail });
+        p.wantedLevel = 0;
+        p.fines += crime.fine || 0;
+        p.money -= (crime.fine || 0);
+        showNotification(`${p.name} caught! ${crime.jail} days in prison + $${crime.fine || 0} fine`, 'error');
+    }
+    
+    closeCrimes();
+    renderSidebar();
+    updateLocationPeople();
+    saveGame();
+}
+
+function createNewLife() {
+    const parent = selectedPerson;
+    const baby = new Person({ age: 0 });
+    
+    if (parent && parent.gender === 'female' && parent.age >= 18 && parent.age <= 50) {
+        baby.lastName = parent.lastName;
+        baby.parents.push(parent.id);
+        parent.children.push(baby.id);
+    }
+    
+    people.push(baby);
+    showNotification(`${baby.name} was born! 👶`, 'success');
+    updateLocationPeople();
+    saveGame();
+}
+
+function showNotification(message, type = 'success') {
+    const notif = document.createElement('div');
+    notif.className = `notification ${type}`;
+    notif.innerHTML = `<span>${type === 'success' ? '✓' : '✗'}</span><span>${message}</span>`;
+    document.body.appendChild(notif);
+    setTimeout(() => notif.remove(), 3000);
+}
+
+async function saveGame() {
+    const data = {
+        people: people.map(p => p.toJSON()),
+        gameYear, gameMonth, gameDay, gameTime
+    };
+    
+    // Always save to localStorage as backup
+    localStorage.setItem('lifeSimMega', JSON.stringify(data));
+    
+    // Also try to save to server
+    try {
+        await fetch(`${API_BASE}/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    } catch (e) {
+        console.log('Server save failed, using localStorage only');
+    }
+}
+
+function forceSave() {
+    saveGame();
+    showNotification('Game saved! 💾', 'success');
+}
+
+async function resetGame() {
+    if (!confirm('Reset EVERYTHING? All progress lost forever!')) return;
+    try { await fetch(`${API_BASE}/reset`, { method: 'POST' }); } catch (e) {}
+    localStorage.removeItem('lifeSimMega');
+    people = [];
+    gameYear = 1; gameMonth = 1; gameDay = 1; gameTime = 0;
+    createInitialPeople();
+    updateLocationPeople();
+    renderSidebar();
+    showNotification('Game reset!', 'success');
+}
+
+function startGameLoop() {
+    setInterval(() => {
+        gameTime++;
+        
+        if (gameTime % 300 === 0) { // Every "day"
+            gameDay++;
+            
+            // Monthly updates
+            if (gameDay > 30) {
+                gameDay = 1;
+                gameMonth++;
+                
+                if (gameMonth > 12) {
+                    gameMonth = 1;
+                    gameYear++;
+                }
+                
+                // Monthly processing
+                people.forEach(p => {
+                    if (p.dead) return;
+                    
+                    // Housing costs
+                    const housing = SHOP_ITEMS.find(i => i.id === p.house);
+                    if (housing) p.money -= housing.monthly;
+                    
+                    // Business income
+                    p.businesses.forEach(b => {
+                        p.money += b.income;
+                    });
+                    
+                    // Energy restore
+                    p.energy = Math.min(100, p.energy + 30);
+                    
+                    // Disease recovery
+                    p.diseases = p.diseases.filter(d => {
+                        if (d.duration > 0) {
+                            d.duration--;
+                            p[d.effect === 'health' ? 'health' : 'happiness'] += d[d.effect] / 10;
+                            return d.duration > 0;
+                        }
+                        return true;
+                    });
+                    
+                    // Aging and death
+                    if (Math.random() < 0.05) {
+                        p.age++;
+                        
+                        // Death checks
+                        if (p.age > 90 && Math.random() < 0.3) {
+                            p.dead = true;
+                            p.causeOfDeath = 'old age';
+                        } else if (p.health <= 0) {
+                            p.dead = true;
+                            p.causeOfDeath = 'illness';
+                        }
+                        
+                        // Diseases increase with age
+                        if (p.age > 40 && Math.random() < 0.1) {
+                            p.health -= 5;
+                        }
+                    }
+                    
+                    // Random disease
+                    if (Math.random() < 0.03 && p.diseases.length === 0) {
+                        const disease = DISEASES[Math.floor(Math.random() * 5)];
+                        p.diseases.push({ ...disease });
+                    }
+                    
+                    // Complex Random Events
+                    const rand = Math.random();
+                    if (rand < 0.001) {
+                        // Lottery win (0.1% chance)
+                        p.money += 1000000;
+                        p.lifeEvents.push(`Year ${gameYear}: Won the lottery! 🎰`);
+                        showNotification(`${p.name} won the lottery! $1M 🎰`, 'success');
+                    } else if (rand < 0.006) {
+                        // Inheritance (0.5% chance)
+                        const amount = 10000 + Math.floor(Math.random() * 90000);
+                        p.money += amount;
+                        p.lifeEvents.push(`Year ${gameYear}: Inherited $${amount.toLocaleString()}`);
+                        showNotification(`${p.name} inherited $${amount.toLocaleString()}! 🏛️`, 'success');
+                    } else if (rand < 0.016) {
+                        // Car accident (1% chance)
+                        p.health -= 20;
+                        p.money -= 5000;
+                        p.lifeEvents.push(`Year ${gameYear}: Car accident`);
+                        showNotification(`${p.name} had a car accident! 🤕`, 'error');
+                    } else if (rand < 0.036) {
+                        // Job offer (2% chance)
+                        p.money += 5000;
+                        p.lifeEvents.push(`Year ${gameYear}: Job offer with signing bonus`);
+                        showNotification(`${p.name} got a job offer! $5K bonus 💼`, 'success');
+                    } else if (rand < 0.086) {
+                        // Sick (5% chance)
+                        p.contractDisease('Cold');
+                        p.lifeEvents.push(`Year ${gameYear}: Got sick`);
+                    } else if (rand < 0.116) {
+                        // Find money (3% chance)
+                        p.money += 20;
+                    } else if (rand < 0.136 && p.dating) {
+                        // Breakup (2% chance if dating)
+                        p.dating = null;
+                        p.happiness -= 30;
+                        p.lifeEvents.push(`Year ${gameYear}: Relationship ended`);
+                        showNotification(`${p.name} got dumped! 💔`, 'error');
+                    } else if (rand < 0.166) {
+                        // Promotion (3% chance)
+                        p.job.salary = Math.floor(p.job.salary * 1.2);
+                        p.lifeEvents.push(`Year ${gameYear}: Promotion!`);
+                        showNotification(`${p.name} got promoted! 🎉`, 'success');
+                    } else if (rand < 0.186) {
+                        // Robbed (2% chance)
+                        const loss = Math.min(p.money * 0.1, 500);
+                        p.money -= loss;
+                        p.happiness -= 10;
+                        p.lifeEvents.push(`Year ${gameYear}: Got mugged`);
+                        showNotification(`${p.name} was robbed! Lost $${Math.floor(loss)} 🔪`, 'error');
+                    } else if (rand < 0.196) {
+                        // Viral video (1% chance)
+                        p.fame += 20;
+                        p.money += 5000;
+                        p.lifeEvents.push(`Year ${gameYear}: Went viral!`);
+                        showNotification(`${p.name} went viral! 🌟`, 'success');
+                    }
+                    
+                    // Random life events from original system
+                    if (Math.random() < 0.02) {
+                        const event = LIFE_EVENTS[Math.floor(Math.random() * LIFE_EVENTS.length)];
+                        if (event.effect === 'money') p.money += event.amount;
+                        else if (event.effect === 'happiness') p.happiness += event.amount;
+                        else if (event.effect === 'health') p.health += event.amount;
+                        else if (event.effect === 'skill') p.skills[Object.keys(p.skills)[Math.floor(Math.random() * 9)]] += event.amount;
+                    }
+                    
+                    p.clampStats();
+                });
+            }
+        }
+        
+        if (gameTime % 60 === 0) {
+            updateUI();
+        }
+        
+        if (gameTime % 1800 === 0) {
+            saveGame();
+        }
+    }, 100);
+}
+
+function updateUI() {
+    const timeText = `Year ${gameYear}, Month ${gameMonth}, Day ${gameDay}`;
+    
+    // Update header
+    const headerTime = document.getElementById('time-display');
+    if (headerTime) headerTime.textContent = timeText;
+    
+    // Update left sidebar
+    const leftTime = document.getElementById('left-time-display');
+    if (leftTime) leftTime.textContent = `Year ${gameYear}, Month ${gameMonth}`;
+    
+    const alive = people.filter(p => !p.dead);
+    const dead = people.filter(p => p.dead);
+    const richest = alive.reduce((max, p) => p.money > max.money ? p : max, alive[0] || { money: 0 });
+    const avgAge = alive.length > 0 ? Math.floor(alive.reduce((sum, p) => sum + p.age, 0) / alive.length) : 0;
+    
+    // Header stats
+    const popDisplay = document.getElementById('pop-display');
+    const deathsDisplay = document.getElementById('deaths-display');
+    const richestDisplay = document.getElementById('richest-display');
+    const avgAgeDisplay = document.getElementById('avg-age');
+    
+    if (popDisplay) popDisplay.textContent = alive.length;
+    if (deathsDisplay) deathsDisplay.textContent = dead.length;
+    if (richestDisplay) richestDisplay.textContent = `$${Math.floor(richest.money || 0).toLocaleString()}`;
+    if (avgAgeDisplay) avgAgeDisplay.textContent = avgAge;
+    
+    // Left sidebar stats
+    const leftPop = document.getElementById('left-pop-display');
+    const leftDeaths = document.getElementById('left-deaths-display');
+    const leftRichest = document.getElementById('left-richest-display');
+    const leftAvgAge = document.getElementById('left-avg-age');
+    
+    if (leftPop) leftPop.textContent = `${alive.length} Alive`;
+    if (leftDeaths) leftDeaths.textContent = `${dead.length} Dead`;
+    if (leftRichest) leftRichest.textContent = `$${Math.floor(richest.money || 0).toLocaleString()}`;
+    if (leftAvgAge) leftAvgAge.textContent = avgAge;
+    
+    updateLocationPeople();
+    if (selectedPerson) {
+        renderSidebar();
+        updateMiniProfile();
+    }
+}
+
+// Start
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

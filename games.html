@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raya Games</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-hover: #1a1a25;
+            --border: #2a2a3a;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --purple: #a855f7;
+            --pink: #ec4899;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+        
+        body {
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+        
+        header p {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+        
+        .game-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2);
+        }
+        
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--purple));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .game-card:hover::before {
+            opacity: 1;
+        }
+        
+        .game-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .game-card h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .game-card p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .game-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .feature-tag {
+            background: var(--bg-hover);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .play-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .play-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        .play-btn.secondary {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+        }
+        
+        .play-btn.secondary:hover {
+            background: var(--border);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .featured {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));
+            border-color: var(--primary);
+        }
+        
+        .featured::before {
+            opacity: 1;
+        }
+        
+        .badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, var(--warning), #f97316);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 36px;
+            }
+            
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .featured {
+                grid-column: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Raya Games</h1>
+            <p>A collection of browser-based games and simulations. No downloads required - play instantly in your browser!</p>
+        </header>
+        
+        <div class="games-grid">
+            <!-- Featured Game -->
+            <div class="game-card featured">
+                <span class="badge">⭐ Featured</span>
+                <div class="game-icon">🌍</div>
+                <h2>Life Simulator</h2>
+                <p>The ultimate life simulation experience. Create people, guide them through life stages, build careers, form relationships, commit crimes, and more. Features 40+ jobs, 80+ shop items, crime system, and full persistence.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Simulation</span>
+                    <span class="feature-tag">Career System</span>
+                    <span class="feature-tag">Relationships</span>
+                    <span class="feature-tag">Crime</span>
+                    <span class="feature-tag">Save/Load</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/life" class="play-btn">▶ Play</a>
+                    <a href="https://github.com/raya-ac/raya-games" class="play-btn secondary" target="_blank">📁 GitHub</a>
+                </div>
+            </div>
+            
+            <!-- Game of Life 3D -->
+            <div class="game-card">
+                <div class="game-icon">🎲</div>
+                <h2>Game of Life 3D</h2>
+                <p>Cellular automaton in three dimensions. Watch life evolve in a voxel-based 3D environment with realistic rendering.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Cellular Automaton</span>
+                    <span class="feature-tag">3D</span>
+                    <span class="feature-tag">WebGL</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/gol3d" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Game of Life 4D -->
+            <div class="game-card">
+                <div class="game-icon">🧊</div>
+                <h2>Game of Life 4D</h2>
+                <p>Experience cellular automata in four dimensions. Watch hypercubes evolve as life spreads through 4D space.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Cellular Automaton</span>
+                    <span class="feature-tag">4D</span>
+                    <span class="feature-tag">Hypercube</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/gol" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Life 2D -->
+            <div class="game-card">
+                <div class="game-icon">🔲</div>
+                <h2>Life 2D</h2>
+                <p>Classic Conway's Game of Life implementation with custom rule support. The original cellular automaton that started it all.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Cellular Automaton</span>
+                    <span class="feature-tag">Classic</span>
+                    <span class="feature-tag">Custom Rules</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/life2d" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- War Simulation -->
+            <div class="game-card">
+                <div class="game-icon">⚔️</div>
+                <h2>War Simulation</h2>
+                <p>Multi-agent battle simulation with different unit types, formations, and tactical AI. Watch armies clash in real-time.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Strategy</span>
+                    <span class="feature-tag">AI</span>
+                    <span class="feature-tag">Multi-agent</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/war" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Particle System -->
+            <div class="game-card">
+                <div class="game-icon">✨</div>
+                <h2>Particle System</h2>
+                <p>Interactive particle physics playground. Experiment with gravity, collisions, forces, and create beautiful visual effects.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Physics</span>
+                    <span class="feature-tag">Particles</span>
+                    <span class="feature-tag">Interactive</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/particles" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- NEW GAMES -->
+            
+            <!-- Prison Empire Tycoon -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #e94560, #c73e54);">NEW</span>
+                <div class="game-icon">🏢</div>
+                <h2>Prison Empire Tycoon</h2>
+                <p>Build and manage your own prison facility. Construct cells, hire staff, rehabilitate or punish inmates, handle riots, and balance the budget. Will you focus on reform or profit?</p>
+                <div class="game-features">
+                    <span class="feature-tag">Tycoon</span>
+                    <span class="feature-tag">Management</span>
+                    <span class="feature-tag">Staff System</span>
+                    <span class="feature-tag">Random Events</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/prison" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Ant Colony Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #22c55e, #16a34a);">NEW</span>
+                <div class="game-icon">🐜</div>
+                <h2>Ant Colony Simulator</h2>
+                <p>Watch emergent behavior unfold as ant colonies build pheromone trails, gather food, and evolve over generations. Different castes (workers, soldiers, scouts) with unique behaviors.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Emergent Behavior</span>
+                    <span class="feature-tag">Evolution</span>
+                    <span class="feature-tag">Pheromone Trails</span>
+                    <span class="feature-tag">Day/Night Cycle</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/ants" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Battle Royale Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #a855f7, #7c3aed);">NEW</span>
+                <div class="game-icon">🔫</div>
+                <h2>Battle Royale Simulator</h2>
+                <p>100 AI agents drop into an arena and fight to be the last one standing. Intelligent decision-making, loot system, storm circles, spectator mode, and replay system.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Battle Royale</span>
+                    <span class="feature-tag">100 AI Agents</span>
+                    <span class="feature-tag">Loot Tiers</span>
+                    <span class="feature-tag">Replays</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/br" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Medieval Kingdom Wars -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706);">NEW</span>
+                <div class="game-icon">⚔️</div>
+                <h2>Medieval Kingdom Wars</h2>
+                <p>Hex-based strategy game with kingdom management, army recruitment, diplomacy, siege warfare, and hero units. Build your empire through conquest or alliance.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Strategy</span>
+                    <span class="feature-tag">Hex Grid</span>
+                    <span class="feature-tag">Diplomacy</span>
+                    <span class="feature-tag">Siege Warfare</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/medieval" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Stock Market Tycoon -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #22c55e, #16a34a);">NEW</span>
+                <div class="game-icon">📈</div>
+                <h2>Stock Market Tycoon</h2>
+                <p>Real-time trading simulation with 20 stocks, margin trading, short selling, market events, and portfolio tracking. Build your fortune through day trading or long-term investing.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Trading</span>
+                    <span class="feature-tag">Margin Trading</span>
+                    <span class="feature-tag">Market Events</span>
+                    <span class="feature-tag">Charts</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/stocks" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Zombie Outbreak Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #ef4444, #dc2626);">NEW</span>
+                <div class="game-icon">🧟</div>
+                <h2>Zombie Outbreak Simulator</h2>
+                <p>Manage a zombie apocalypse with cellular automata infection spread, quarantine zones, survivor groups, vaccine research, and military escalation. Can you save the city?</p>
+                <div class="game-features">
+                    <span class="feature-tag">Apocalypse</span>
+                    <span class="feature-tag">Quarantine</span>
+                    <span class="feature-tag">Vaccine Research</span>
+                    <span class="feature-tag">Survivors</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/zombie" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Ecosystem Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #10b981, #059669);">NEW</span>
+                <div class="game-icon">🌿</div>
+                <h2>Ecosystem Simulator</h2>
+                <p>Watch predator-prey dynamics unfold with evolving species, food chains, climate changes, and natural disasters. Plants, herbivores, carnivores, and apex predators battle for survival.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Evolution</span>
+                    <span class="feature-tag">Food Web</span>
+                    <span class="feature-tag">Climate</span>
+                    <span class="feature-tag">Genetics</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/ecosystem" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Fluid Dynamics Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">NEW</span>
+                <div class="game-icon">💧</div>
+                <h2>Fluid Dynamics Simulator</h2>
+                <p>Real-time Navier-Stokes fluid simulation with multiple fluid types (water, oil, lava, smoke, dyes). Features color mixing, obstacles, gravity/wind controls, and mini-games.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Physics</span>
+                    <span class="feature-tag">Fluids</span>
+                    <span class="feature-tag">Color Mixing</span>
+                    <span class="feature-tag">Mini-Games</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/fluid" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Neural Network Visualizer -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #a855f7, #7c3aed);">NEW</span>
+                <div class="game-icon">🧠</div>
+                <h2>Neural Network Visualizer</h2>
+                <p>Interactive AI training visualization. Build networks, train on datasets (XOR, digits), watch weights update in real-time, draw to test, and see neuron activation heatmaps.</p>
+                <div class="game-features">
+                    <span class="feature-tag">AI</span>
+                    <span class="feature-tag">Machine Learning</span>
+                    <span class="feature-tag">Interactive</span>
+                    <span class="feature-tag">Visualization</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/neural" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Traffic Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #f97316, #ea580c);">NEW</span>
+                <div class="game-icon">🚗</div>
+                <h2>Traffic Simulator</h2>
+                <p>Build road networks, place traffic lights, manage rush hour congestion. Features AI vehicles, public transport, accidents, roadwork, and real-time traffic metrics.</p>
+                <div class="game-features">
+                    <span class="feature-tag">City Builder</span>
+                    <span class="feature-tag">Traffic AI</span>
+                    <span class="feature-tag">Simulation</span>
+                    <span class="feature-tag">Day/Night</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/traffic" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- City Builder -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">NEW</span>
+                <div class="game-icon">🏙️</div>
+                <h2>City Builder</h2>
+                <p>Build your dream city with zoning, roads, power, and water. Manage citizen happiness, budget, and disasters. Features traffic simulation with cars and day/night cycle.</p>
+                <div class="game-features">
+                    <span class="feature-tag">City Building</span>
+                    <span class="feature-tag">Zoning</span>
+                    <span class="feature-tag">Economy</span>
+                    <span class="feature-tag">Disasters</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/city" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Boids Flocking -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #ec4899, #db2777);">NEW</span>
+                <div class="game-icon">🐦</div>
+                <h2>Boids Flocking</h2>
+                <p>Craig Reynolds' classic flocking algorithm. Spawn birds, fish, or fireflies. Watch them flock with separation, alignment, and cohesion. Add predators and obstacles!</p>
+                <div class="game-features">
+                    <span class="feature-tag">AI</span>
+                    <span class="feature-tag">Swarm</span>
+                    <span class="feature-tag">Interactive</span>
+                    <span class="feature-tag">Beautiful</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/boids" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Disease Simulator -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #22c55e, #16a34a);">NEW</span>
+                <div class="game-icon">🦠</div>
+                <h2>Disease Simulator</h2>
+                <p>Plague Inc-style outbreak simulator. Evolve your disease, spread across the world map, avoid cure research. 30+ traits, 4 disease types, airports, seaports.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Strategy</span>
+                    <span class="feature-tag">Evolution</span>
+                    <span class="feature-tag">World Map</span>
+                    <span class="feature-tag">Plague Inc</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/disease" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+            
+            <!-- Space Colony -->
+            <div class="game-card">
+                <span class="badge" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">NEW</span>
+                <div class="game-icon">🚀</div>
+                <h2>Space Colony</h2>
+                <p>Manage a Mars/base colony. Build habitats, greenhouses, research labs. Keep colonists alive with oxygen, water, food. Trade with Earth. Research new tech. Survive disasters.</p>
+                <div class="game-features">
+                    <span class="feature-tag">Space</span>
+                    <span class="feature-tag">Colony Sim</span>
+                    <span class="feature-tag">Research</span>
+                    <span class="feature-tag">Trade</span>
+                </div>
+                <div class="btn-group">
+                    <a href="/space" class="play-btn">▶ Play</a>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Made with ❤️ by <a href="https://raya.li" target="_blank">raya</a></p>
+            <p style="margin-top: 8px; font-size: 14px;"><a href="https://github.com/raya-ac/raya-games" target="_blank">View on GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>
