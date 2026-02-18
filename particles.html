@@ -610,6 +610,7 @@
         let history = [];
         const TRAIL_LENGTH = 18;  // positions stored per particle
         let showTrails = true;
+        let _collisionHandler = null; // set after handleCollision is defined
         
         class Particle {
             constructor(type, x, y, z) {
@@ -793,6 +794,7 @@
         }
         
         function updatePhysics() {
+            if (!_collisionHandler) _collisionHandler = handleCollision; // lazy init
             const toRemove = [];
             const toAdd = [];
             
@@ -823,7 +825,7 @@
                     const minDist = p1.radius + p2.radius;
                     
                     if (dist < minDist) {
-                        handleCollision(p1, p2, i, j, toRemove, toAdd);
+                        _collisionHandler(p1, p2, i, j, toRemove, toAdd);
                     }
                     
                     // Electrostatic forces
@@ -1626,13 +1628,12 @@
             if (!showTrails) trailLines.forEach(tl => { tl.line.visible = false; });
         }
 
-        // Patch handleCollision to emit sounds
-        const _origHandleCollision = handleCollision;
-        window.handleCollision = function(p1, p2, i, j, toRemove, toAdd) {
+        // Patch _collisionHandler to emit sound effects on reactions
+        const _baseCollision = handleCollision;
+        _collisionHandler = function(p1, p2, i, j, toRemove, toAdd) {
             const prevLen = toRemove.length;
-            _origHandleCollision(p1, p2, i, j, toRemove, toAdd);
+            _baseCollision(p1, p2, i, j, toRemove, toAdd);
             if (toRemove.length > prevLen) {
-                // A reaction happened
                 if (p1.type === 'antimatter' || p2.type === 'antimatter') {
                     SpaceAudio.onReaction('annihilation');
                 } else if (p1.type === 'uranium' || p2.type === 'uranium') {
