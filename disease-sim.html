@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Spread Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-panel: #12121a;
+            --bg-card: #1a1a25;
+            --bg-hover: #252535;
+            --accent: #00ff88;
+            --accent-dim: #00cc6a;
+            --danger: #ff4444;
+            --warning: #ffaa00;
+            --info: #4488ff;
+            --text: #e0e0e0;
+            --text-dim: #888888;
+            --border: #2a2a3a;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-panel);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, var(--accent), var(--danger));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-dim);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        /* Main Container */
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 200px 1fr;
+            }
+            .right-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .left-panel {
+                display: none;
+            }
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        /* Stats Panel */
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+        }
+
+        .stat-value {
+            font-weight: bold;
+        }
+
+        .stat-value.infected {
+            color: var(--warning);
+        }
+
+        .stat-value.dead {
+            color: var(--danger);
+        }
+
+        .stat-value.healthy {
+            color: var(--accent);
+        }
+
+        .stat-value.dna {
+            color: var(--info);
+        }
+
+        /* Map Container */
+        .map-container {
+            position: relative;
+            background: var(--bg-dark);
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 500px;
+        }
+
+        #worldMap {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(10, 10, 15, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        /* Evolution Panel */
+        .evolution-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--bg-hover);
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .trait-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .trait {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .trait:hover {
+            border-color: var(--accent);
+            transform: translateX(3px);
+        }
+
+        .trait.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .trait.purchased {
+            border-color: var(--accent);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .trait-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .trait-name {
+            font-weight: bold;
+        }
+
+        .trait-cost {
+            color: var(--info);
+            font-size: 0.85rem;
+        }
+
+        .trait-desc {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        /* News Feed */
+        .news-feed {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .news-item {
+            padding: 10px;
+            border-left: 3px solid var(--accent);
+            background: var(--bg-card);
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .news-item.alert {
+            border-left-color: var(--danger);
+        }
+
+        .news-item.warning {
+            border-left-color: var(--warning);
+        }
+
+        .news-time {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 3px;
+        }
+
+        /* Country Info Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-panel);
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Progress Bars */
+        .progress-container {
+            margin: 10px 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.infection {
+            background: var(--warning);
+        }
+
+        .progress-fill.death {
+            background: var(--danger);
+        }
+
+        .progress-fill.research {
+            background: var(--info);
+        }
+
+        /* Disease Type Selector */
+        .disease-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .disease-type {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .disease-type:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .disease-type.selected {
+            border-color: var(--accent);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .disease-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .disease-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .disease-desc {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        /* Start Screen */
+        .start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .start-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+        }
+
+        .start-title {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--accent), var(--danger));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .start-subtitle {
+            color: var(--text-dim);
+            margin-bottom: 30px;
+        }
+
+        .start-section {
+            margin-bottom: 30px;
+        }
+
+        .start-section h3 {
+            margin-bottom: 15px;
+            color: var(--accent);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .difficulty-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .difficulty-btn:hover, .difficulty-btn.selected {
+            border-color: var(--accent);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        /* Game Over Screen */
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            flex-direction: column;
+        }
+
+        .game-over.active {
+            display: flex;
+        }
+
+        .game-over-title {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .game-over.win .game-over-title {
+            color: var(--danger);
+        }
+
+        .game-over.lose .game-over-title {
+            color: var(--accent);
+        }
+
+        .game-over-stats {
+            background: var(--bg-panel);
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            min-width: 300px;
+        }
+
+        /* Transport Lines */
+        .transport-line {
+            stroke: var(--text-dim);
+            stroke-width: 1;
+            stroke-dasharray: 5,5;
+            opacity: 0.3;
+            fill: none;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            z-index: 500;
+            display: none;
+            max-width: 200px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-card);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dim);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Save/Load Modal */
+        .save-slot {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-slot:hover {
+            border-color: var(--accent);
+        }
+
+        .save-slot.empty {
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        .save-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .save-date {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+        }
+
+        /* Back Button */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        /* Volume Slider */
+        .volume-slider {
+            width: 80px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-card);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div class="start-screen" id="startScreen">
+        <div class="start-content">
+            <h1 class="start-title">🦠 Disease Spread Simulator</h1>
+            <p class="start-subtitle">Evolve. Spread. Destroy humanity.</p>
+            
+            <div class="start-section">
+                <h3>Select Disease Type</h3>
+                <div class="disease-types">
+                    <div class="disease-type selected" data-type="bacteria">
+                        <div class="disease-icon">🦠</div>
+                        <div class="disease-name">Bacteria</div>
+                        <div class="disease-desc">Balanced and resilient. Good for beginners.</div>
+                    </div>
+                    <div class="disease-type" data-type="virus">
+                        <div class="disease-icon">🧬</div>
+                        <div class="disease-name">Virus</div>
+                        <div class="disease-desc">Mutates rapidly. Unpredictable evolution.</div>
+                    </div>
+                    <div class="disease-type" data-type="fungus">
+                        <div class="disease-icon">🍄</div>
+                        <div class="disease-name">Fungus</div>
+                        <div class="disease-desc">Hard to transmit. Spore bursts available.</div>
+                    </div>
+                    <div class="disease-type" data-type="parasite">
+                        <div class="disease-icon">🐛</div>
+                        <div class="disease-name">Parasite</div>
+                        <div class="disease-desc">Nearly invisible. Slow to be noticed.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="start-section">
+                <h3>Select Difficulty</h3>
+                <div class="difficulty-selector">
+                    <button class="difficulty-btn selected" data-diff="normal">Normal</button>
+                    <button class="difficulty-btn" data-diff="brutal">Brutal</button>
+                    <button class="difficulty-btn" data-diff="mega">Mega Brutal</button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="startGame()" style="font-size: 1.2rem; padding: 15px 40px;">
+                Start Infection
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="game-over" id="gameOver">
+        <h2 class="game-over-title" id="gameOverTitle">Humanity Extinct!</h2>
+        <div class="game-over-stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Infected</span>
+                <span class="stat-value infected" id="finalInfected">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total Dead</span>
+                <span class="stat-value dead" id="finalDead">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Days Elapsed</span>
+                <span class="stat-value" id="finalDays">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">DNA Points Earned</span>
+                <span class="stat-value dna" id="finalDNA">0</span>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="location.reload()">Play Again</button>
+    </div>
+
+    <!-- Country Modal -->
+    <div class="modal-overlay" id="countryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalCountryName">Country</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Infection</span>
+                        <span id="modalInfection">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill infection" id="modalInfectionBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Deaths</span>
+                        <span id="modalDeaths">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill death" id="modalDeathBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Cure Research</span>
+                        <span id="modalResearch">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill research" id="modalResearchBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Population</span>
+                    <span class="stat-value" id="modalPopulation">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Healthy</span>
+                    <span class="stat-value healthy" id="modalHealthy">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Climate</span>
+                    <span class="stat-value" id="modalClimate">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Wealth</span>
+                    <span class="stat-value" id="modalWealth">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save/Load Modal -->
+    <div class="modal-overlay" id="saveLoadModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="saveLoadTitle">Save Game</h3>
+                <button class="modal-close" onclick="closeSaveLoadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="saveSlots"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <a href="/games" class="btn back-btn">🎮 Games</a>
+        <h1>🦠 Disease Spread Simulator</h1>
+        <div class="header-buttons">
+            <button class="btn" onclick="toggleMusic()">🎵 <span id="musicStatus">Off</span></button>
+            <input type="range" id="volumeSlider" min="0" max="100" value="15" class="volume-slider" onchange="updateVolume(this.value)" title="Music Volume">
+            <button class="btn" onclick="openSaveModal()">💾 Save</button>
+            <button class="btn" onclick="openLoadModal()">📂 Load</button>
+            <button class="btn btn-danger" onclick="togglePause()" id="pauseBtn">⏸️ Pause</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Left Panel - Stats -->
+        <div class="left-panel">
+            <div class="panel">
+                <div class="panel-title">World Statistics</div>
+                <div class="stat-item">
+                    <span class="stat-label">🌍 Population</span>
+                    <span class="stat-value" id="worldPopulation">7,900,000,000</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🤒 Infected</span>
+                    <span class="stat-value infected" id="worldInfected">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">💀 Dead</span>
+                    <span class="stat-value dead" id="worldDead">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">😊 Healthy</span>
+                    <span class="stat-value healthy" id="worldHealthy">7,900,000,000</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🧬 DNA Points</span>
+                    <span class="stat-value dna" id="dnaPoints">5</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">📅 Day</span>
+                    <span class="stat-value" id="gameDay">1</span>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 15px;">
+                <div class="panel-title">Global Cure Progress</div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill research" id="globalCureBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 10px; color: var(--text-dim);" id="curePercent">
+                    0%
+                </div>
+            </div>
+        </div>
+
+        <!-- Center - Map -->
+        <div class="map-container panel">
+            <div class="map-overlay">
+                <div class="panel-title">Map Legend</div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00ff88;"></div>
+                    <span>Healthy</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffaa00;"></div>
+                    <span>Infected</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff4444;"></div>
+                    <span>Deadly</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4488ff;"></div>
+                    <span>Airport</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8844ff;"></div>
+                    <span>Seaport</span>
+                </div>
+            </div>
+            <svg id="worldMap" viewBox="0 0 1000 500">
+                <!-- Map content generated by JS -->
+            </svg>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <!-- Evolution Panel -->
+            <div class="panel">
+                <div class="panel-title">Evolution</div>
+                <div class="evolution-tabs">
+                    <div class="tab active" data-tab="transmission">📡</div>
+                    <div class="tab" data-tab="symptoms">🤒</div>
+                    <div class="tab" data-tab="abilities">⚡</div>
+                </div>
+                <div class="trait-list" id="traitList">
+                    <!-- Traits populated by JS -->
+                </div>
+            </div>
+
+            <!-- News Feed -->
+            <div class="panel" style="margin-top: 15px;">
+                <div class="panel-title">📰 News Feed</div>
+                <div class="news-feed" id="newsFeed">
+                    <div class="news-item">
+                        <div class="news-time">Day 1</div>
+                        <div>Welcome to Disease Spread Simulator. Select a country to begin the infection.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            running: false,
+            paused: false,
+            day: 1,
+            dnaPoints: 5,
+            diseaseType: 'bacteria',
+            difficulty: 'normal',
+            selectedCountry: null,
+            purchasedTraits: new Set(),
+            musicEnabled: false,
+            globalCureProgress: 0,
+            gameOver: false
+        };
+
+        // Disease Types Configuration
+        const diseaseTypes = {
+            bacteria: {
+                name: 'Bacteria',
+                infectivity: 1.0,
+                severity: 1.0,
+                lethality: 0.8,
+                mutationChance: 0.05,
+                cureResistance: 1.0
+            },
+            virus: {
+                name: 'Virus',
+                infectivity: 1.3,
+                severity: 1.2,
+                lethality: 0.9,
+                mutationChance: 0.15,
+                cureResistance: 0.8
+            },
+            fungus: {
+                name: 'Fungus',
+                infectivity: 0.6,
+                severity: 0.9,
+                lethality: 1.1,
+                mutationChance: 0.02,
+                cureResistance: 1.2,
+                sporeBurst: true
+            },
+            parasite: {
+                name: 'Parasite',
+                infectivity: 0.9,
+                severity: 0.6,
+                lethality: 1.0,
+                mutationChance: 0.03,
+                cureResistance: 1.3,
+                visibility: 0.5
+            }
+        };
+
+        // Countries Data (Simplified world regions)
+        const countries = [
+            { id: 'na_west', name: 'West North America', x: 150, y: 150, population: 350000000, climate: 'temperate', wealth: 'rich', airports: ['na_east', 'sa', 'eu_west', 'as_east'], seaports: ['na_east', 'sa', 'as_east', 'oc'] },
+            { id: 'na_east', name: 'East North America', x: 250, y: 160, population: 280000000, climate: 'temperate', wealth: 'rich', airports: ['na_west', 'sa', 'eu_west', 'af_north'], seaports: ['na_west', 'sa', 'eu_west', 'af_west'] },
+            { id: 'ca', name: 'Central America', x: 200, y: 230, population: 180000000, climate: 'hot', wealth: 'poor', airports: ['na_west', 'na_east', 'sa'], seaports: ['na_east', 'sa'] },
+            { id: 'sa', name: 'South America', x: 280, y: 320, population: 430000000, climate: 'hot', wealth: 'poor', airports: ['na_east', 'ca', 'af_west', 'eu_west'], seaports: ['na_east', 'af_west', 'eu_west'] },
+            { id: 'eu_west', name: 'Western Europe', x: 480, y: 130, population: 420000000, climate: 'temperate', wealth: 'rich', airports: ['na_east', 'af_north', 'as_west', 'eu_east'], seaports: ['na_east', 'af_north', 'as_south'] },
+            { id: 'eu_east', name: 'Eastern Europe', x: 520, y: 120, population: 290000000, climate: 'cold', wealth: 'average', airports: ['eu_west', 'as_west', 'as_central'], seaports: ['eu_west', 'as_west'] },
+            { id: 'af_north', name: 'North Africa', x: 500, y: 200, population: 240000000, climate: 'hot', wealth: 'poor', airports: ['eu_west', 'af_west', 'af_central', 'af_east'], seaports: ['eu_west', 'af_west', 'af_east'] },
+            { id: 'af_west', name: 'West Africa', x: 470, y: 260, population: 380000000, climate: 'hot', wealth: 'poor', airports: ['af_north', 'af_central', 'sa'], seaports: ['af_north', 'af_central', 'sa'] },
+            { id: 'af_central', name: 'Central Africa', x: 520, y: 290, population: 140000000, climate: 'hot', wealth: 'poor', airports: ['af_north', 'af_west', 'af_east', 'af_south'], seaports: ['af_east'] },
+            { id: 'af_east', name: 'East Africa', x: 560, y: 270, population: 450000000, climate: 'hot', wealth: 'poor', airports: ['af_north', 'af_central', 'af_south', 'as_west'], seaports: ['af_central', 'as_west'] },
+            { id: 'af_south', name: 'Southern Africa', x: 530, y: 380, population: 110000000, climate: 'temperate', wealth: 'average', airports: ['af_central', 'af_east'], seaports: ['af_east', 'as_south'] },
+            { id: 'ru', name: 'Russia', x: 620, y: 100, population: 145000000, climate: 'cold', wealth: 'average', airports: ['eu_east', 'as_central', 'as_east'], seaports: ['eu_east', 'as_east'] },
+            { id: 'as_west', name: 'Middle East', x: 580, y: 190, population: 380000000, climate: 'hot', wealth: 'rich', airports: ['eu_west', 'eu_east', 'af_east', 'as_central', 'as_south'], seaports: ['af_east', 'as_south'] },
+            { id: 'as_central', name: 'Central Asia', x: 650, y: 160, population: 75000000, climate: 'cold', wealth: 'poor', airports: ['eu_east', 'ru', 'as_east', 'as_south'], seaports: [] },
+            { id: 'as_south', name: 'South Asia', x: 680, y: 230, population: 1900000000, climate: 'hot', wealth: 'poor', airports: ['as_west', 'as_central', 'as_east', 'as_se'], seaports: ['as_west', 'as_east', 'as_se'] },
+            { id: 'as_east', name: 'East Asia', x: 780, y: 180, population: 1600000000, climate: 'temperate', wealth: 'average', airports: ['na_west', 'ru', 'as_central', 'as_south', 'as_se', 'oc'], seaports: ['ru', 'as_south', 'as_se', 'oc'] },
+            { id: 'as_se', name: 'Southeast Asia', x: 750, y: 260, population: 680000000, climate: 'hot', wealth: 'average', airports: ['as_south', 'as_east', 'oc'], seaports: ['as_south', 'as_east', 'oc'] },
+            { id: 'oc', name: 'Oceania', x: 880, y: 380, population: 45000000, climate: 'hot', wealth: 'rich', airports: ['as_east', 'as_se'], seaports: ['as_east', 'as_se'] },
+            { id: 'jp', name: 'Japan', x: 850, y: 170, population: 125000000, climate: 'temperate', wealth: 'rich', airports: ['na_west', 'as_east'], seaports: ['as_east'] }
+        ];
+
+        // Initialize country states
+        countries.forEach(c => {
+            c.healthy = c.population;
+            c.infected = 0;
+            c.dead = 0;
+            c.infectionRate = 0;
+            c.deathRate = 0;
+            c.researchProgress = 0;
+            c.researching = false;
+            c.closedBorders = false;
+            c.closedPorts = false;
+            c.hasInfected = false;
+        });
+
+        // Evolution Traits
+        const traits = {
+            transmission: [
+                { id: 'rodent', name: 'Rodent Transmission', cost: 5, desc: 'Pathogen spreads through rodents', effect: { infectivity: 0.1 } },
+                { id: 'bird', name: 'Bird Transmission', cost: 8, desc: 'Pathogen spreads through birds', effect: { infectivity: 0.15, landSpread: 0.1 } },
+                { id: 'livestock', name: 'Livestock Transmission', cost: 6, desc: 'Pathogen spreads through livestock', effect: { infectivity: 0.12, ruralSpread: 0.2 } },
+                { id: 'air1', name: 'Air Transmission I', cost: 10, desc: 'Pathogen can travel on dust particles', effect: { infectivity: 0.2, airSpread: 0.1 } },
+                { id: 'air2', name: 'Air Transmission II', cost: 18, desc: 'Pathogen can survive in air for hours', effect: { infectivity: 0.3, airSpread: 0.2 }, requires: ['air1'] },
+                { id: 'water1', name: 'Water Transmission I', cost: 10, desc: 'Pathogen can survive in freshwater', effect: { infectivity: 0.2, waterSpread: 0.1 } },
+                { id: 'water2', name: 'Water Transmission II', cost: 18, desc: 'Pathogen can survive in saltwater', effect: { infectivity: 0.3, waterSpread: 0.2 }, requires: ['water1'] },
+                { id: 'blood', name: 'Blood Transmission', cost: 12, desc: 'Pathogen spreads through blood contact', effect: { infectivity: 0.15, medicalSpread: 0.2 } },
+                { id: 'insect', name: 'Insect Transmission', cost: 15, desc: 'Pathogen spreads through insects', effect: { infectivity: 0.25, hotSpread: 0.3 } }
+            ],
+            symptoms: [
+                { id: 'cough', name: 'Coughing', cost: 3, desc: 'Chance to spread through coughing', effect: { infectivity: 0.1, severity: 0.05 } },
+                { id: 'sneeze', name: 'Sneezing', cost: 4, desc: 'Chance to spread through sneezing', effect: { infectivity: 0.15, severity: 0.05 } },
+                { id: 'fever', name: 'Fever', cost: 5, desc: 'Increases severity', effect: { severity: 0.1, lethality: 0.05 } },
+                { id: 'sweat', name: 'Sweating', cost: 4, desc: 'Slight increase in infection rates', effect: { infectivity: 0.05, severity: 0.05 } },
+                { id: 'vomit', name: 'Vomiting', cost: 6, desc: 'Increases infection and severity', effect: { infectivity: 0.1, severity: 0.15 } },
+                { id: 'diarrhoea', name: 'Diarrhoea', cost: 7, desc: 'Highly infectious, poor countries at risk', effect: { infectivity: 0.2, severity: 0.1, poorSpread: 0.2 } },
+                { id: 'pneumonia', name: 'Pneumonia', cost: 12, desc: 'Fatal in cold countries', effect: { lethality: 0.2, severity: 0.2, coldLethality: 0.3 }, requires: ['cough'] },
+                { id: 'paranoia', name: 'Paranoia', cost: 8, desc: 'Infected are harder to cure', effect: { cureResistance: 0.2, severity: 0.1 } },
+                { id: 'insomnia', name: 'Insomnia', cost: 6, desc: 'Reduces productivity, slows research', effect: { researchSlow: 0.1, severity: 0.05 } },
+                { id: 'cysts', name: 'Cysts', cost: 10, desc: 'Painful lumps, highly infectious', effect: { infectivity: 0.2, severity: 0.15 } },
+                { id: 'abscesses', name: 'Abscesses', cost: 12, desc: 'Pockets of pathogen-rich pus', effect: { infectivity: 0.25, severity: 0.2 }, requires: ['cysts'] },
+                { id: 'tumor', name: 'Systemic Infection', cost: 20, desc: 'Devastating organ failure', effect: { lethality: 0.4, severity: 0.3 } },
+                { id: 'coma', name: 'Coma', cost: 25, desc: 'Pathogen causes coma', effect: { lethality: 0.3, severity: 0.25, researchSlow: 0.2 } },
+                { id: 'paralysis', name: 'Paralysis', cost: 22, desc: 'Pathogen causes paralysis', effect: { lethality: 0.35, severity: 0.3 } },
+                { id: 'necrosis', name: 'Necrosis', cost: 30, desc: 'Flesh eating disease', effect: { lethality: 0.5, severity: 0.4, infectivity: 0.1 } }
+            ],
+            abilities: [
+                { id: 'cold1', name: 'Cold Resistance I', cost: 8, desc: 'Pathogen spreads in cold climates', effect: { coldResist: 0.25 } },
+                { id: 'cold2', name: 'Cold Resistance II', cost: 15, desc: 'Pathogen thrives in cold climates', effect: { coldResist: 0.5 }, requires: ['cold1'] },
+                { id: 'heat1', name: 'Heat Resistance I', cost: 8, desc: 'Pathogen spreads in hot climates', effect: { heatResist: 0.25 } },
+                { id: 'heat2', name: 'Heat Resistance II', cost: 15, desc: 'Pathogen thrives in hot climates', effect: { heatResist: 0.5 }, requires: ['heat1'] },
+                { id: 'drug1', name: 'Drug Resistance I', cost: 12, desc: 'Harder to develop cure', effect: { cureResistance: 0.15 } },
+                { id: 'drug2', name: 'Drug Resistance II', cost: 22, desc: 'Much harder to develop cure', effect: { cureResistance: 0.3 }, requires: ['drug1'] },
+                { id: 'hardy', name: 'Environmental Hardening', cost: 10, desc: 'Pathogen survives in all environments', effect: { heatResist: 0.2, coldResist: 0.2 } },
+                { id: 'mutate', name: 'Genetic Hardening', cost: 18, desc: 'Reduces mutation chance', effect: { mutationResist: 0.5 } },
+                { id: 'reassort', name: 'Genetic Reshuffle', cost: 25, desc: 'Resets cure progress slightly', effect: { cureReset: 0.1 } },
+                { id: 'corpse', name: 'Corpse Transmission', cost: 14, desc: 'Dead bodies still spread disease', effect: { corpseSpread: 0.3 } }
+            ]
+        };
+
+        // Current trait multipliers
+        const traitMultipliers = {
+            infectivity: 1.0,
+            severity: 0,
+            lethality: 0,
+            airSpread: 0,
+            waterSpread: 0,
+            landSpread: 0,
+            ruralSpread: 0,
+            hotSpread: 0,
+            poorSpread: 0,
+            coldResist: 0,
+            heatResist: 0,
+            cureResistance: 0,
+            researchSlow: 0,
+            corpseSpread: 0,
+            mutationResist: 0
+        };
+
+        // News System
+        const newsTemplates = {
+            start: ['A new mysterious illness has been detected in {country}.', 'Health officials in {country} report unusual symptoms.', 'Unknown pathogen discovered in {country}.'],
+            spread: ['Outbreak reported in {country}.', 'Disease spreads to {country}.', '{country} confirms new infections.'],
+            serious: ['Hospitals in {country} becoming overwhelmed.', 'State of emergency declared in {country}.', '{country} reports critical infection levels.'],
+            death: ['Death toll rising in {country}.', '{country} reports first fatalities.', 'Cemetery space running out in {country}.'],
+            research: ['{country} begins research into cure.', 'Scientists in {country} working on vaccine.', '{country} allocates funds for cure research.'],
+            cure: ['Cure development progressing in {country}.', 'Breakthrough in cure research in {country}.', 'Vaccine trials begin in {country}.'],
+            borders: ['{country} closes borders to contain spread.', '{country} shuts down airports.', '{country} quarantines major cities.'],
+            global: ['WHO declares global pandemic.', 'World stock markets crash.', 'Nations close borders worldwide.']
+        };
+
+        let newsCooldowns = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            renderMap();
+            renderTraits('transmission');
+        });
+
+        function setupEventListeners() {
+            // Disease type selection
+            document.querySelectorAll('.disease-type').forEach(el => {
+                el.addEventListener('click', () => {
+                    document.querySelectorAll('.disease-type').forEach(d => d.classList.remove('selected'));
+                    el.classList.add('selected');
+                    gameState.diseaseType = el.dataset.type;
+                });
+            });
+
+            // Difficulty selection
+            document.querySelectorAll('.difficulty-btn').forEach(el => {
+                el.addEventListener('click', () => {
+                    document.querySelectorAll('.difficulty-btn').forEach(d => d.classList.remove('selected'));
+                    el.classList.add('selected');
+                    gameState.difficulty = el.dataset.diff;
+                });
+            });
+
+            // Evolution tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    renderTraits(tab.dataset.tab);
+                });
+            });
+
+            // Map interactions
+            const map = document.getElementById('worldMap');
+            map.addEventListener('click', (e) => {
+                if (e.target.classList.contains('country')) {
+                    const countryId = e.target.dataset.id;
+                    const country = countries.find(c => c.id === countryId);
+                    if (country) {
+                        if (!gameState.running) {
+                            startInfection(country);
+                        } else {
+                            showCountryModal(country);
+                        }
+                    }
+                }
+            });
+
+            // Tooltip
+            map.addEventListener('mousemove', (e) => {
+                if (e.target.classList.contains('country')) {
+                    showTooltip(e, e.target.dataset.id);
+                } else {
+                    hideTooltip();
+                }
+            });
+        }
+
+        function renderMap() {
+            const svg = document.getElementById('worldMap');
+            svg.innerHTML = '';
+
+            // Draw transport lines
+            const drawnLines = new Set();
+            countries.forEach(country => {
+                country.airports.forEach(targetId => {
+                    const target = countries.find(c => c.id === targetId);
+                    if (target) {
+                        const lineId = [country.id, targetId].sort().join('-');
+                        if (!drawnLines.has(lineId)) {
+                            drawnLines.add(lineId);
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', country.x);
+                            line.setAttribute('y1', country.y);
+                            line.setAttribute('x2', target.x);
+                            line.setAttribute('y2', target.y);
+                            line.setAttribute('class', 'transport-line');
+                            line.setAttribute('stroke', '#4488ff');
+                            svg.appendChild(line);
+                        }
+                    }
+                });
+            });
+
+            // Draw countries
+            countries.forEach(country => {
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('class', 'country-group');
+
+                // Country circle
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', country.x);
+                circle.setAttribute('cy', country.y);
+                circle.setAttribute('r', Math.sqrt(country.population / 10000000) + 8);
+                circle.setAttribute('class', 'country');
+                circle.setAttribute('data-id', country.id);
+                circle.setAttribute('fill', getCountryColor(country));
+                circle.setAttribute('stroke', '#444');
+                circle.setAttribute('stroke-width', '1');
+                circle.setAttribute('style', 'cursor: pointer; transition: all 0.3s;');
+                
+                // Seaport indicator
+                if (country.seaports.length > 0) {
+                    const port = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    port.setAttribute('cx', country.x + 12);
+                    port.setAttribute('cy', country.y - 12);
+                    port.setAttribute('r', 4);
+                    port.setAttribute('fill', '#8844ff');
+                    group.appendChild(port);
+                }
+
+                // Label
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', country.x);
+                text.setAttribute('y', country.y + 4);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('fill', '#fff');
+                text.setAttribute('font-size', '10');
+                text.setAttribute('pointer-events', 'none');
+                text.textContent = country.id.toUpperCase();
+
+                group.appendChild(circle);
+                group.appendChild(text);
+                svg.appendChild(group);
+            });
+        }
+
+        function getCountryColor(country) {
+            if (country.dead > country.population * 0.9) return '#330000';
+            if (country.dead > country.population * 0.5) return '#661111';
+            if (country.dead > 0) {
+                const deathRatio = country.dead / country.population;
+                return `rgb(${100 + deathRatio * 155}, 20, 20)`;
+            }
+            if (country.infected === 0) return '#00ff88';
+            const infectedRatio = country.infected / country.population;
+            const r = Math.floor(255 * infectedRatio);
+            const g = Math.floor(255 * (1 - infectedRatio * 0.5));
+            const b = Math.floor(136 * (1 - infectedRatio));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function updateMap() {
+            document.querySelectorAll('.country').forEach(el => {
+                const country = countries.find(c => c.id === el.dataset.id);
+                if (country) {
+                    el.setAttribute('fill', getCountryColor(country));
+                }
+            });
+        }
+
+        function showTooltip(e, countryId) {
+            const country = countries.find(c => c.id === countryId);
+            if (!country) return;
+
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <strong>${country.name}</strong><br>
+                Population: ${formatNumber(country.population)}<br>
+                Infected: ${formatNumber(country.infected)}<br>
+                Dead: ${formatNumber(country.dead)}<br>
+                Healthy: ${formatNumber(country.healthy)}
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = e.pageX + 10 + 'px';
+            tooltip.style.top = e.pageY + 10 + 'px';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        function renderTraits(category) {
+            const list = document.getElementById('traitList');
+            list.innerHTML = '';
+
+            traits[category].forEach(trait => {
+                const div = document.createElement('div');
+                const isLocked = trait.requires && !trait.requires.every(r => gameState.purchasedTraits.has(r));
+                const isPurchased = gameState.purchasedTraits.has(trait.id);
+
+                div.className = `trait ${isLocked ? 'locked' : ''} ${isPurchased ? 'purchased' : ''}`;
+                div.innerHTML = `
+                    <div class="trait-header">
+                        <span class="trait-name">${trait.name}</span>
+                        <span class="trait-cost">${isPurchased ? '✓' : trait.cost + ' 🧬'}</span>
+                    </div>
+                    <div class="trait-desc">${trait.desc}</div>
+                `;
+
+                if (!isLocked && !isPurchased) {
+                    div.addEventListener('click', () => purchaseTrait(trait));
+                }
+
+                list.appendChild(div);
+            });
+        }
+
+        function purchaseTrait(trait) {
+            if (gameState.dnaPoints >= trait.cost) {
+                gameState.dnaPoints -= trait.cost;
+                gameState.purchasedTraits.add(trait.id);
+
+                // Apply trait effects
+                Object.entries(trait.effect).forEach(([key, value]) => {
+                    if (traitMultipliers[key] !== undefined) {
+                        traitMultipliers[key] += value;
+                    }
+                });
+
+                updateStats();
+                renderTraits(document.querySelector('.tab.active').dataset.tab);
+                addNews(`Disease evolved: ${trait.name}`);
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+        }
+
+        function startInfection(country) {
+            if (gameState.running) return;
+
+            gameState.running = true;
+            country.infected = Math.min(1000, country.population * 0.001);
+            country.healthy = country.population - country.infected;
+            country.hasInfected = true;
+
+            addNews(`Outbreak detected in ${country.name}!`);
+            updateMap();
+            updateStats();
+
+            // Start game loop
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (gameState.paused || gameState.gameOver) return;
+
+            setTimeout(() => {
+                if (!gameState.paused && !gameState.gameOver) {
+                    simulateDay();
+                    gameLoop();
+                }
+            }, 1000);
+        }
+
+        function simulateDay() {
+            gameState.day++;
+            const type = diseaseTypes[gameState.diseaseType];
+
+            // Calculate global stats
+            let totalInfected = 0;
+            let totalDead = 0;
+            let totalHealthy = 0;
+            let researchingCountries = 0;
+
+            countries.forEach(country => {
+                if (country.infected > 0) {
+                    // Infection spread within country
+                    const baseInfectivity = type.infectivity * (1 + traitMultipliers.infectivity);
+                    const climateMultiplier = getClimateMultiplier(country.climate);
+                    const densityFactor = Math.min(2, country.population / 100000000);
+                    
+                    let newInfections = country.healthy * country.infected / country.population * 
+                                       baseInfectivity * climateMultiplier * densityFactor * 0.01;
+
+                    // Apply spread modifiers
+                    if (traitMultipliers.airSpread > 0) newInfections *= (1 + traitMultipliers.airSpread);
+                    if (traitMultipliers.waterSpread > 0 && country.wealth !== 'rich') {
+                        newInfections *= (1 + traitMultipliers.waterSpread);
+                    }
+                    if (traitMultipliers.poorSpread > 0 && country.wealth === 'poor') {
+                        newInfections *= (1 + traitMultipliers.poorSpread);
+                    }
+                    if (traitMultipliers.hotSpread > 0 && country.climate === 'hot') {
+                        newInfections *= (1 + traitMultipliers.hotSpread);
+                    }
+
+                    newInfections = Math.min(newInfections, country.healthy);
+                    country.infected += newInfections;
+                    country.healthy -= newInfections;
+
+                    // Deaths
+                    if (country.infected > 0 && traitMultipliers.lethality > 0) {
+                        const lethality = type.lethality * traitMultipliers.lethality;
+                        const newDeaths = country.infected * lethality * 0.001;
+                        country.dead += newDeaths;
+                        country.infected -= newDeaths;
+
+                        // Corpse transmission
+                        if (traitMultipliers.corpseSpread > 0) {
+                            const corpseInfections = newDeaths * traitMultipliers.corpseSpread;
+                            country.infected += Math.min(corpseInfections, country.healthy * 0.1);
+                        }
+                    }
+
+                    // DNA points from infections and deaths
+                    if (newInfections > 100) gameState.dnaPoints += Math.floor(newInfections / 1000);
+                    if (country.dead > 0) gameState.dnaPoints += Math.floor(country.dead / 10000);
+
+                    // Research
+                    if (country.infected > country.population * 0.01 && !country.researching && 
+                        country.healthy > 0 && country.wealth !== 'poor') {
+                        country.researching = true;
+                        addNews(`${country.name} begins research into cure.`, 'research');
+                    }
+
+                    if (country.researching) {
+                        const researchSpeed = getResearchSpeed(country);
+                        country.researchProgress += researchSpeed;
+                        researchingCountries++;
+
+                        if (country.researchProgress >= 100 && !country.cureComplete) {
+                            country.cureComplete = true;
+                            addNews(`${country.name} has developed a cure!`, 'cure');
+                        }
+                    }
+
+                    // Border closures
+                    if (country.infected > country.population * 0.3 && !country.closedBorders && 
+                        Math.random() < 0.1) {
+                        country.closedBorders = true;
+                        addNews(`${country.name} closes borders.`, 'borders');
+                    }
+
+                    // International spread
+                    if (!country.closedBorders && country.infected > 100) {
+                        // Air spread
+                        country.airports.forEach(targetId => {
+                            const target = countries.find(c => c.id === targetId);
+                            if (target && target.healthy > 0 && !target.closedBorders) {
+                                const spreadChance = (country.infected / country.population) * 
+                                                    (traitMultipliers.airSpread + 0.1) * 
+                                                    (country.closedBorders ? 0 : 1);
+                                if (Math.random() < spreadChance * 0.1) {
+                                    const spreadAmount = Math.min(10, target.healthy * 0.001);
+                                    target.infected += spreadAmount;
+                                    target.healthy -= spreadAmount;
+                                    if (!target.hasInfected) {
+                                        target.hasInfected = true;
+                                        addNews(`Disease spreads to ${target.name}!`, 'spread');
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+
+                totalInfected += country.infected;
+                totalDead += country.dead;
+                totalHealthy += country.healthy;
+            });
+
+            // Global cure progress
+            if (researchingCountries > 0) {
+                gameState.globalCureProgress += (researchingCountries * 0.1) * 
+                                               (1 - traitMultipliers.cureResistance) * 
+                                               (1 - traitMultipliers.researchSlow);
+            }
+
+            // Random mutations for virus
+            if (type.mutationChance > 0 && Math.random() < type.mutationChance * (1 - traitMultipliers.mutationResist)) {
+                const randomTrait = getRandomAvailableTrait();
+                if (randomTrait && !gameState.purchasedTraits.has(randomTrait.id)) {
+                    gameState.purchasedTraits.add(randomTrait.id);
+                    Object.entries(randomTrait.effect).forEach(([key, value]) => {
+                        if (traitMultipliers[key] !== undefined) {
+                            traitMultipliers[key] += value;
+                        }
+                    });
+                    addNews(`Disease spontaneously mutated: ${randomTrait.name}`, 'warning');
+                    renderTraits(document.querySelector('.tab.active').dataset.tab);
+                }
+            }
+
+            // Check game end conditions
+            checkGameEnd(totalInfected, totalDead, totalHealthy);
+
+            updateStats();
+            updateMap();
+
+            // Update country modal if open
+            if (gameState.selectedCountry) {
+                updateCountryModal(gameState.selectedCountry);
+            }
+        }
+
+        function getClimateMultiplier(climate) {
+            const base = 1.0;
+            if (climate === 'cold') return base * (1 + traitMultipliers.coldResist);
+            if (climate === 'hot') return base * (1 + traitMultipliers.heatResist);
+            return base;
+        }
+
+        function getResearchSpeed(country) {
+            let speed = 0.5;
+            if (country.wealth === 'rich') speed *= 2;
+            if (country.wealth === 'average') speed *= 1.2;
+            if (gameState.difficulty === 'brutal') speed *= 1.5;
+            if (gameState.difficulty === 'mega') speed *= 2;
+            return speed;
+        }
+
+        function getRandomAvailableTrait() {
+            const allTraits = [...traits.transmission, ...traits.symptoms, ...traits.abilities];
+            const available = allTraits.filter(t => {
+                if (gameState.purchasedTraits.has(t.id)) return false;
+                if (t.requires && !t.requires.every(r => gameState.purchasedTraits.has(r))) return false;
+                return true;
+            });
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function checkGameEnd(infected, dead, healthy) {
+            const totalPop = countries.reduce((sum, c) => sum + c.population, 0);
+
+            // Win: Everyone dead
+            if (dead >= totalPop * 0.99) {
+                endGame(true);
+                return;
+            }
+
+            // Lose: Cure complete
+            if (gameState.globalCureProgress >= 100) {
+                endGame(false);
+                return;
+            }
+
+            // Lose: No more infected and no way to spread
+            if (infected === 0 && gameState.day > 10) {
+                const hasInfected = countries.some(c => c.infected > 0);
+                if (!hasInfected) {
+                    endGame(false);
+                }
+            }
+        }
+
+        function endGame(win) {
+            gameState.gameOver = true;
+            const screen = document.getElementById('gameOver');
+            const title = document.getElementById('gameOverTitle');
+
+            if (win) {
+                screen.classList.add('win');
+                screen.classList.remove('lose');
+                title.textContent = '☠️ Humanity Extinct!';
+            } else {
+                screen.classList.add('lose');
+                screen.classList.remove('win');
+                title.textContent = '💉 Cure Developed!';
+            }
+
+            document.getElementById('finalInfected').textContent = formatNumber(
+                countries.reduce((sum, c) => sum + c.infected + c.dead, 0)
+            );
+            document.getElementById('finalDead').textContent = formatNumber(
+                countries.reduce((sum, c) => sum + c.dead, 0)
+            );
+            document.getElementById('finalDays').textContent = gameState.day;
+            document.getElementById('finalDNA').textContent = gameState.dnaPoints;
+
+            screen.classList.add('active');
+        }
+
+        function updateStats() {
+            const totalPop = countries.reduce((sum, c) => sum + c.population, 0);
+            const infected = countries.reduce((sum, c) => sum + c.infected, 0);
+            const dead = countries.reduce((sum, c) => sum + c.dead, 0);
+            const healthy = countries.reduce((sum, c) => sum + c.healthy, 0);
+
+            document.getElementById('worldPopulation').textContent = formatNumber(totalPop);
+            document.getElementById('worldInfected').textContent = formatNumber(infected);
+            document.getElementById('worldDead').textContent = formatNumber(dead);
+            document.getElementById('worldHealthy').textContent = formatNumber(healthy);
+            document.getElementById('dnaPoints').textContent = gameState.dnaPoints;
+            document.getElementById('gameDay').textContent = gameState.day;
+
+            const curePercent = Math.min(100, gameState.globalCureProgress).toFixed(1);
+            document.getElementById('globalCureBar').style.width = curePercent + '%';
+            document.getElementById('curePercent').textContent = curePercent + '%';
+        }
+
+        function showCountryModal(country) {
+            gameState.selectedCountry = country;
+            document.getElementById('modalCountryName').textContent = country.name;
+            document.getElementById('modalClimate').textContent = country.climate.charAt(0).toUpperCase() + country.climate.slice(1);
+            document.getElementById('modalWealth').textContent = country.wealth.charAt(0).toUpperCase() + country.wealth.slice(1);
+            document.getElementById('modalPopulation').textContent = formatNumber(country.population);
+            updateCountryModal(country);
+            document.getElementById('countryModal').classList.add('active');
+        }
+
+        function updateCountryModal(country) {
+            const infectionPercent = ((country.infected / country.population) * 100).toFixed(1);
+            const deathPercent = ((country.dead / country.population) * 100).toFixed(1);
+            const researchPercent = country.researchProgress.toFixed(1);
+
+            document.getElementById('modalInfection').textContent = infectionPercent + '%';
+            document.getElementById('modalInfectionBar').style.width = infectionPercent + '%';
+            document.getElementById('modalDeaths').textContent = formatNumber(country.dead) + ' (' + deathPercent + '%)';
+            document.getElementById('modalDeathBar').style.width = deathPercent + '%';
+            document.getElementById('modalResearch').textContent = researchPercent + '%';
+            document.getElementById('modalResearchBar').style.width = researchPercent + '%';
+            document.getElementById('modalHealthy').textContent = formatNumber(country.healthy);
+        }
+
+        function closeModal() {
+            document.getElementById('countryModal').classList.remove('active');
+            gameState.selectedCountry = null;
+        }
+
+        function addNews(message, type = 'normal') {
+            const feed = document.getElementById('newsFeed');
+            const item = document.createElement('div');
+            item.className = 'news-item ' + type;
+            item.innerHTML = `
+                <div class="news-time">Day ${gameState.day}</div>
+                <div>${message}</div>
+            `;
+            feed.insertBefore(item, feed.firstChild);
+
+            // Keep only last 20 news items
+            while (feed.children.length > 20) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+            return Math.floor(num).toString();
+        }
+
+        function togglePause() {
+            gameState.paused = !gameState.paused;
+            document.getElementById('pauseBtn').textContent = gameState.paused ? '▶️ Resume' : '⏸️ Pause';
+            if (!gameState.paused) {
+                gameLoop();
+            }
+        }
+
+        // Lofi Music System
+        let audioCtx = null;
+        let masterGain = null;
+        let compressor = null;
+        let vinylNode = null;
+        let chordInterval = null;
+        let beatInterval = null;
+        let currentChordIndex = 0;
+        let isPlaying = false;
+
+        // Jazz chord frequencies (Cmaj7, Am7, Fmaj7, G7)
+        const chordProgression = [
+            { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] }, // C4, E4, G4, B4
+            { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },  // A3, C4, E4, G4
+            { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 349.23] }, // F3, A3, C4, E4
+            { name: 'G7', notes: [196.00, 246.94, 293.66, 392.00] }     // G3, B3, D4, G4
+        ];
+
+        function initAudio() {
+            if (audioCtx) return;
+            
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Master compressor: threshold -24dB, ratio 4:1
+            compressor = audioCtx.createDynamicsCompressor();
+            compressor.threshold.value = -24;
+            compressor.knee.value = 30;
+            compressor.ratio.value = 4;
+            compressor.attack.value = 0.003;
+            compressor.release.value = 0.25;
+            
+            // Master gain node
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.15; // Default 15% volume
+            
+            compressor.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+        }
+
+        function createVinylCrackle() {
+            const bufferSize = audioCtx.sampleRate * 2; // 2 seconds buffer
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            // Generate brown noise for vinyl texture
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                lastOut = (lastOut + (0.02 * white)) / 1.02;
+                data[i] = lastOut * 3.5; // Boost for crackle effect
+            }
+            
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            noise.loop = true;
+            
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.008; // Very subtle vinyl crackle
+            
+            noise.connect(gain);
+            gain.connect(compressor);
+            
+            return { source: noise, gain: gain };
+        }
+
+        function playChord(chord) {
+            const now = audioCtx.currentTime;
+            
+            chord.notes.forEach((freq, i) => {
+                // Create sine wave oscillator for soft sound
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                
+                // Gain node for this note
+                const noteGain = audioCtx.createGain();
+                noteGain.gain.value = 0;
+                
+                // Slow attack/release: 1.5s attack, 1s release
+                const volume = 0.025; // Very low volume per oscillator
+                noteGain.gain.setValueAtTime(0, now);
+                noteGain.gain.linearRampToValueAtTime(volume, now + 1.5);
+                noteGain.gain.setValueAtTime(volume, now + 3.5);
+                noteGain.gain.exponentialRampToValueAtTime(0.001, now + 4.5);
+                
+                // Slight detune for warmth
+                osc.detune.value = (Math.random() - 0.5) * 10;
+                
+                osc.connect(noteGain);
+                noteGain.connect(compressor);
+                
+                osc.start(now);
+                osc.stop(now + 5);
+            });
+        }
+
+        function playKick(time) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.frequency.setValueAtTime(60, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            
+            gain.gain.setValueAtTime(0.08, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+            
+            osc.connect(gain);
+            gain.connect(compressor);
+            
+            osc.start(time);
+            osc.stop(time + 0.5);
+        }
+
+        function playSnare(time) {
+            // Snare using filtered noise
+            const bufferSize = audioCtx.sampleRate * 0.1;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            
+            // Bandpass filter for snare character
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 1000;
+            filter.Q.value = 1;
+            
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.04, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+            
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(compressor);
+            
+            noise.start(time);
+        }
+
+        function scheduleBeat() {
+            if (!isPlaying) return;
+            
+            const beatDuration = 60 / 75; // 75 BPM
+            const now = audioCtx.currentTime;
+            
+            // Simple downtempo beat: kick on 1 and 3, snare on 2 and 4
+            playKick(now);
+            setTimeout(() => playSnare(now + beatDuration), beatDuration * 1000);
+            setTimeout(() => playKick(now + beatDuration * 2), beatDuration * 2 * 1000);
+            setTimeout(() => playSnare(now + beatDuration * 3), beatDuration * 3 * 1000);
+        }
+
+        function scheduleChords() {
+            if (!isPlaying) return;
+            
+            const chord = chordProgression[currentChordIndex];
+            playChord(chord);
+            
+            currentChordIndex = (currentChordIndex + 1) % chordProgression.length;
+        }
+
+        function startMusic() {
+            if (!audioCtx) initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            isPlaying = true;
+            
+            // Start vinyl crackle
+            if (!vinylNode) {
+                vinylNode = createVinylCrackle();
+                vinylNode.source.start();
+            }
+            vinylNode.gain.gain.setValueAtTime(0.008, audioCtx.currentTime);
+            
+            // Schedule chords every 4 seconds
+            scheduleChords();
+            chordInterval = setInterval(scheduleChords, 4000);
+            
+            // Schedule beats at 75 BPM (4 beats = ~3.2 seconds per bar)
+            scheduleBeat();
+            beatInterval = setInterval(scheduleBeat, (60 / 75) * 4 * 1000);
+        }
+
+        function stopMusic() {
+            isPlaying = false;
+            
+            if (chordInterval) {
+                clearInterval(chordInterval);
+                chordInterval = null;
+            }
+            if (beatInterval) {
+                clearInterval(beatInterval);
+                beatInterval = null;
+            }
+            
+            // Fade out vinyl
+            if (vinylNode && audioCtx) {
+                const now = audioCtx.currentTime;
+                vinylNode.gain.gain.setValueAtTime(vinylNode.gain.gain.value, now);
+                vinylNode.gain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+            }
+        }
+
+        function toggleMusic() {
+            gameState.musicEnabled = !gameState.musicEnabled;
+            document.getElementById('musicStatus').textContent = gameState.musicEnabled ? 'On' : 'Off';
+            
+            if (gameState.musicEnabled) {
+                startMusic();
+            } else {
+                stopMusic();
+            }
+        }
+
+        function updateVolume(value) {
+            if (masterGain) {
+                masterGain.gain.value = value / 100;
+            }
+        }
+
+        // Save/Load System
+        function openSaveModal() {
+            document.getElementById('saveLoadTitle').textContent = 'Save Game';
+            renderSaveSlots(true);
+            document.getElementById('saveLoadModal').classList.add('active');
+        }
+
+        function openLoadModal() {
+            document.getElementById('saveLoadTitle').textContent = 'Load Game';
+            renderSaveSlots(false);
+            document.getElementById('saveLoadModal').classList.add('active');
+        }
+
+        function closeSaveLoadModal() {
+            document.getElementById('saveLoadModal').classList.remove('active');
+        }
+
+        function renderSaveSlots(isSave) {
+            const container = document.getElementById('saveSlots');
+            container.innerHTML = '';
+
+            for (let i = 1; i <= 5; i++) {
+                const saveData = localStorage.getItem('diseaseSim_save' + i);
+                const slot = document.createElement('div');
+                slot.className = 'save-slot' + (!saveData ? ' empty' : '');
+
+                if (saveData) {
+                    const data = JSON.parse(saveData);
+                    slot.innerHTML = `
+                        <div class="save-info">
+                            <span>${data.diseaseType} - Day ${data.day}</span>
+                            <span>${data.dnaPoints} 🧬</span>
+                        </div>
+                        <div class="save-date">${new Date(data.timestamp).toLocaleString()}</div>
+                    `;
+                    slot.onclick = () => {
+                        if (isSave) {
+                            if (confirm('Overwrite this save?')) {
+                                saveGame(i);
+                                closeSaveLoadModal();
+                            }
+                        } else {
+                            loadGame(i);
+                            closeSaveLoadModal();
+                        }
+                    };
+                } else {
+                    slot.textContent = 'Empty Slot';
+                    slot.onclick = () => {
+                        if (isSave) {
+                            saveGame(i);
+                            closeSaveLoadModal();
+                        }
+                    };
+                }
+
+                container.appendChild(slot);
+            }
+        }
+
+        function saveGame(slot) {
+            const saveData = {
+                timestamp: Date.now(),
+                gameState: {
+                    day: gameState.day,
+                    dnaPoints: gameState.dnaPoints,
+                    diseaseType: gameState.diseaseType,
+                    difficulty: gameState.difficulty,
+                    purchasedTraits: Array.from(gameState.purchasedTraits),
+                    globalCureProgress: gameState.globalCureProgress,
+                    running: gameState.running,
+                    paused: true
+                },
+                countries: countries.map(c => ({
+                    id: c.id,
+                    healthy: c.healthy,
+                    infected: c.infected,
+                    dead: c.dead,
+                    infectionRate: c.infectionRate,
+                    deathRate: c.deathRate,
+                    researchProgress: c.researchProgress,
+                    researching: c.researching,
+                    closedBorders: c.closedBorders,
+                    closedPorts: c.closedPorts,
+                    hasInfected: c.hasInfected
+                })),
+                traitMultipliers: traitMultipliers,
+                day: gameState.day,
+                dnaPoints: gameState.dnaPoints,
+                diseaseType: gameState.diseaseType
+            };
+            localStorage.setItem('diseaseSim_save' + slot, JSON.stringify(saveData));
+            gameState.paused = false;
+            addNews('Game saved!');
+        }
+
+        function loadGame(slot) {
+            const saveData = localStorage.getItem('diseaseSim_save' + slot);
+            if (!saveData) return;
+
+            const data = JSON.parse(saveData);
+
+            // Restore game state
+            Object.assign(gameState, data.gameState);
+            gameState.purchasedTraits = new Set(data.gameState.purchasedTraits);
+            gameState.paused = false;
+
+            // Restore countries
+            data.countries.forEach(saved => {
+                const country = countries.find(c => c.id === saved.id);
+                if (country) {
+                    Object.assign(country, saved);
+                }
+            });
+
+            // Restore trait multipliers
+            Object.assign(traitMultipliers, data.traitMultipliers);
+
+            // Hide start screen if visible
+            document.getElementById('startScreen').style.display = 'none';
+
+            updateStats();
+            updateMap();
+            renderTraits(document.querySelector('.tab.active')?.dataset.tab || 'transmission');
+            addNews('Game loaded!');
+
+            // Restart game loop
+            gameLoop();
+        }
+
+        // Close modals on outside click
+        document.getElementById('countryModal').addEventListener('click', (e) => {
+            if (e.target.id === 'countryModal') closeModal();
+        });
+
+        document.getElementById('saveLoadModal').addEventListener('click', (e) => {
+            if (e.target.id === 'saveLoadModal') closeSaveLoadModal();
+        });
+    </script>
+</body>
+</html>

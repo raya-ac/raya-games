@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Royale - Fast Paced Action</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(90deg, #0d1b2a 0%, #1b263b 100%);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #415a77;
+            box-shadow: 0 2px 20px rgba(65, 90, 119, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
+        }
+        
+        .back-btn {
+            background: linear-gradient(135deg, #415a77, #778da9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(65, 90, 119, 0.3);
+        }
+        
+        .back-btn:hover {
+            background: linear-gradient(135deg, #778da9, #415a77);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(65, 90, 119, 0.5);
+        }
+        
+        /* Main Game Area */
+        .game-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+        
+        /* Canvas Container */
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #0d1b2a 100%);
+        }
+        
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        /* Minimap */
+        .minimap-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background: rgba(13, 27, 42, 0.95);
+            border: 2px solid #415a77;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(65, 90, 119, 0.2);
+        }
+        
+        #minimap {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* UI Overlay */
+        .ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 320px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .panel {
+            background: rgba(13, 27, 42, 0.95);
+            border: 1px solid #415a77;
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(65, 90, 119, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .panel-title {
+            font-size: 12px;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #1b263b, #415a77);
+            color: #fff;
+            border: 1px solid #778da9;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #415a77, #778da9);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(65, 90, 119, 0.4);
+        }
+        
+        button.active {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border-color: #00d4ff;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Stats Panel */
+        .stats-panel {
+            min-width: 150px;
+        }
+        
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            color: #00d4ff;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        /* Spectator Panel */
+        .spectator-panel {
+            min-width: 200px;
+        }
+        
+        select {
+            background: linear-gradient(135deg, #1b263b, #415a77);
+            color: #fff;
+            border: 1px solid #778da9;
+            padding: 8px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 13px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Kill Feed */
+        .kill-feed {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            max-width: 320px;
+            max-height: 200px;
+            overflow: hidden;
+        }
+        
+        .kill-entry {
+            background: linear-gradient(135deg, rgba(13, 27, 42, 0.95), rgba(27, 38, 59, 0.9));
+            border-left: 3px solid #00d4ff;
+            padding: 10px 14px;
+            margin: 6px 0;
+            border-radius: 0 12px 12px 0;
+            font-size: 13px;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .killer { color: #00d4ff; font-weight: bold; text-shadow: 0 0 8px rgba(0, 212, 255, 0.4); }
+        .victim { color: #a0aec0; }
+        .weapon { color: #fbbf24; font-weight: 600; }
+        
+        /* Kill Streak Announcement */
+        .streak-announce {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px currentColor;
+            animation: streakPulse 1s ease-out;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        @keyframes streakPulse {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+        
+        .streak-2 { color: #fbbf24; }
+        .streak-3 { color: #f59e0b; }
+        .streak-4 { color: #ec4899; }
+        .streak-5 { color: #8b5cf6; }
+        .streak-rampage { color: #00d4ff; }
+        
+        /* Winner Announcement */
+        .winner-announce {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+            animation: winnerZoom 2s ease-out;
+        }
+        
+        @keyframes winnerZoom {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .winner-text {
+            font-size: 72px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 30px #ffd700, 0 0 60px #ff6b6b;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+        }
+        
+        .winner-subtext {
+            font-size: 24px;
+            color: #fff;
+            margin-top: 10px;
+        }
+        
+        /* Storm Warning */
+        .storm-warning {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(123, 44, 191, 0.9), rgba(0, 212, 255, 0.8));
+            color: #fff;
+            padding: 12px 32px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            animation: stormPulse 1.5s infinite;
+            display: none;
+            box-shadow: 0 0 30px rgba(123, 44, 191, 0.5);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        @keyframes stormPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(123, 44, 191, 0.5); transform: translateX(-50%) scale(1); }
+            50% { box-shadow: 0 0 40px rgba(0, 212, 255, 0.6), 0 0 60px rgba(123, 44, 191, 0.4); transform: translateX(-50%) scale(1.02); }
+        }
+        
+        /* Volume Control */
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100px;
+            accent-color: #00d4ff;
+        }
+        
+        /* Replay Panel */
+        .replay-panel {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Speed Lines Canvas (overlay) */
+        #speedLinesCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚔️ Battle Royale</h1>
+        <a href="/games" class="back-btn">🎮 Games</a>
+    </div>
+    
+    <div class="game-container">
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            <canvas id="speedLinesCanvas"></canvas>
+            
+            <!-- Storm Warning -->
+            <div class="storm-warning" id="stormWarning">⚠️ STORM CLOSING IN! ⚠️</div>
+            
+            <!-- Kill Feed -->
+            <div class="kill-feed" id="killFeed"></div>
+            
+            <!-- Streak Announcement Container -->
+            <div id="streakContainer"></div>
+            
+            <!-- Winner Container -->
+            <div id="winnerContainer"></div>
+            
+            <!-- Minimap -->
+            <div class="minimap-container">
+                <canvas id="minimap"></canvas>
+            </div>
+            
+            <!-- UI Overlay -->
+            <div class="ui-overlay">
+                <div class="panel stats-panel">
+                    <div class="panel-title">📊 Match Stats</div>
+                    <div class="stat">
+                        <span>Alive:</span>
+                        <span class="stat-value" id="aliveCount">100</span>
+                    </div>
+                    <div class="stat">
+                        <span>Eliminated:</span>
+                        <span class="stat-value" id="eliminatedCount">0</span>
+                    </div>
+                    <div class="stat">
+                        <span>Storm:</span>
+                        <span class="stat-value" id="stormSize">100%</span>
+                    </div>
+                    <div class="stat">
+                        <span>Time:</span>
+                        <span class="stat-value" id="gameTime">0:00</span>
+                    </div>
+                </div>
+                
+                <div class="panel controls-panel">
+                    <div class="panel-title">🎮 Game Controls</div>
+                    <div class="control-row">
+                        <button id="btnStart" onclick="game.start()">▶️ Start</button>
+                        <button id="btnPause" onclick="game.pause()" disabled>⏸️ Pause</button>
+                        <button id="btnReset" onclick="game.reset()">🔄 Reset</button>
+                    </div>
+                    <div class="control-row">
+                        <span>Speed:</span>
+                        <button id="speed1x" class="active" onclick="game.setSpeed(1)">1x</button>
+                        <button id="speed2x" onclick="game.setSpeed(2)">2x</button>
+                        <button id="speed4x" onclick="game.setSpeed(4)">4x</button>
+                    </div>
+                    <div class="control-row volume-control">
+                        <span>🎵 Music:</span>
+                        <button id="btnMusic" onclick="game.toggleMusic()">🔇 Off</button>
+                        <input type="range" id="volumeSlider" min="0" max="100" value="15" onchange="game.setVolume(this.value)">
+                    </div>
+                </div>
+                
+                <div class="panel spectator-panel">
+                    <div class="panel-title">👁️ Spectator Mode</div>
+                    <div class="control-row">
+                        <select id="spectatorSelect" onchange="game.setSpectatorTarget(this.value)">
+                            <option value="auto">🎲 Auto (Random)</option>
+                            <option value="leader">🏆 Leader</option>
+                            <option value="action">⚔️ Most Action</option>
+                        </select>
+                    </div>
+                    <div class="control-row" style="margin-top:10px;">
+                        <span>Following: <span id="spectatingName" class="stat-value">Auto</span></span>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-title">💾 Replay</div>
+                    <div class="control-row replay-panel">
+                        <button onclick="game.saveReplay()">💾 Save</button>
+                        <button onclick="document.getElementById('replayInput').click()">📂 Load</button>
+                        <input type="file" id="replayInput" style="display:none" accept=".json" onchange="game.loadReplay(this)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== AUDIO SYSTEM - LOFI HIP HOP ====================
+        class AudioSystem {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = 0.15;
+                this.isPlaying = false;
+                this.bpm = 75;
+                this.nextNoteTime = 0;
+                this.beatCount = 0;
+                this.timerID = null;
+                
+                // Vinyl crackle noise buffer
+                this.crackleBuffer = this.createCrackleBuffer();
+            }
+            
+            createCrackleBuffer() {
+                const bufferSize = this.ctx.sampleRate * 2;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.02;
+                }
+                return buffer;
+            }
+            
+            playCrackle() {
+                if (!this.isPlaying) return;
+                const source = this.ctx.createBufferSource();
+                source.buffer = this.crackleBuffer;
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.03;
+                source.connect(gain);
+                gain.connect(this.masterGain);
+                source.loop = true;
+                source.start();
+                this.currentCrackle = source;
+            }
+            
+            stopCrackle() {
+                if (this.currentCrackle) {
+                    this.currentCrackle.stop();
+                    this.currentCrackle = null;
+                }
+            }
+            
+            playTone(freq, duration, type = 'sine', volume = 0.3, delay = 0) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.value = freq;
+                
+                const now = this.ctx.currentTime + delay;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(volume, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+            
+            // Jazz chord progression
+            getChord(root, type) {
+                const chords = {
+                    'maj7': [1, 1.25, 1.5, 1.875],
+                    'min7': [1, 1.2, 1.5, 1.8],
+                    'dom7': [1, 1.25, 1.5, 1.78],
+                    'min9': [1, 1.2, 1.5, 1.8, 2.25]
+                };
+                return chords[type].map(r => root * r);
+            }
+            
+            playChord(rootFreq, chordType, duration = 2) {
+                const ratios = this.getChord(rootFreq, chordType);
+                ratios.forEach((ratio, i) => {
+                    this.playTone(rootFreq * ratio, duration, 'triangle', 0.15 - (i * 0.02), 0);
+                });
+            }
+            
+            playHiHat() {
+                const bufferSize = this.ctx.sampleRate * 0.1;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
+                }
+                const source = this.ctx.createBufferSource();
+                source.buffer = buffer;
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.15;
+                source.connect(gain);
+                gain.connect(this.masterGain);
+                source.start();
+            }
+            
+            playKick() {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+            
+            playSnare() {
+                const bufferSize = this.ctx.sampleRate * 0.1;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.value = 0.2;
+                noise.connect(noiseGain);
+                noiseGain.connect(this.masterGain);
+                noise.start();
+                
+                const osc = this.ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = 200;
+                const oscGain = this.ctx.createGain();
+                oscGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                oscGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(oscGain);
+                oscGain.connect(this.masterGain);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+            
+            scheduler() {
+                while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
+                    this.playBeat(this.beatCount, this.nextNoteTime);
+                    this.nextNoteTime += 60 / this.bpm / 2;
+                    this.beatCount++;
+                }
+                if (this.isPlaying) {
+                    this.timerID = requestAnimationFrame(() => this.scheduler());
+                }
+            }
+            
+            playBeat(beat, time) {
+                const eighth = beat % 8;
+                
+                // Hi-hat on every 8th
+                if (eighth % 2 === 0) {
+                    setTimeout(() => this.playHiHat(), (time - this.ctx.currentTime) * 1000);
+                }
+                
+                // Kick on 0 and 4
+                if (eighth === 0 || eighth === 4) {
+                    setTimeout(() => this.playKick(), (time - this.ctx.currentTime) * 1000);
+                }
+                
+                // Snare on 2 and 6
+                if (eighth === 2 || eighth === 6) {
+                    setTimeout(() => this.playSnare(), (time - this.ctx.currentTime) * 1000);
+                }
+                
+                // Chord changes every 4 bars
+                if (eighth === 0 && beat % 32 === 0) {
+                    const chords = [
+                        ['C3', 'maj7'], ['A2', 'min7'], ['F2', 'maj7'], ['G2', 'dom7'],
+                        ['E2', 'min7'], ['A2', 'min7'], ['D2', 'min7'], ['G2', 'dom7']
+                    ];
+                    const chordIndex = (beat / 32) % chords.length;
+                    const [note, type] = chords[chordIndex];
+                    const freq = this.noteToFreq(note);
+                    setTimeout(() => this.playChord(freq, type, 4), (time - this.ctx.currentTime) * 1000);
+                }
+                
+                // Occasional melody
+                if (eighth === 4 && beat % 16 === 8) {
+                    const melodyNotes = ['C4', 'E4', 'G4', 'B4', 'A4', 'F4'];
+                    const note = melodyNotes[Math.floor(Math.random() * melodyNotes.length)];
+                    setTimeout(() => this.playTone(this.noteToFreq(note), 0.5, 'sine', 0.2), 
+                        (time - this.ctx.currentTime) * 1000);
+                }
+            }
+            
+            noteToFreq(note) {
+                const notes = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 
+                              'G': 392.00, 'A': 440.00, 'B': 493.88};
+                const octave = note.slice(-1);
+                const noteName = note.slice(0, -1);
+                return notes[noteName] * Math.pow(2, octave - 4);
+            }
+            
+            start() {
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                this.isPlaying = true;
+                this.nextNoteTime = this.ctx.currentTime;
+                this.beatCount = 0;
+                this.playCrackle();
+                this.scheduler();
+            }
+            
+            stop() {
+                this.isPlaying = false;
+                this.stopCrackle();
+                if (this.timerID) {
+                    cancelAnimationFrame(this.timerID);
+                }
+            }
+            
+            setVolume(val) {
+                this.masterGain.gain.value = val / 100;
+            }
+        }
+        
+        // ==================== GAME CLASSES ====================
+        class Vector {
+            constructor(x, y) { this.x = x; this.y = y; }
+            add(v) { return new Vector(this.x + v.x, this.y + v.y); }
+            sub(v) { return new Vector(this.x - v.x, this.y - v.y); }
+            mult(n) { return new Vector(this.x * n, this.y * n); }
+            mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+            normalize() {
+                const m = this.mag();
+                return m > 0 ? new Vector(this.x / m, this.y / m) : new Vector(0, 0);
+            }
+            dist(v) { return Math.sqrt((this.x - v.x) ** 2 + (this.y - v.y) ** 2); }
+            clone() { return new Vector(this.x, this.y); }
+        }
+        
+        class Particle {
+            constructor(x, y, color, speed, life) {
+                this.pos = new Vector(x, y);
+                const angle = Math.random() * Math.PI * 2;
+                this.vel = new Vector(Math.cos(angle) * speed, Math.sin(angle) * speed);
+                this.color = color;
+                this.life = life;
+                this.maxLife = life;
+                this.size = Math.random() * 4 + 2;
+            }
+            
+            update() {
+                this.pos = this.pos.add(this.vel);
+                this.vel = this.vel.mult(0.98);
+                this.life--;
+                this.size *= 0.98;
+            }
+            
+            draw(ctx) {
+                const alpha = Math.pow(this.life / this.maxLife, 0.7); // Smoother fade curve
+                const currentSize = this.size * (0.5 + 0.5 * (this.life / this.maxLife)); // Size reduces as life fades
+                
+                ctx.globalAlpha = alpha;
+                
+                // Add glow effect
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 8 * alpha;
+                
+                // Draw with slight gradient for softer look
+                const gradient = ctx.createRadialGradient(
+                    this.pos.x, this.pos.y, 0,
+                    this.pos.x, this.pos.y, currentSize
+                );
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, this.color.replace(')', ', 0)').replace('rgb', 'rgba').replace('#', ''));
+                
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, currentSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        class Weapon {
+            constructor(type) {
+                this.type = type;
+                this.cooldown = 0;
+                this.maxCooldown = 0;
+                this.damage = 0;
+                this.range = 0;
+                this.color = '#fff';
+                this.glowColor = '#fff';
+                this.setupWeapon(type);
+            }
+            
+            setupWeapon(type) {
+                const weapons = {
+                    'pistol': { cd: 20, dmg: 15, range: 150, color: '#94a3b8', glow: '#cbd5e1' },
+                    'smg': { cd: 5, dmg: 8, range: 200, color: '#22d3ee', glow: '#67e8f9' },
+                    'rifle': { cd: 10, dmg: 25, range: 350, color: '#a855f7', glow: '#c084fc' },
+                    'shotgun': { cd: 40, dmg: 50, range: 100, color: '#fbbf24', glow: '#fcd34d' },
+                    'sniper': { cd: 60, dmg: 100, range: 500, color: '#f472b6', glow: '#f9a8d4' }
+                };
+                const w = weapons[type];
+                if (!w) {
+                    console.error('Unknown weapon type:', type);
+                    return;
+                }
+                this.maxCooldown = w.cd;
+                this.damage = w.dmg;
+                this.range = w.range;
+                this.color = w.color;
+                this.glowColor = w.glow;
+            }
+            
+            canFire() {
+                return this.cooldown <= 0;
+            }
+            
+            fire() {
+                this.cooldown = this.maxCooldown;
+            }
+            
+            update() {
+                if (this.cooldown > 0) this.cooldown--;
+            }
+        }
+        
+        class Player {
+            constructor(id, x, y, name) {
+                this.id = id;
+                this.pos = new Vector(x, y);
+                this.vel = new Vector(0, 0);
+                this.name = name;
+                this.hp = 100;
+                this.maxHp = 100;
+                this.speed = 2.5;
+                this.radius = 8;
+                this.weapon = new Weapon('pistol');
+                this.kills = 0;
+                this.streak = 0;
+                this.alive = true;
+                // Cool color palette: blues, teals, purples, cyans
+                const coolHues = [180, 190, 200, 220, 240, 260, 280, 300, 320, 340];
+                const hue = coolHues[Math.floor(Math.random() * coolHues.length)];
+                this.color = `hsl(${hue}, 75%, 55%)`;
+                this.gradientStart = `hsl(${hue}, 85%, 65%)`;
+                this.gradientEnd = `hsl(${hue}, 65%, 40%)`;
+                this.target = null;
+                this.inStorm = false;
+                this.stormDamage = 0;
+                this.lootRadius = 20;
+                this.lastShotTarget = null;
+                this.moveTarget = null;
+                this.changeDirTimer = 0;
+                this.speedLineTimer = 0;
+                this.lastAttacker = null;
+            }
+            
+            update(game) {
+                if (!this.alive) return;
+                
+                this.weapon.update();
+                
+                // AI Behavior
+                this.aiBehavior(game);
+                
+                // Movement
+                if (this.vel.mag() > 0) {
+                    this.pos = this.pos.add(this.vel);
+                    this.speedLineTimer = 5;
+                }
+                
+                // Keep in bounds
+                this.pos.x = Math.max(this.radius, Math.min(game.mapSize - this.radius, this.pos.x));
+                this.pos.y = Math.max(this.radius, Math.min(game.mapSize - this.radius, this.pos.y));
+                
+                // Storm damage
+                const distFromCenter = this.pos.dist(game.stormCenter);
+                this.inStorm = distFromCenter > game.stormRadius;
+                if (this.inStorm) {
+                    this.stormDamage++;
+                    if (this.stormDamage >= 30) {
+                        this.hp -= 2;
+                        this.stormDamage = 0;
+                    }
+                }
+                
+                // Check death
+                if (this.hp <= 0) {
+                    this.die(game, this.lastAttacker);
+                }
+                
+                if (this.speedLineTimer > 0) this.speedLineTimer--;
+            }
+            
+            aiBehavior(game) {
+                // Find nearest enemy
+                let nearestEnemy = null;
+                let nearestDist = Infinity;
+                let nearestLoot = null;
+                
+                for (const player of game.players) {
+                    if (player !== this && player.alive) {
+                        const dist = this.pos.dist(player.pos);
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearestEnemy = player;
+                        }
+                    }
+                }
+                
+                // Find loot
+                for (const loot of game.loot) {
+                    const dist = this.pos.dist(loot.pos);
+                    if (dist < 100 && this.weapon && this.weapon.type === 'pistol') {
+                        nearestLoot = loot;
+                    }
+                }
+                
+                // Decide action
+                if (nearestLoot && this.weapon && this.weapon.type === 'pistol') {
+                    // Go for better weapon
+                    const dir = nearestLoot.pos.sub(this.pos).normalize();
+                    this.vel = dir.mult(this.speed);
+                } else if (nearestEnemy && nearestDist < this.weapon.range) {
+                    // Attack
+                    if (this.weapon.canFire()) {
+                        this.fireAt(nearestEnemy, game);
+                    }
+                    // Move away if too close
+                    if (nearestDist < 50) {
+                        const dir = this.pos.sub(nearestEnemy.pos).normalize();
+                        this.vel = dir.mult(this.speed * 0.8);
+                    } else {
+                        this.vel = new Vector(0, 0);
+                    }
+                } else {
+                    // Move towards storm center or random
+                    this.changeDirTimer--;
+                    if (this.changeDirTimer <= 0 || !this.moveTarget) {
+                        this.changeDirTimer = Math.random() * 60 + 30;
+                        // Bias towards storm center
+                        const stormBias = 0.6;
+                        const centerDir = game.stormCenter.sub(this.pos).normalize();
+                        const randomDir = new Vector(Math.random() - 0.5, Math.random() - 0.5).normalize();
+                        const finalDir = centerDir.mult(stormBias).add(randomDir.mult(1 - stormBias)).normalize();
+                        this.moveTarget = this.pos.add(finalDir.mult(100));
+                    }
+                    const dir = this.moveTarget.sub(this.pos).normalize();
+                    this.vel = dir.mult(this.speed);
+                }
+                
+                // Avoid storm
+                const distFromCenter = this.pos.dist(game.stormCenter);
+                if (distFromCenter > game.stormRadius * 0.8) {
+                    const dir = game.stormCenter.sub(this.pos).normalize();
+                    this.vel = dir.mult(this.speed * 1.5);
+                }
+            }
+            
+            fireAt(target, game) {
+                if (!this.weapon) return;
+                this.weapon.fire();
+                this.lastShotTarget = target;
+                
+                // Calculate hit chance based on distance
+                const dist = this.pos.dist(target.pos);
+                const accuracy = Math.max(0.3, 1 - dist / this.weapon.range);
+                
+                if (Math.random() < accuracy) {
+                    target.hp -= this.weapon.damage;
+                    target.lastAttacker = this;
+                    
+                    // Visual effect
+                    game.addHitEffect(target.pos.x, target.pos.y);
+                    
+                    if (target.hp <= 0 && target.alive) {
+                        this.streak++;
+                        this.kills++;
+                        game.recordKill(this, target, this.weapon.type);
+                        game.checkStreak(this);
+                    }
+                }
+            }
+            
+            die(game, killer) {
+                if (!this.alive) return;
+                this.alive = false;
+                game.addDeathParticles(this.pos.x, this.pos.y, this.color);
+                game.screenShake = 10;
+                
+                // Drop weapon if good
+                if (this.weapon && this.weapon.type !== 'pistol' && Math.random() < 0.5) {
+                    game.loot.push({ pos: this.pos.clone(), type: this.weapon.type });
+                }
+            }
+            
+            draw(ctx) {
+                if (!this.alive) return;
+                
+                // Speed lines
+                if (this.speedLineTimer > 0) {
+                    ctx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
+                    ctx.lineWidth = 2;
+                    const trailDir = this.vel.normalize().mult(-1);
+                    for (let i = 1; i <= 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.pos.x, this.pos.y);
+                        ctx.lineTo(
+                            this.pos.x + trailDir.x * i * 10,
+                            this.pos.y + trailDir.y * i * 10
+                        );
+                        ctx.stroke();
+                    }
+                }
+                
+                // Weapon glow
+                ctx.shadowColor = this.weapon.glowColor;
+                ctx.shadowBlur = 20;
+                
+                // Body with gradient
+                const gradient = ctx.createRadialGradient(
+                    this.pos.x - 3, this.pos.y - 3, 0,
+                    this.pos.x, this.pos.y, this.radius
+                );
+                gradient.addColorStop(0, this.gradientStart);
+                gradient.addColorStop(1, this.gradientEnd);
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                
+                // Inner highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.beginPath();
+                ctx.arc(this.pos.x - 2, this.pos.y - 2, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Weapon indicator
+                ctx.fillStyle = this.weapon.color;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, this.radius * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Weapon glow indicator
+                ctx.shadowColor = this.weapon.glowColor;
+                ctx.shadowBlur = 10;
+                ctx.strokeStyle = this.weapon.color;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, this.radius * 0.6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                // HP bar background
+                const hpPct = this.hp / this.maxHp;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(this.pos.x - 16, this.pos.y - 22, 32, 5);
+                
+                // HP bar with gradient
+                const hpGradient = ctx.createLinearGradient(this.pos.x - 16, 0, this.pos.x + 16, 0);
+                if (hpPct > 0.5) {
+                    hpGradient.addColorStop(0, '#00d4ff');
+                    hpGradient.addColorStop(1, '#7b2cbf');
+                } else if (hpPct > 0.25) {
+                    hpGradient.addColorStop(0, '#fbbf24');
+                    hpGradient.addColorStop(1, '#f59e0b');
+                } else {
+                    hpGradient.addColorStop(0, '#ef4444');
+                    hpGradient.addColorStop(1, '#dc2626');
+                }
+                ctx.fillStyle = hpGradient;
+                ctx.fillRect(this.pos.x - 15, this.pos.y - 21, 30 * hpPct, 3);
+                
+                // Name with text shadow for readability
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 11px Segoe UI, Arial, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.name, this.pos.x, this.pos.y + 28);
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+            }
+        }
+        
+        // ==================== MAIN GAME CLASS ====================
+        class BattleRoyale {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.speedCanvas = document.getElementById('speedLinesCanvas');
+                this.speedCtx = this.speedCanvas.getContext('2d');
+                this.minimap = document.getElementById('minimap');
+                this.minimapCtx = this.minimap.getContext('2d');
+                
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                this.audio = new AudioSystem();
+                this.mapSize = 2000;
+                this.players = [];
+                this.particles = [];
+                this.loot = [];
+                this.killFeed = [];
+                this.replayData = [];
+                
+                this.stormCenter = new Vector(this.mapSize / 2, this.mapSize / 2);
+                this.stormRadius = 900;
+                this.stormShrinkRate = 0.08;
+                this.minStormRadius = 50;
+                
+                this.camera = { x: 0, y: 0 };
+                this.screenShake = 0;
+                this.gameSpeed = 1;
+                this.running = false;
+                this.gameTime = 0;
+                this.winner = null;
+                this.gameEnded = false;
+                this.spectatorMode = 'auto';
+                this.spectatorTarget = null;
+                
+                this.winnerSlowMo = false;
+                this.slowMoTimer = 0;
+                
+                this.generateLoot();
+            }
+            
+            resize() {
+                const parent = this.canvas.parentElement;
+                this.canvas.width = parent.clientWidth;
+                this.canvas.height = parent.clientHeight;
+                this.speedCanvas.width = parent.clientWidth;
+                this.speedCanvas.height = parent.clientHeight;
+                this.minimap.width = 200;
+                this.minimap.height = 200;
+            }
+            
+            generateLoot() {
+                const weaponTypes = ['smg', 'smg', 'rifle', 'rifle', 'shotgun', 'shotgun', 'sniper'];
+                for (let i = 0; i < 30; i++) {
+                    this.loot.push({
+                        pos: new Vector(
+                            Math.random() * this.mapSize,
+                            Math.random() * this.mapSize
+                        ),
+                        type: weaponTypes[Math.floor(Math.random() * weaponTypes.length)]
+                    });
+                }
+            }
+            
+            reset() {
+                this.running = false;
+                this.gameEnded = false;
+                this.winner = null;
+                this.gameTime = 0;
+                this.players = [];
+                this.particles = [];
+                this.loot = [];
+                this.killFeed = [];
+                this.replayData = [];
+                this.stormCenter = new Vector(this.mapSize / 2, this.mapSize / 2);
+                this.stormRadius = 900;
+                this.winnerSlowMo = false;
+                this.slowMoTimer = 0;
+                
+                // Generate players
+                const names = this.generateNames();
+                for (let i = 0; i < 100; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * (this.stormRadius * 0.8);
+                    this.players.push(new Player(
+                        i,
+                        this.stormCenter.x + Math.cos(angle) * dist,
+                        this.stormCenter.y + Math.sin(angle) * dist,
+                        names[i]
+                    ));
+                }
+                
+                this.generateLoot();
+                this.updateUI();
+                this.draw();
+                
+                document.getElementById('btnStart').disabled = false;
+                document.getElementById('btnPause').disabled = true;
+                document.getElementById('winnerContainer').innerHTML = '';
+            }
+            
+            generateNames() {
+                const adjectives = ['Swift', 'Deadly', 'Silent', 'Fierce', 'Shadow', 'Phantom', 'Rogue', 'Viper', 'Storm', 'Blaze'];
+                const nouns = ['Ninja', 'Hunter', 'Wolf', 'Eagle', 'Tiger', 'Dragon', 'Snake', 'Ghost', 'Reaper', 'Striker'];
+                const names = [];
+                for (let i = 0; i < 100; i++) {
+                    names.push(`${adjectives[i % 10]}${nouns[Math.floor(i / 10)]}${i > 9 ? i : ''}`);
+                }
+                return names;
+            }
+            
+            start() {
+                if (this.players.length === 0) this.reset();
+                this.running = true;
+                document.getElementById('btnStart').disabled = true;
+                document.getElementById('btnPause').disabled = false;
+                this.loop();
+            }
+            
+            pause() {
+                this.running = !this.running;
+                document.getElementById('btnPause').textContent = this.running ? '⏸️ Pause' : '▶️ Resume';
+                if (this.running) this.loop();
+            }
+            
+            setSpeed(speed) {
+                this.gameSpeed = speed;
+                document.querySelectorAll('[id^="speed"]').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`speed${speed}x`).classList.add('active');
+            }
+            
+            toggleMusic() {
+                if (this.audio.isPlaying) {
+                    this.audio.stop();
+                    document.getElementById('btnMusic').textContent = '🔇 Off';
+                } else {
+                    this.audio.start();
+                    document.getElementById('btnMusic').textContent = '🔊 On';
+                }
+            }
+            
+            setVolume(val) {
+                this.audio.setVolume(val);
+            }
+            
+            setSpectatorTarget(target) {
+                this.spectatorMode = target;
+                if (target === 'auto') {
+                    this.spectatorTarget = null;
+                    document.getElementById('spectatingName').textContent = 'Auto';
+                }
+            }
+            
+            updateSpectator() {
+                const alive = this.players.filter(p => p.alive);
+                if (alive.length === 0) return;
+                
+                if (this.spectatorMode === 'auto') {
+                    // Randomly switch every few seconds
+                    if (!this.spectatorTarget || !this.spectatorTarget.alive || Math.random() < 0.02) {
+                        this.spectatorTarget = alive[Math.floor(Math.random() * alive.length)];
+                    }
+                } else if (this.spectatorMode === 'leader') {
+                    this.spectatorTarget = alive.reduce((a, b) => a.kills > b.kills ? a : b);
+                } else if (this.spectatorMode === 'action') {
+                    // Find player with most recent action
+                    const fighting = alive.filter(p => p.weapon && p.weapon.cooldown > p.weapon.maxCooldown * 0.5);
+                    this.spectatorTarget = fighting.length > 0 
+                        ? fighting[Math.floor(Math.random() * fighting.length)]
+                        : alive[Math.floor(Math.random() * alive.length)];
+                }
+                
+                if (this.spectatorTarget) {
+                    document.getElementById('spectatingName').textContent = this.spectatorTarget.name;
+                }
+            }
+            
+            updateCamera() {
+                this.updateSpectator();
+                
+                let targetX, targetY;
+                if (this.spectatorTarget && this.spectatorTarget.alive) {
+                    targetX = this.spectatorTarget.pos.x - this.canvas.width / 2;
+                    targetY = this.spectatorTarget.pos.y - this.canvas.height / 2;
+                } else {
+                    // Center on storm
+                    targetX = this.stormCenter.x - this.canvas.width / 2;
+                    targetY = this.stormCenter.y - this.canvas.height / 2;
+                }
+                
+                // Smooth camera
+                this.camera.x += (targetX - this.camera.x) * 0.1;
+                this.camera.y += (targetY - this.camera.y) * 0.1;
+                
+                // Screen shake
+                if (this.screenShake > 0) {
+                    this.camera.x += (Math.random() - 0.5) * this.screenShake;
+                    this.camera.y += (Math.random() - 0.5) * this.screenShake;
+                    this.screenShake *= 0.9;
+                    if (this.screenShake < 0.5) this.screenShake = 0;
+                }
+            }
+            
+            update() {
+                if (this.gameEnded) return;
+                
+                // Calculate dt based on game speed and slow mo
+                let dt = this.gameSpeed;
+                if (this.winnerSlowMo) {
+                    dt *= 0.3;
+                }
+                
+                this.gameTime += dt / 60;
+                
+                // Storm shrink
+                if (this.stormRadius > this.minStormRadius) {
+                    this.stormRadius -= this.stormShrinkRate * dt;
+                    // Move storm center randomly
+                    this.stormCenter.x += (Math.random() - 0.5) * 2 * dt;
+                    this.stormCenter.y += (Math.random() - 0.5) * 2 * dt;
+                    this.stormCenter.x = Math.max(200, Math.min(this.mapSize - 200, this.stormCenter.x));
+                    this.stormCenter.y = Math.max(200, Math.min(this.mapSize - 200, this.stormCenter.y));
+                }
+                
+                // Update players - only once per frame, not nested loop
+                for (const player of this.players) {
+                    player.update(this);
+                }
+                
+                // Update particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update();
+                    if (this.particles[i].life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+                
+                // Collect loot
+                for (const player of this.players) {
+                    if (!player.alive) continue;
+                    for (let i = this.loot.length - 1; i >= 0; i--) {
+                        if (player.pos.dist(this.loot[i].pos) < player.lootRadius) {
+                            player.weapon = new Weapon(this.loot[i].type);
+                            this.loot.splice(i, 1);
+                        }
+                    }
+                }
+                
+                // Record replay data
+                if (this.gameTime % 0.5 < 0.1) {
+                    this.recordReplayFrame();
+                }
+                
+                // Check winner
+                const alive = this.players.filter(p => p.alive);
+                if (alive.length === 1 && !this.winner) {
+                    this.winner = alive[0];
+                    this.triggerWin();
+                }
+                
+                // Slow mo handling
+                if (this.winnerSlowMo) {
+                    this.slowMoTimer -= dt;
+                    if (this.slowMoTimer <= 0) {
+                        this.winnerSlowMo = false;
+                        this.gameEnded = true;
+                        this.running = false;
+                        this.showWinner();
+                    }
+                }
+                
+                this.updateCamera();
+                this.updateUI();
+                
+                // Storm warning
+                const warning = document.getElementById('stormWarning');
+                if (warning) {
+                    warning.style.display = this.stormRadius < 300 ? 'block' : 'none';
+                }
+            }
+            
+            triggerWin() {
+                this.winnerSlowMo = true;
+                this.slowMoTimer = 120; // 2 seconds at 60fps (but slowed)
+                this.screenShake = 20;
+                
+                // Victory particles
+                for (let i = 0; i < 50; i++) {
+                    this.addDeathParticles(
+                        this.winner.pos.x, 
+                        this.winner.pos.y, 
+                        '#ffd700',
+                        8
+                    );
+                }
+            }
+            
+            showWinner() {
+                const container = document.getElementById('winnerContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="winner-announce">
+                            <div class="winner-text">🏆 ${this.winner.name} WINS! 🏆</div>
+                            <div class="winner-subtext">${this.winner.kills} Kills • Victory Royale!</div>
+                        </div>
+                    `;
+                }
+                document.getElementById('btnStart').disabled = false;
+                document.getElementById('btnPause').disabled = true;
+            }
+            
+            checkStreak(killer) {
+                const streaks = [
+                    { count: 2, text: 'DOUBLE KILL!', class: 'streak-2' },
+                    { count: 3, text: 'TRIPLE KILL!', class: 'streak-3' },
+                    { count: 4, text: 'QUADRA KILL!', class: 'streak-4' },
+                    { count: 5, text: 'PENTAKILL!', class: 'streak-5' }
+                ];
+                
+                for (const s of streaks) {
+                    if (killer.streak === s.count) {
+                        this.showStreak(s.text, s.class);
+                        break;
+                    }
+                }
+                
+                if (killer.streak >= 6) {
+                    this.showStreak('🔥 RAMPAGE! 🔥', 'streak-rampage');
+                }
+            }
+            
+            showStreak(text, className) {
+                const container = document.getElementById('streakContainer');
+                if (!container) return;
+                const el = document.createElement('div');
+                el.className = `streak-announce ${className}`;
+                el.textContent = text;
+                container.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
+            }
+            
+            recordKill(killer, victim, weapon) {
+                this.killFeed.unshift({ killer: killer.name, victim: victim.name, weapon: weapon });
+                if (this.killFeed.length > 5) this.killFeed.pop();
+                this.updateKillFeed();
+            }
+            
+            updateKillFeed() {
+                const container = document.getElementById('killFeed');
+                if (!container) return;
+                container.innerHTML = this.killFeed.map(k => `
+                    <div class="kill-entry">
+                        <span class="killer">${k.killer}</span> 
+                        <span class="weapon">[${k.weapon.toUpperCase()}]</span> 
+                        <span class="victim">${k.victim}</span>
+                    </div>
+                `).join('');
+            }
+            
+            addDeathParticles(x, y, color, speed = 5) {
+                for (let i = 0; i < 15; i++) {
+                    this.particles.push(new Particle(x, y, color, speed, 40));
+                }
+            }
+            
+            addHitEffect(x, y) {
+                for (let i = 0; i < 5; i++) {
+                    this.particles.push(new Particle(x, y, '#00d4ff', 3, 20));
+                }
+            }
+            
+            recordReplayFrame() {
+                const frame = {
+                    time: this.gameTime,
+                    storm: { x: this.stormCenter.x, y: this.stormCenter.y, r: this.stormRadius },
+                    players: this.players.map(p => ({
+                        id: p.id,
+                        x: p.pos.x,
+                        y: p.pos.y,
+                        hp: p.hp,
+                        alive: p.alive,
+                        kills: p.kills
+                    }))
+                };
+                this.replayData.push(frame);
+            }
+            
+            saveReplay() {
+                const data = JSON.stringify({
+                    version: 1,
+                    mapSize: this.mapSize,
+                    frames: this.replayData,
+                    players: this.players.map(p => ({ id: p.id, name: p.name }))
+                });
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `battleroyale_replay_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            loadReplay(input) {
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        this.playReplay(data);
+                    } catch (err) {
+                        alert('Invalid replay file');
+                    }
+                };
+                reader.readAsText(file);
+                input.value = '';
+            }
+            
+            playReplay(data) {
+                this.reset();
+                // Replay logic would go here - simplified for this version
+                alert('Replay loaded! (Playback not fully implemented in this version)');
+            }
+            
+            updateUI() {
+                const alive = this.players.filter(p => p.alive).length;
+                const eliminated = this.players.length - alive;
+                
+                const aliveEl = document.getElementById('aliveCount');
+                const elimEl = document.getElementById('eliminatedCount');
+                const stormEl = document.getElementById('stormSize');
+                const timeEl = document.getElementById('gameTime');
+                
+                if (aliveEl) aliveEl.textContent = alive;
+                if (elimEl) elimEl.textContent = eliminated;
+                if (stormEl) stormEl.textContent = Math.round((this.stormRadius / 900) * 100) + '%';
+                
+                if (timeEl) {
+                    const mins = Math.floor(this.gameTime / 60);
+                    const secs = Math.floor(this.gameTime % 60);
+                    timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }
+            }
+            
+            draw() {
+                // Clear canvases with base background
+                this.ctx.fillStyle = '#0d1b2a';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.speedCtx.clearRect(0, 0, this.speedCanvas.width, this.speedCanvas.height);
+                
+                this.ctx.save();
+                this.ctx.translate(-this.camera.x, -this.camera.y);
+                
+                // Draw subtle grid pattern
+                this.drawGrid();
+                
+                // Draw storm with gradient edges
+                this.drawStorm();
+                
+                // Draw loot with pulsing glow
+                this.drawLoot();
+                
+                // Draw particles
+                for (const p of this.particles) {
+                    p.draw(this.ctx);
+                }
+                
+                // Draw players
+                for (const player of this.players) {
+                    player.draw(this.ctx);
+                }
+                
+                this.ctx.restore();
+                
+                // Draw speed lines on overlay
+                this.drawSpeedLines();
+                
+                // Draw minimap
+                this.drawMinimap();
+            }
+            
+            drawGrid() {
+                // Subtle background gradient
+                const bgGradient = this.ctx.createRadialGradient(
+                    this.mapSize / 2, this.mapSize / 2, 0,
+                    this.mapSize / 2, this.mapSize / 2, this.mapSize
+                );
+                bgGradient.addColorStop(0, '#1b263b');
+                bgGradient.addColorStop(1, '#0d1b2a');
+                this.ctx.fillStyle = bgGradient;
+                this.ctx.fillRect(0, 0, this.mapSize, this.mapSize);
+                
+                // Grid lines
+                this.ctx.strokeStyle = 'rgba(65, 90, 119, 0.15)';
+                this.ctx.lineWidth = 1;
+                
+                // Major grid lines every 200px
+                for (let x = 0; x <= this.mapSize; x += 200) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.mapSize);
+                    this.ctx.stroke();
+                }
+                for (let y = 0; y <= this.mapSize; y += 200) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.mapSize, y);
+                    this.ctx.stroke();
+                }
+                
+                // Minor grid dots every 50px
+                this.ctx.fillStyle = 'rgba(65, 90, 119, 0.08)';
+                for (let x = 0; x <= this.mapSize; x += 50) {
+                    for (let y = 0; y <= this.mapSize; y += 50) {
+                        if (x % 200 !== 0 || y % 200 !== 0) {
+                            this.ctx.beginPath();
+                            this.ctx.arc(x, y, 1, 0, Math.PI * 2);
+                            this.ctx.fill();
+                        }
+                    }
+                }
+            }
+            
+            drawStorm() {
+                const distFromCenter = this.stormRadius;
+                const gradientWidth = 80; // Width of the gradient edge
+                
+                // Outer storm area (danger zone)
+                this.ctx.fillStyle = 'rgba(123, 44, 191, 0.2)';
+                this.ctx.beginPath();
+                this.ctx.arc(this.stormCenter.x, this.stormCenter.y, this.stormRadius + gradientWidth, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Storm edge gradient
+                const stormGradient = this.ctx.createRadialGradient(
+                    this.stormCenter.x, this.stormCenter.y,
+                    Math.max(0, this.stormRadius - gradientWidth),
+                    this.stormCenter.x, this.stormCenter.y,
+                    this.stormRadius + gradientWidth
+                );
+                stormGradient.addColorStop(0, 'rgba(0, 212, 255, 0.1)');
+                stormGradient.addColorStop(0.4, 'rgba(123, 44, 191, 0.3)');
+                stormGradient.addColorStop(0.7, 'rgba(123, 44, 191, 0.5)');
+                stormGradient.addColorStop(1, 'rgba(88, 28, 135, 0.7)');
+                
+                this.ctx.fillStyle = stormGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(this.stormCenter.x, this.stormCenter.y, this.stormRadius + gradientWidth, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Storm edge line
+                this.ctx.strokeStyle = '#00d4ff';
+                this.ctx.lineWidth = 2;
+                this.ctx.shadowColor = '#00d4ff';
+                this.ctx.shadowBlur = 15;
+                this.ctx.beginPath();
+                this.ctx.arc(this.stormCenter.x, this.stormCenter.y, this.stormRadius, 0, Math.PI * 2);
+                this.ctx.stroke();
+                this.ctx.shadowBlur = 0;
+                
+                // Inner safe zone glow
+                const safeGradient = this.ctx.createRadialGradient(
+                    this.stormCenter.x, this.stormCenter.y, 0,
+                    this.stormCenter.x, this.stormCenter.y, this.stormRadius
+                );
+                safeGradient.addColorStop(0, 'rgba(0, 212, 255, 0.05)');
+                safeGradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
+                this.ctx.fillStyle = safeGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(this.stormCenter.x, this.stormCenter.y, this.stormRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            drawLoot() {
+                const time = Date.now() / 1000;
+                
+                for (const loot of this.loot) {
+                    const w = new Weapon(loot.type);
+                    
+                    // Pulsing glow effect
+                    const pulse = 0.7 + 0.3 * Math.sin(time * 3 + loot.pos.x * 0.01);
+                    
+                    // Outer glow
+                    this.ctx.shadowColor = w.glowColor;
+                    this.ctx.shadowBlur = 15 * pulse;
+                    
+                    // Draw loot box with gradient
+                    const boxSize = 8;
+                    const gradient = this.ctx.createLinearGradient(
+                        loot.pos.x - boxSize, loot.pos.y - boxSize,
+                        loot.pos.x + boxSize, loot.pos.y + boxSize
+                    );
+                    gradient.addColorStop(0, w.color);
+                    gradient.addColorStop(1, w.glowColor);
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.fillRect(loot.pos.x - boxSize/2, loot.pos.y - boxSize/2, boxSize, boxSize);
+                    
+                    // Inner highlight
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    this.ctx.fillRect(loot.pos.x - boxSize/4, loot.pos.y - boxSize/4, boxSize/2, boxSize/2);
+                    
+                    this.ctx.shadowBlur = 0;
+                }
+            }
+            
+            drawSpeedLines() {
+                if (!this.spectatorTarget) return;
+                
+                const target = this.spectatorTarget;
+                if (target.speedLineTimer <= 0) return;
+                
+                const screenX = target.pos.x - this.camera.x;
+                const screenY = target.pos.y - this.camera.y;
+                
+                // Cool blue/cyan speed lines
+                this.speedCtx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
+                this.speedCtx.lineWidth = 2;
+                
+                // Radial speed lines with dynamic effect
+                const time = Date.now() / 200;
+                for (let i = 0; i < 12; i++) {
+                    const angle = time + i * Math.PI / 6;
+                    const len = 40 + Math.sin(time * 2 + i) * 20;
+                    this.speedCtx.beginPath();
+                    this.speedCtx.moveTo(screenX, screenY);
+                    this.speedCtx.lineTo(
+                        screenX + Math.cos(angle) * len,
+                        screenY + Math.sin(angle) * len
+                    );
+                    this.speedCtx.stroke();
+                }
+            }
+            
+            drawMinimap() {
+                const ctx = this.minimapCtx;
+                const scale = this.minimap.width / this.mapSize;
+                
+                // Clear with dark background
+                ctx.fillStyle = '#0d1b2a';
+                ctx.fillRect(0, 0, this.minimap.width, this.minimap.height);
+                
+                // Storm area
+                const stormGradient = ctx.createRadialGradient(
+                    this.stormCenter.x * scale, this.stormCenter.y * scale, 0,
+                    this.stormCenter.x * scale, this.stormCenter.y * scale,
+                    this.stormRadius * scale
+                );
+                stormGradient.addColorStop(0, 'rgba(0, 212, 255, 0.2)');
+                stormGradient.addColorStop(1, 'rgba(123, 44, 191, 0.4)');
+                
+                ctx.fillStyle = stormGradient;
+                ctx.beginPath();
+                ctx.arc(
+                    this.stormCenter.x * scale,
+                    this.stormCenter.y * scale,
+                    this.stormRadius * scale,
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Storm edge
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(
+                    this.stormCenter.x * scale,
+                    this.stormCenter.y * scale,
+                    this.stormRadius * scale,
+                    0, Math.PI * 2
+                );
+                ctx.stroke();
+                
+                // Players with improved visibility
+                for (const p of this.players) {
+                    if (!p.alive) continue;
+                    
+                    const isTarget = p === this.spectatorTarget;
+                    
+                    // Glow for target
+                    if (isTarget) {
+                        ctx.shadowColor = '#00d4ff';
+                        ctx.shadowBlur = 8;
+                    }
+                    
+                    // Player dot
+                    ctx.fillStyle = isTarget ? '#00d4ff' : p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.pos.x * scale, p.pos.y * scale, isTarget ? 4 : 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.shadowBlur = 0;
+                    
+                    // Target indicator ring
+                    if (isTarget) {
+                        ctx.strokeStyle = '#00d4ff';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(p.pos.x * scale, p.pos.y * scale, 6, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+                
+                // Camera view indicator
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 2]);
+                ctx.strokeRect(
+                    this.camera.x * scale,
+                    this.camera.y * scale,
+                    this.canvas.width * scale,
+                    this.canvas.height * scale
+                );
+                ctx.setLineDash([]);
+            }
+            
+            loop() {
+                if (!this.running) return;
+                
+                this.update();
+                this.draw();
+                
+                requestAnimationFrame(() => this.loop());
+            }
+        }
+        
+        // Initialize game
+        const game = new BattleRoyale();
+        game.reset();
+        
+        // Initial draw
+        game.draw();
+    </script>
+</body>
+</html>

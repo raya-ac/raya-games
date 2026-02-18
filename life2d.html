@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Life 2D - Artificial Life Simulator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --neon-blue: #00f5ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff88;
+            --neon-purple: #b829dd;
+            --neon-orange: #ff6b35;
+            --neon-yellow: #ffff00;
+            --neon-red: #ff3333;
+            --neon-cyan: #00ffff;
+            --dark-bg: #050508;
+            --panel-bg: rgba(5, 5, 8, 0.95);
+            --panel-border: rgba(0, 245, 255, 0.3);
+        }
+        
+        body {
+            background: var(--dark-bg);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        .hud {
+            position: fixed;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .hud-top {
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 20px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, transparent 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+            pointer-events: none;
+        }
+        
+        .hud-top > * {
+            pointer-events: auto;
+        }
+        
+        .title-block {
+            flex-shrink: 0;
+        }
+        
+        .title-block h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titlePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes titlePulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+        
+        .stats-container {
+            flex: 1;
+            min-width: 200px;
+            max-width: 450px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        
+        .stat-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        
+        .stat-box .value {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        .stat-box .label {
+            font-size: 8px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .hud-left {
+            top: 80px;
+            left: 15px;
+            width: 280px;
+            max-height: calc(100vh - 150px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .hud-right {
+            top: 80px;
+            right: 15px;
+            width: 280px;
+            max-height: calc(100vh - 150px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .hud-bottom {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, transparent 100%);
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            pointer-events: auto;
+            max-height: 90px;
+            overflow-y: auto;
+        }
+        
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .panel-section {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panel-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .panel-section h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .btn {
+            background: rgba(0,245,255,0.1);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            pointer-events: all;
+        }
+        
+        .btn:hover {
+            background: rgba(0,245,255,0.2);
+            transform: translateY(-1px);
+        }
+        
+        .btn.active {
+            background: var(--neon-green);
+            border-color: var(--neon-green);
+            color: #000;
+        }
+        
+        .btn.primary {
+            background: var(--neon-blue);
+            border-color: var(--neon-blue);
+            color: #000;
+        }
+        
+        .btn.danger {
+            background: rgba(255,51,51,0.2);
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+        
+        .btn.pink {
+            background: rgba(255,0,255,0.1);
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        
+        .btn-row {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .slider-group {
+            margin-bottom: 8px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #aaa;
+            margin-bottom: 3px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .species-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+        }
+        
+        .species-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 9px;
+            padding: 3px 6px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+        }
+        
+        .species-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .chart-container {
+            height: 60px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 5px;
+            padding: 6px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        select {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            width: 100%;
+        }
+        
+        @media (max-width: 1200px) {
+            .hud-left, .hud-right { display: none; }
+            .hud-top { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/games" style="background: rgba(0,0,0,0.8); border: 1px solid #00ff88; color: #00ff88; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; font-family: 'Rajdhani', sans-serif; display: inline-block;">🎮 Games</a>
+    </div>
+    
+    <div id="canvas-container">
+        <canvas id="simCanvas"></canvas>
+    </div>
+    
+    <div class="hud hud-top">
+        <div class="title-block">
+            <h1>◉ Particle Life 2D</h1>
+            <p style="font-size: 10px; color: #888;">Artificial Life Simulation</p>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="value" id="particle-count">0</div>
+                    <div class="label">Particles</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="generation">0</div>
+                    <div class="label">Generation</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="fps">60</div>
+                    <div class="label">FPS</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="births">0</div>
+                    <div class="label">Births</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="deaths">0</div>
+                    <div class="label">Deaths</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="species">0</div>
+                    <div class="label">Species</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud hud-left">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Simulation Control</h3>
+                <div class="btn-row">
+                    <button class="btn primary" id="play-btn" onclick="togglePlay()">▶ PLAY</button>
+                    <button class="btn" onclick="step()">⏭ STEP</button>
+                    <button class="btn danger" onclick="clearAll()">🗑 CLEAR</button>
+                </div>
+                
+                <div class="slider-group" style="margin-top: 10px;">
+                    <div class="slider-label">
+                        <span>Simulation Speed</span>
+                        <span id="speed-display">1x</span>
+                    </div>
+                    <input type="range" id="speed" min="0" max="5" step="1" value="1" onchange="updateSpeed(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Physics Settings</h3>
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Attraction Radius</span>
+                        <span id="radius-display">50</span>
+                    </div>
+                    <input type="range" id="radius" min="10" max="150" value="50" onchange="updateRadius(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Force Strength</span>
+                        <span id="force-display">0.5</span>
+                    </div>
+                    <input type="range" id="force" min="0.1" max="2" step="0.1" value="0.5" onchange="updateForce(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Friction</span>
+                        <span id="friction-display">0.9</span>
+                    </div>
+                    <input type="range" id="friction" min="0.5" max="0.99" step="0.01" value="0.9" onchange="updateFriction(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Species Distribution</h3>
+                <div class="species-grid" id="species-grid"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud hud-right">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Spawn Species</h3>
+                <div class="btn-row">
+                    <button class="btn" onclick="spawnBatch('red', 50)">🔴 Red</button>
+                    <button class="btn" onclick="spawnBatch('blue', 50)">🔵 Blue</button>
+                    <button class="btn" onclick="spawnBatch('green', 50)">🟢 Green</button>
+                </div>
+                <div class="btn-row" style="margin-top: 6px;">
+                    <button class="btn" onclick="spawnBatch('yellow', 30)">🟡 Yellow</button>
+                    <button class="btn" onclick="spawnBatch('purple', 30)">🟣 Purple</button>
+                    <button class="btn" onclick="spawnBatch('cyan', 30)">🔵 Cyan</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>World Presets</h3>
+                <div class="btn-row">
+                    <button class="btn" onclick="loadPreset('random')">🎲 Random</button>
+                    <button class="btn" onclick="loadPreset('ecosystem')">🌍 Ecosystem</button>
+                    <button class="btn" onclick="loadPreset('war')">⚔️ War</button>
+                </div>
+                <div class="btn-row" style="margin-top: 6px;">
+                    <button class="btn" onclick="loadPreset('symbiosis')">🤝 Symbiosis</button>
+                    <button class="btn" onclick="loadPreset('predator')">🦁 Predator</button>
+                    <button class="btn" onclick="loadPreset('cellular')">🔬 Cellular</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Population Graph</h3>
+                <div class="chart-container">
+                    <canvas id="graphCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud hud-bottom">
+        <button class="btn" onclick="spawnParticle('red')">🔴 Red</button>
+        <button class="btn" onclick="spawnParticle('blue')">🔵 Blue</button>
+        <button class="btn" onclick="spawnParticle('green')">🟢 Green</button>
+        <button class="btn" onclick="spawnParticle('yellow')">🟡 Yellow</button>
+        <button class="btn" onclick="spawnParticle('purple')">🟣 Purple</button>
+        <button class="btn" onclick="spawnParticle('cyan')">🔵 Cyan</button>
+        <button class="btn pink" onclick="spawnParticle('predator')">🦁 Predator</button>
+        <button class="btn" onclick="spawnParticle('prey')">🐇 Prey</button>
+        <button class="btn danger" onclick="spawnParticle('virus')">🦠 Virus</button>
+        <button class="btn" onclick="spawnParticle('plant')">🌱 Plant</button>
+    </div>
+
+    <script>
+        // ============================================
+        // PARTICLE LIFE 2D - Artificial Life Simulator
+        // ============================================
+        
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const graphCanvas = document.getElementById('graphCanvas');
+        const graphCtx = graphCanvas.getContext('2d');
+        
+        let width, height;
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (graphCanvas) {
+                graphCanvas.width = graphCanvas.offsetWidth;
+                graphCanvas.height = graphCanvas.offsetHeight;
+            }
+        }
+        window.addEventListener('resize', resize);
+        resize();
+        
+        // Configuration
+        const CONFIG = {
+            particleRadius: 3,
+            maxParticles: 1500,
+            attractionRadius: 50,
+            forceMultiplier: 0.5,
+            friction: 0.9,
+            speed: 1,
+            mutationRate: 0.01
+        };
+        
+        // Species definitions with attraction/repulsion matrix
+        const SPECIES = {
+            red: { color: '#ff4444', radius: 3, mass: 1 },
+            blue: { color: '#4444ff', radius: 3, mass: 1 },
+            green: { color: '#44ff44', radius: 3, mass: 1 },
+            yellow: { color: '#ffff44', radius: 3, mass: 1 },
+            purple: { color: '#ff44ff', radius: 3, mass: 1 },
+            cyan: { color: '#44ffff', radius: 3, mass: 1 },
+            predator: { color: '#ff0000', radius: 5, mass: 2, glow: true },
+            prey: { color: '#00ff00', radius: 2.5, mass: 0.8 },
+            virus: { color: '#ff00ff', radius: 2, mass: 0.5, pulse: true },
+            plant: { color: '#228b22', radius: 4, mass: 1.5, glow: true }
+        };
+        
+        // Attraction matrix: positive = attract, negative = repel
+        const ATTRACTIONS = {
+            red: { red: 0.1, blue: -0.2, green: 0.3, yellow: 0, purple: 0.2, cyan: -0.1 },
+            blue: { red: -0.2, blue: 0.1, green: 0, yellow: 0.3, purple: -0.1, cyan: 0.2 },
+            green: { red: 0.3, blue: 0, green: 0.1, yellow: -0.2, purple: 0, cyan: 0.3 },
+            yellow: { red: 0, blue: 0.3, green: -0.2, yellow: 0.1, purple: 0.3, cyan: 0 },
+            purple: { red: 0.2, blue: -0.1, green: 0, yellow: 0.3, purple: 0.1, cyan: -0.2 },
+            cyan: { red: -0.1, blue: 0.2, green: 0.3, yellow: 0, purple: -0.2, cyan: 0.1 },
+            predator: { prey: 1, plant: 0.5, red: 0.2, blue: 0.2, green: 0.2, yellow: 0.2, purple: 0.2, cyan: 0.2 },
+            prey: { plant: 0.8, predator: -1, red: -0.3, blue: -0.3, green: 0.3, yellow: 0 },
+            virus: { red: 0.5, blue: 0.5, green: 0.5, yellow: 0.5, purple: 0.5, cyan: 0.5, prey: 0.8, plant: 0.3 },
+            plant: { red: -0.1, blue: -0.1, green: 0.1, yellow: 0.1, purple: -0.1, cyan: 0.1 }
+        };
+        
+        let particles = [];
+        let isPlaying = false;
+        let generation = 0;
+        let births = 0;
+        let deaths = 0;
+        let lastTime = 0;
+        let fps = 60;
+        let history = [];
+        
+        class Particle {
+            constructor(type, x, y) {
+                this.type = type;
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.energy = 50 + Math.random() * 50;
+                this.age = 0;
+                this.id = Math.random().toString(36).substr(2, 9);
+                
+                const props = SPECIES[type];
+                this.radius = props.radius;
+                this.mass = props.mass;
+            }
+            
+            update() {
+                // Apply forces from other particles
+                for (let other of particles) {
+                    if (other === this) continue;
+                    
+                    const dx = other.x - this.x;
+                    const dy = other.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < CONFIG.attractionRadius && dist > this.radius + other.radius) {
+                        let attraction = 0;
+                        
+                        // Get attraction value
+                        if (ATTRACTIONS[this.type] && ATTRACTIONS[this.type][other.type] !== undefined) {
+                            attraction = ATTRACTIONS[this.type][other.type];
+                        } else if (ATTRACTIONS[other.type] && ATTRACTIONS[other.type][this.type] !== undefined) {
+                            attraction = ATTRACTIONS[other.type][this.type];
+                        }
+                        
+                        const force = attraction * CONFIG.forceMultiplier / (dist * 0.1 + 1);
+                        
+                        this.vx += (dx / dist) * force / this.mass;
+                        this.vy += (dy / dist) * force / this.mass;
+                    }
+                    
+                    // Collision
+                    if (dist < this.radius + other.radius) {
+                        this.handleCollision(other);
+                    }
+                }
+                
+                // Apply velocity
+                this.x += this.vx * CONFIG.speed;
+                this.y += this.vy * CONFIG.speed;
+                
+                // Friction
+                this.vx *= CONFIG.friction;
+                this.vy *= CONFIG.friction;
+                
+                // Boundaries
+                if (this.x < this.radius) {
+                    this.x = this.radius;
+                    this.vx *= -0.8;
+                }
+                if (this.x > width - this.radius) {
+                    this.x = width - this.radius;
+                    this.vx *= -0.8;
+                }
+                if (this.y < this.radius) {
+                    this.y = this.radius;
+                    this.vy *= -0.8;
+                }
+                if (this.y > height - this.radius) {
+                    this.y = height - this.radius;
+                    this.vy *= -0.8;
+                }
+                
+                // Metabolism
+                this.energy -= 0.05;
+                this.age++;
+                
+                // Plants get energy from being still
+                if (this.type === 'plant' && Math.abs(this.vx) < 0.1 && Math.abs(this.vy) < 0.1) {
+                    this.energy += 0.2;
+                }
+                
+                // Reproduce if healthy
+                if (this.energy > 100 && Math.random() < 0.001) {
+                    this.energy -= 30;
+                    return new Particle(this.type, this.x + (Math.random() - 0.5) * 20, 
+                                       this.y + (Math.random() - 0.5) * 20);
+                }
+                
+                // Die if no energy
+                if (this.energy <= 0) return 'die';
+                
+                return null;
+            }
+            
+            handleCollision(other) {
+                // Predator eats prey
+                if (this.type === 'predator' && other.type === 'prey') {
+                    this.energy += 40;
+                    other.energy = 0;
+                }
+                
+                // Prey eats plants
+                if (this.type === 'prey' && other.type === 'plant') {
+                    this.energy += 30;
+                    other.energy -= 20;
+                }
+                
+                // Virus infects
+                if (this.type === 'virus' && !['virus', 'predator'].includes(other.type)) {
+                    other.energy -= 10;
+                    this.energy += 5;
+                    if (Math.random() < 0.1) other.type = 'virus';
+                }
+                
+                // Bounce
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    
+                    const dvx = this.vx - other.vx;
+                    const dvy = this.vy - other.vy;
+                    
+                    const velAlongNormal = dvx * nx + dvy * ny;
+                    
+                    if (velAlongNormal > 0) return;
+                    
+                    const e = 0.8;
+                    const impulse = -(1 + e) * velAlongNormal / (1/this.mass + 1/other.mass);
+                    
+                    this.vx -= impulse * nx / this.mass;
+                    this.vy -= impulse * ny / this.mass;
+                    other.vx += impulse * nx / other.mass;
+                    other.vy += impulse * ny / other.mass;
+                    
+                    // Separate
+                    const overlap = (this.radius + other.radius - dist) / 2;
+                    this.x -= nx * overlap;
+                    this.y -= ny * overlap;
+                    other.x += nx * overlap;
+                    other.y += ny * overlap;
+                }
+            }
+            
+            draw(ctx, time) {
+                const props = SPECIES[this.type];
+                
+                // Glow effect
+                if (props.glow || this.type === 'predator') {
+                    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 3);
+                    gradient.addColorStop(0, props.color + '80');
+                    gradient.addColorStop(1, props.color + '00');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Pulse effect
+                let r = this.radius;
+                if (props.pulse || this.type === 'virus') {
+                    r += Math.sin(time * 0.01 + this.id.charCodeAt(0)) * 1;
+                }
+                
+                // Main body
+                ctx.fillStyle = props.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Outline based on energy
+                const alpha = Math.min(1, this.energy / 100);
+                ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Direction indicator
+                if (Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1) {
+                    ctx.strokeStyle = props.color + '40';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x + this.vx * 5, this.y + this.vy * 5);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        function spawnParticle(type, x, y) {
+            if (particles.length >= CONFIG.maxParticles) return;
+            particles.push(new Particle(type, x, y));
+        }
+        
+        function spawnBatch(type, count) {
+            for (let i = 0; i < count; i++) {
+                spawnParticle(type);
+            }
+        }
+        
+        function update() {
+            const newParticles = [];
+            const toRemove = [];
+            
+            for (let i = 0; i < particles.length; i++) {
+                const result = particles[i].update();
+                if (result === 'die') {
+                    toRemove.push(i);
+                    deaths++;
+                } else if (result instanceof Particle) {
+                    newParticles.push(result);
+                    births++;
+                }
+            }
+            
+            // Remove dead
+            for (let i = toRemove.length - 1; i >= 0; i--) {
+                particles.splice(toRemove[i], 1);
+            }
+            
+            // Add newborns
+            particles.push(...newParticles);
+            
+            generation++;
+        }
+        
+        function draw() {
+            // Trail effect
+            ctx.fillStyle = 'rgba(5, 5, 8, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+            
+            const time = Date.now();
+            
+            // Draw attraction connections
+            ctx.strokeStyle = 'rgba(0, 245, 255, 0.05)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < particles.length; i += 3) {
+                for (let j = i + 1; j < particles.length && j < i + 5; j++) {
+                    const dx = particles[j].x - particles[i].x;
+                    const dy = particles[j].y - particles[i].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < CONFIG.attractionRadius * 0.5) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            // Draw particles
+            for (let p of particles) {
+                p.draw(ctx, time);
+            }
+        }
+        
+        function updateStats() {
+            document.getElementById('particle-count').textContent = particles.length;
+            document.getElementById('generation').textContent = generation;
+            document.getElementById('births').textContent = births;
+            document.getElementById('deaths').textContent = deaths;
+            
+            const species = {};
+            particles.forEach(p => species[p.type] = (species[p.type] || 0) + 1);
+            document.getElementById('species').textContent = Object.keys(species).length;
+            
+            // Update species grid
+            const grid = document.getElementById('species-grid');
+            let html = '';
+            for (const [type, count] of Object.entries(species)) {
+                html += `
+                    <div class="species-item">
+                        <div class="species-dot" style="background: ${SPECIES[type].color};"></div>
+                        <span>${type}: ${count}</span>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+            
+            // Update history for graph
+            history.push({
+                total: particles.length,
+                ...species
+            });
+            if (history.length > 100) history.shift();
+            
+            drawGraph();
+        }
+        
+        function drawGraph() {
+            const w = graphCanvas.width;
+            const h = graphCanvas.height;
+            graphCtx.clearRect(0, 0, w, h);
+            
+            if (history.length < 2) return;
+            
+            const colors = {
+                red: '#ff4444', blue: '#4444ff', green: '#44ff44',
+                yellow: '#ffff44', purple: '#ff44ff', cyan: '#44ffff',
+                predator: '#ff0000', prey: '#00ff00', virus: '#ff00ff', plant: '#228b22'
+            };
+            
+            // Draw each species line
+            for (const type of Object.keys(SPECIES)) {
+                graphCtx.strokeStyle = colors[type] || '#fff';
+                graphCtx.lineWidth = 1.5;
+                graphCtx.beginPath();
+                
+                const maxVal = Math.max(...history.map(h => h[type] || 0), 10);
+                
+                history.forEach((h, i) => {
+                    const x = (i / (history.length - 1)) * w;
+                    const y = h - (h[type] || 0) / maxVal * h;
+                    
+                    if (i === 0) graphCtx.moveTo(x, y);
+                    else graphCtx.lineTo(x, y);
+                });
+                
+                graphCtx.stroke();
+            }
+        }
+        
+        function loop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            fps = Math.round(1000 / deltaTime);
+            document.getElementById('fps').textContent = fps;
+            
+            if (isPlaying) {
+                for (let i = 0; i < CONFIG.speed; i++) {
+                    update();
+                }
+            }
+            
+            draw();
+            
+            if (generation % 10 === 0) {
+                updateStats();
+            }
+            
+            requestAnimationFrame(loop);
+        }
+        
+        // Controls
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            document.getElementById('play-btn').textContent = isPlaying ? '⏸ PAUSE' : '▶ PLAY';
+            document.getElementById('play-btn').classList.toggle('active', isPlaying);
+        }
+        
+        function step() {
+            update();
+            draw();
+            updateStats();
+        }
+        
+        function clearAll() {
+            particles = [];
+            generation = 0;
+            births = 0;
+            deaths = 0;
+            history = [];
+            ctx.clearRect(0, 0, width, height);
+            updateStats();
+        }
+        
+        function updateSpeed(val) {
+            CONFIG.speed = parseInt(val);
+            document.getElementById('speed-display').textContent = val + 'x';
+        }
+        
+        function updateRadius(val) {
+            CONFIG.attractionRadius = parseInt(val);
+            document.getElementById('radius-display').textContent = val;
+        }
+        
+        function updateForce(val) {
+            CONFIG.forceMultiplier = parseFloat(val);
+            document.getElementById('force-display').textContent = val;
+        }
+        
+        function updateFriction(val) {
+            CONFIG.friction = parseFloat(val);
+            document.getElementById('friction-display').textContent = val;
+        }
+        
+        function loadPreset(name) {
+            clearAll();
+            
+            switch(name) {
+                case 'random':
+                    spawnBatch('red', 100);
+                    spawnBatch('blue', 100);
+                    spawnBatch('green', 100);
+                    break;
+                    
+                case 'ecosystem':
+                    spawnBatch('plant', 50);
+                    spawnBatch('prey', 100);
+                    spawnBatch('predator', 20);
+                    break;
+                    
+                case 'war':
+                    spawnBatch('red', 150);
+                    spawnBatch('blue', 150);
+                    break;
+                    
+                case 'symbiosis':
+                    spawnBatch('green', 80);
+                    spawnBatch('yellow', 80);
+                    spawnBatch('cyan', 80);
+                    break;
+                    
+                case 'predator':
+                    spawnBatch('prey', 200);
+                    spawnBatch('predator', 50);
+                    spawnBatch('plant', 30);
+                    break;
+                    
+                case 'cellular':
+                    spawnBatch('red', 50);
+                    spawnBatch('blue', 50);
+                    spawnBatch('green', 50);
+                    spawnBatch('yellow', 50);
+                    spawnBatch('purple', 50);
+                    spawnBatch('cyan', 50);
+                    break;
+            }
+            
+            updateStats();
+        }
+        
+        // Mouse interaction
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            spawnParticle('red', x, y);
+            updateStats();
+        });
+        
+        // Start
+        loadPreset('cellular');
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>

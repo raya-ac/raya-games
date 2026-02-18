@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game of Life 3D - Ultimate Cellular Automaton</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --neon-blue: #00f5ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff88;
+            --neon-purple: #b829dd;
+            --neon-orange: #ff6b35;
+            --neon-yellow: #ffff00;
+            --neon-red: #ff3333;
+            --dark-bg: #0a0a0f;
+            --panel-bg: rgba(10, 10, 15, 0.95);
+        }
+        
+        body {
+            background: var(--dark-bg);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        /* HUD Overlay */
+        .hud {
+            position: fixed;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .hud-top {
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .hud-left {
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .hud-right {
+            top: 80px;
+            right: 20px;
+            width: 320px;
+        }
+        
+        .hud-bottom {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        /* Title */
+        .title-block {
+            text-align: left;
+        }
+        .title-block h1 {
+            font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 245, 255, 0.5);
+        }
+        .title-block p {
+            font-size: 12px;
+            color: #888;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-box {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-box .value {
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .stat-box .label {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+        
+        .stat-box.alive .value { color: var(--neon-green); text-shadow: 0 0 10px rgba(0,255,136,0.5); }
+        .stat-box.born .value { color: var(--neon-blue); text-shadow: 0 0 10px rgba(0,245,255,0.5); }
+        .stat-box.died .value { color: var(--neon-red); text-shadow: 0 0 10px rgba(255,51,51,0.5); }
+        .stat-box.generation .value { color: var(--neon-yellow); }
+        .stat-box.population .value { color: var(--neon-purple); }
+        .stat-box.stability .value { color: var(--neon-orange); }
+        
+        /* Controls Panel */
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            pointer-events: all;
+        }
+        
+        .panel-section {
+            margin-bottom: 20px;
+        }
+        
+        .panel-section h3 {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-section h3::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: var(--neon-blue);
+            border-radius: 2px;
+        }
+        
+        /* Buttons */
+        .btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: all;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .btn.active {
+            background: var(--neon-green);
+            border-color: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0,255,136,0.4);
+        }
+        
+        .btn.primary {
+            background: var(--neon-blue);
+            border-color: var(--neon-blue);
+            color: #000;
+        }
+        
+        .btn.danger {
+            background: var(--neon-red);
+            border-color: var(--neon-red);
+            color: #fff;
+        }
+        
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        /* Sliders */
+        .slider-group {
+            margin-bottom: 15px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,245,255,0.5);
+        }
+        
+        /* Pattern Grid */
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .pattern-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 12px 8px;
+            color: #fff;
+            font-size: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: all;
+        }
+        
+        .pattern-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--neon-blue);
+        }
+        
+        .pattern-btn .emoji {
+            font-size: 20px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        /* Cell Type Legend */
+        .cell-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            color: #aaa;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        /* Speed Control */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .speed-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--neon-blue);
+            min-width: 60px;
+        }
+        
+        /* Generation Chart */
+        .chart-container {
+            height: 80px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #population-chart {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid var(--neon-blue);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .modal p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+        
+        .modal .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-green);
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 13px;
+            z-index: 1000;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .hud-right { display: none; }
+        }
+        
+        /* Checkbox styling */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--neon-blue);
+        }
+        
+        .checkbox-group label {
+            font-size: 12px;
+            color: #aaa;
+            cursor: pointer;
+        }
+        
+        /* Preset buttons */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .preset-btn {
+            background: linear-gradient(135deg, rgba(0,245,255,0.1), rgba(184,41,221,0.1));
+            border: 1px solid rgba(0,245,255,0.3);
+            border-radius: 6px;
+            padding: 10px;
+            color: #fff;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: all;
+            text-align: center;
+        }
+        
+        .preset-btn:hover {
+            background: linear-gradient(135deg, rgba(0,245,255,0.2), rgba(184,41,221,0.2));
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <!-- HUD Top -->
+    <div class="hud hud-top">
+        <div class="title-block">
+            <h1>⚡ Game of Life 3D</h1>
+            <p>Ultimate Cellular Automaton Simulation</p>
+        </div>
+        
+        <div style="pointer-events: auto;">
+            <a href="/games" style="background: rgba(0,0,0,0.7); border: 1px solid #00f5ff; color: #00f5ff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; display: inline-block;">🎮 Games</a>
+        </div>
+    </div>
+        
+        <div class="stats-grid">
+            <div class="stat-box generation">
+                <div class="value" id="gen-count">0</div>
+                <div class="label">Generation</div>
+            </div>
+            <div class="stat-box alive">
+                <div class="value" id="alive-count">0</div>
+                <div class="label">Alive</div>
+            </div>
+            <div class="stat-box born">
+                <div class="value" id="born-count">0</div>
+                <div class="label">Born</div>
+            </div>
+            <div class="stat-box died">
+                <div class="value" id="died-count">0</div>
+                <div class="label">Died</div>
+            </div>
+            <div class="stat-box population">
+                <div class="value" id="total-pop">0</div>
+                <div class="label">Total Cells</div>
+            </div>
+            <div class="stat-box stability">
+                <div class="value" id="stability">0%</div>
+                <div class="label">Stability</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Right - Control Panel -->
+    <div class="hud hud-right">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Simulation Control</h3>
+                <div class="btn-row">
+                    <button class="btn primary" id="play-pause-btn" onclick="togglePlay()">
+                        ▶ Play
+                    </button>
+                    <button class="btn" onclick="step()">⏭ Step</button>
+                    <button class="btn danger" onclick="clearGrid()">🗑 Clear</button>
+                </div>
+                
+                <div class="slider-group" style="margin-top: 15px;">
+                    <div class="slider-label">
+                        <span>Simulation Speed</span>
+                        <span id="speed-display">10 FPS</span>
+                    </div>
+                    <input type="range" id="speed-slider" min="1" max="60" value="10" onchange="updateSpeed(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Grid Settings</h3>
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Grid Size</span>
+                        <span id="size-display">30³</span>
+                    </div>
+                    <input type="range" id="size-slider" min="10" max="50" value="30" onchange="updateGridSize(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Initial Density</span>
+                        <span id="density-display">15%</span>
+                    </div>
+                    <input type="range" id="density-slider" min="5" max="50" value="15" onchange="updateDensity(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Cell Types</h3>
+                <div class="cell-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--neon-green);"></div>
+                        <span>Standard (Rules 3D/4D/5D)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--neon-blue);"></div>
+                        <span>Producer (Creates energy)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--neon-pink);"></div>
+                        <span>Consumer (Spreads fast)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--neon-orange);"></div>
+                        <span>Predator (Eats others)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--neon-purple);"></div>
+                        <span>Mutant (Random behavior)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Visualization</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-connections" checked onchange="toggleConnections()">
+                    <label for="show-connections">Show neighbor connections</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-trails" onchange="toggleTrails()">
+                    <label for="show-trails">Show cell trails</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="auto-rotate" onchange="toggleAutoRotate()">
+                    <label for="auto-rotate">Auto-rotate camera</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="glow-effect" checked onchange="toggleGlow()">
+                    <label for="glow-effect">Neon glow effect</label>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Quick Presets</h3>
+                <div class="preset-grid">
+                    <button class="preset-btn" onclick="loadPreset('random')">🎲 Random</button>
+                    <button class="preset-btn" onclick="loadPreset('galaxy')">🌌 Galaxy</button>
+                    <button class="preset-btn" onclick="loadPreset('crystal')">💎 Crystal</button>
+                    <button class="preset-btn" onclick="loadPreset('coral')">🪸 Coral</button>
+                    <button class="preset-btn" onclick="loadPreset('neural')">🧠 Neural</button>
+                    <button class="preset-btn" onclick="loadPreset('explosion')">💥 Big Bang</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Population History</h3>
+                <div class="chart-container">
+                    <canvas id="population-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Bottom -->
+    <div class="hud hud-bottom">
+        <button class="btn" onclick="spawnPattern('glider')">🛩️ Glider</button>
+        <button class="btn" onclick="spawnPattern('pulsar')">⭐ Pulsar</button>
+        <button class="btn" onclick="spawnPattern('gosper')">🚀 Gosper Gun</button>
+        <button class="btn" onclick="spawnPattern('puffer')">🚂 Puffer</button>
+        <button class="btn" onclick="spawnPattern('spaceship')">🛸 Spaceship</button>
+        <button class="btn" onclick="spawnPattern('diehard')">💀 Diehard</button>
+        <button class="btn" onclick="spawnPattern('acorn')">🌰 Acorn</button>
+        <button class="btn" onclick="spawnPattern('rpentomino')">📐 R-Pentomino</button>
+        <button class="btn" onclick="togglePaintMode()">🎨 Paint Mode</button>
+    </div>
+    
+    <!-- Info Modal -->
+    <div class="modal-overlay" id="info-modal">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h2>🧬 Game of Life 3D</h2>
+            <p>Welcome to the ultimate 3D cellular automaton simulation! This is an extension of Conway's Game of Life into three dimensions with multiple cell types and complex interactions.</p>
+            
+            <h3 style="color: var(--neon-blue); margin: 20px 0 10px;">How It Works</h3>
+            <p>Each cell follows rules based on its 26 neighbors in 3D space:</p>
+            <ul style="color: #888; margin-left: 20px; line-height: 1.8;">
+                <li><strong style="color: var(--neon-green)">Standard cells:</strong> Born with 4-5 neighbors, survive with 5-7</li>
+                <li><strong style="color: var(--neon-blue)">Producers:</strong> Create new cells around them</li>
+                <li><strong style="color: var(--neon-pink)">Consumers:</strong> Spread rapidly but die quickly</li>
+                <li><strong style="color: var(--neon-orange)">Predators:</strong> Convert neighboring cells to their type</li>
+                <li><strong style="color: var(--neon-purple)">Mutants:</strong> Random behavior every generation</li>
+            </ul>
+            
+            <h3 style="color: var(--neon-pink); margin: 20px 0 10px;">Controls</h3>
+            <p>• Left click + drag to rotate camera<br>
+               • Right click + drag to pan<br>
+               • Scroll to zoom<br>
+               • Click cells to toggle them (in paint mode)<br>
+               • Use presets for instant patterns</p>
+            
+            <button class="btn primary" onclick="closeModal()" style="margin-top: 20px;">Start Simulation</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME OF LIFE 3D - ULTIMATE SIMULATION
+        // ============================================
+        
+        // Configuration
+        const CONFIG = {
+            gridSize: 30,
+            cellSize: 0.8,
+            spacing: 1.0,
+            initialDensity: 0.15,
+            simulationSpeed: 10, // FPS
+            showConnections: true,
+            showTrails: false,
+            autoRotate: false,
+            glowEffect: true,
+            paintMode: false
+        };
+        
+        // Cell Types
+        const CELL_TYPES = {
+            EMPTY: 0,
+            STANDARD: 1,
+            PRODUCER: 2,
+            CONSUMER: 3,
+            PREDATOR: 4,
+            MUTANT: 5
+        };
+        
+        const CELL_COLORS = {
+            [CELL_TYPES.EMPTY]: null,
+            [CELL_TYPES.STANDARD]: 0x00ff88,
+            [CELL_TYPES.PRODUCER]: 0x00f5ff,
+            [CELL_TYPES.CONSUMER]: 0xff00ff,
+            [CELL_TYPES.PREDATOR]: 0xff6b35,
+            [CELL_TYPES.MUTANT]: 0xb829dd
+        };
+        
+        // State
+        let grid = [];
+        let nextGrid = [];
+        let generation = 0;
+        let isPlaying = false;
+        let lastFrameTime = 0;
+        let frameInterval = 1000 / CONFIG.simulationSpeed;
+        let populationHistory = [];
+        let cellMeshes = [];
+        let connectionLines = [];
+        let trailParticles = [];
+        
+        // Statistics
+        let stats = {
+            alive: 0,
+            born: 0,
+            died: 0,
+            byType: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+        
+        // Three.js Setup
+        let scene, camera, renderer, controls;
+        let gridGroup, cellGroup, connectionGroup, trailGroup;
+        let raycaster, mouse;
+        let hoveredCell = null;
+        
+        // Initialize
+        function init() {
+            setupThreeJS();
+            createGrid();
+            setupEventListeners();
+            render();
+            updateStats();
+            
+            // Show info modal on first visit
+            if (!localStorage.getItem('gol3d-visited')) {
+                document.getElementById('info-modal').classList.add('active');
+                localStorage.setItem('gol3d-visited', 'true');
+            }
+        }
+        
+        function setupThreeJS() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0f);
+            scene.fog = new THREE.FogExp2(0x0a0a0f, 0.015);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(CONFIG.gridSize * 1.5, CONFIG.gridSize * 1.2, CONFIG.gridSize * 1.5);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = CONFIG.autoRotate;
+            controls.autoRotateSpeed = 0.5;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Point lights for neon effect
+            const colors = [0x00f5ff, 0xff00ff, 0x00ff88];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.5, 100);
+                const angle = (i / colors.length) * Math.PI * 2;
+                light.position.set(
+                    Math.cos(angle) * CONFIG.gridSize,
+                    CONFIG.gridSize / 2,
+                    Math.sin(angle) * CONFIG.gridSize
+                );
+                scene.add(light);
+            });
+            
+            // Groups
+            gridGroup = new THREE.Group();
+            cellGroup = new THREE.Group();
+            connectionGroup = new THREE.Group();
+            trailGroup = new THREE.Group();
+            scene.add(gridGroup);
+            scene.add(cellGroup);
+            scene.add(connectionGroup);
+            scene.add(trailGroup);
+            
+            // Create boundary box
+            createBoundaryBox();
+            
+            // Raycaster for mouse interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Handle resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function createBoundaryBox() {
+            const size = CONFIG.gridSize * CONFIG.spacing;
+            const geometry = new THREE.BoxGeometry(size, size, size);
+            const edges = new THREE.EdgesGeometry(geometry);
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0x00f5ff, 
+                transparent: true, 
+                opacity: 0.1 
+            });
+            const box = new THREE.LineSegments(edges, material);
+            box.position.set(size/2 - 0.5, size/2 - 0.5, size/2 - 0.5);
+            gridGroup.add(box);
+            
+            // Add grid lines
+            const gridHelper = new THREE.GridHelper(size, CONFIG.gridSize, 0x00f5ff, 0x1a1a2e);
+            gridHelper.position.set(size/2 - 0.5, 0, size/2 - 0.5);
+            gridHelper.material.opacity = 0.1;
+            gridHelper.material.transparent = true;
+            gridGroup.add(gridHelper);
+        }
+        
+        function createGrid() {
+            grid = [];
+            nextGrid = [];
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                grid[x] = [];
+                nextGrid[x] = [];
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    grid[x][y] = [];
+                    nextGrid[x][y] = [];
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        // Random initial state
+                        if (Math.random() < CONFIG.initialDensity) {
+                            const rand = Math.random();
+                            let type = CELL_TYPES.STANDARD;
+                            if (rand > 0.85) type = CELL_TYPES.PRODUCER;
+                            else if (rand > 0.75) type = CELL_TYPES.CONSUMER;
+                            else if (rand > 0.70) type = CELL_TYPES.PREDATOR;
+                            else if (rand > 0.68) type = CELL_TYPES.MUTANT;
+                            
+                            grid[x][y][z] = {
+                                type: type,
+                                age: 0,
+                                energy: 100
+                            };
+                        } else {
+                            grid[x][y][z] = null;
+                        }
+                        nextGrid[x][y][z] = null;
+                    }
+                }
+            }
+            
+            updateCellMeshes();
+        }
+        
+        function updateCellMeshes() {
+            // Clear existing meshes
+            cellMeshes.forEach(mesh => cellGroup.remove(mesh));
+            cellMeshes = [];
+            
+            const geometry = new THREE.BoxGeometry(CONFIG.cellSize, CONFIG.cellSize, CONFIG.cellSize);
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        const cell = grid[x][y][z];
+                        if (cell) {
+                            const material = new THREE.MeshPhongMaterial({
+                                color: CELL_COLORS[cell.type],
+                                emissive: CELL_COLORS[cell.type],
+                                emissiveIntensity: CONFIG.glowEffect ? 0.3 : 0,
+                                transparent: true,
+                                opacity: 0.9
+                            });
+                            
+                            const mesh = new THREE.Mesh(geometry, material);
+                            mesh.position.set(
+                                x * CONFIG.spacing,
+                                y * CONFIG.spacing,
+                                z * CONFIG.spacing
+                            );
+                            mesh.castShadow = true;
+                            mesh.receiveShadow = true;
+                            mesh.userData = { x, y, z, cell };
+                            
+                            // Scale based on cell energy/age
+                            const scale = 0.7 + (cell.energy / 200);
+                            mesh.scale.set(scale, scale, scale);
+                            
+                            cellGroup.add(mesh);
+                            cellMeshes.push(mesh);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function countNeighbors(x, y, z) {
+            let count = 0;
+            let byType = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz]) {
+                            count++;
+                            byType[grid[nx][ny][nz].type]++;
+                        }
+                    }
+                }
+            }
+            
+            return { count, byType };
+        }
+        
+        function computeNextGeneration() {
+            stats.born = 0;
+            stats.died = 0;
+            stats.byType = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        const cell = grid[x][y][z];
+                        const { count, byType } = countNeighbors(x, y, z);
+                        
+                        if (cell) {
+                            // Cell is alive
+                            let survives = false;
+                            let newType = cell.type;
+                            let newEnergy = cell.energy - 5; // Energy decay
+                            
+                            // Type-specific rules
+                            switch (cell.type) {
+                                case CELL_TYPES.STANDARD:
+                                    survives = count >= 5 && count <= 7;
+                                    break;
+                                case CELL_TYPES.PRODUCER:
+                                    survives = count >= 2 && count <= 8;
+                                    if (count < 3) newEnergy += 10; // Regenerate alone
+                                    break;
+                                case CELL_TYPES.CONSUMER:
+                                    survives = count >= 3 && count <= 6;
+                                    newEnergy += count * 3; // Feed on neighbors
+                                    break;
+                                case CELL_TYPES.PREDATOR:
+                                    survives = count >= 1 && count <= 5;
+                                    if (byType[CELL_TYPES.STANDARD] > 0) {
+                                        newEnergy += 20; // Eat standard cells
+                                    }
+                                    break;
+                                case CELL_TYPES.MUTANT:
+                                    survives = Math.random() > 0.3; // Random survival
+                                    if (survives && Math.random() > 0.8) {
+                                        newType = Math.floor(Math.random() * 4) + 2; // Mutate
+                                    }
+                                    break;
+                            }
+                            
+                            // Energy death
+                            if (newEnergy <= 0) survives = false;
+                            
+                            // Overcrowding
+                            if (count > 10) survives = false;
+                            
+                            if (survives) {
+                                nextGrid[x][y][z] = {
+                                    type: newType,
+                                    age: cell.age + 1,
+                                    energy: Math.min(100, newEnergy)
+                                };
+                                stats.byType[newType]++;
+                            } else {
+                                nextGrid[x][y][z] = null;
+                                stats.died++;
+                                
+                                // Add trail particle
+                                if (CONFIG.showTrails) {
+                                    addTrailParticle(x, y, z, CELL_COLORS[cell.type]);
+                                }
+                            }
+                        } else {
+                            // Cell is dead - check birth
+                            if (count >= 4 && count <= 5) {
+                                let newType = CELL_TYPES.STANDARD;
+                                
+                                // Determine type based on neighbors
+                                if (byType[CELL_TYPES.PRODUCER] >= 2) {
+                                    newType = CELL_TYPES.PRODUCER;
+                                } else if (byType[CELL_TYPES.CONSUMER] >= 2) {
+                                    newType = CELL_TYPES.CONSUMER;
+                                } else if (byType[CELL_TYPES.PREDATOR] >= 1) {
+                                    newType = CELL_TYPES.PREDATOR;
+                                } else if (Math.random() > 0.95) {
+                                    newType = CELL_TYPES.MUTANT;
+                                }
+                                
+                                nextGrid[x][y][z] = {
+                                    type: newType,
+                                    age: 0,
+                                    energy: 50 + Math.random() * 50
+                                };
+                                stats.born++;
+                                stats.byType[newType]++;
+                            } else {
+                                nextGrid[x][y][z] = null;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Swap grids
+            [grid, nextGrid] = [nextGrid, grid];
+            generation++;
+            
+            updateCellMeshes();
+            updateConnections();
+            updateStats();
+        }
+        
+        function updateConnections() {
+            // Clear old connections
+            connectionLines.forEach(line => connectionGroup.remove(line));
+            connectionLines = [];
+            
+            if (!CONFIG.showConnections) return;
+            
+            const material = new THREE.LineBasicMaterial({
+                color: 0x00f5ff,
+                transparent: true,
+                opacity: 0.1
+            });
+            
+            // Only show connections for a subset of cells to maintain performance
+            for (let i = 0; i < cellMeshes.length; i += 5) {
+                const mesh = cellMeshes[i];
+                const { x, y, z } = mesh.userData;
+                
+                // Find close neighbors
+                for (let j = i + 1; j < cellMeshes.length && j < i + 10; j++) {
+                    const other = cellMeshes[j];
+                    const dx = mesh.position.x - other.position.x;
+                    const dy = mesh.position.y - other.position.y;
+                    const dz = mesh.position.z - other.position.z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    
+                    if (dist < 3) {
+                        const geometry = new THREE.BufferGeometry().setFromPoints([
+                            mesh.position,
+                            other.position
+                        ]);
+                        const line = new THREE.Line(geometry, material);
+                        connectionGroup.add(line);
+                        connectionLines.push(line);
+                    }
+                }
+            }
+        }
+        
+        function addTrailParticle(x, y, z, color) {
+            const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const material = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                x * CONFIG.spacing,
+                y * CONFIG.spacing,
+                z * CONFIG.spacing
+            );
+            particle.userData = { life: 30 };
+            trailGroup.add(particle);
+            trailParticles.push(particle);
+        }
+        
+        function updateTrails() {
+            for (let i = trailParticles.length - 1; i >= 0; i--) {
+                const p = trailParticles[i];
+                p.userData.life--;
+                p.material.opacity = p.userData.life / 30 * 0.6;
+                p.scale.multiplyScalar(0.95);
+                
+                if (p.userData.life <= 0) {
+                    trailGroup.remove(p);
+                    trailParticles.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateStats() {
+            stats.alive = cellMeshes.length;
+            
+            document.getElementById('gen-count').textContent = generation;
+            document.getElementById('alive-count').textContent = stats.alive;
+            document.getElementById('born-count').textContent = stats.born;
+            document.getElementById('died-count').textContent = stats.died;
+            document.getElementById('total-pop').textContent = CONFIG.gridSize ** 3;
+            
+            // Calculate stability (ratio of surviving cells)
+            const totalCells = CONFIG.gridSize ** 3;
+            const stability = Math.floor((stats.alive / totalCells) * 100);
+            document.getElementById('stability').textContent = stability + '%';
+            
+            // Update population history
+            populationHistory.push(stats.alive);
+            if (populationHistory.length > 100) populationHistory.shift();
+            drawPopulationChart();
+        }
+        
+        function drawPopulationChart() {
+            const canvas = document.getElementById('population-chart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (populationHistory.length < 2) return;
+            
+            const max = Math.max(...populationHistory, 100);
+            const min = Math.min(...populationHistory, 0);
+            const range = max - min || 1;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#00f5ff';
+            ctx.lineWidth = 2;
+            
+            populationHistory.forEach((val, i) => {
+                const x = (i / (populationHistory.length - 1)) * canvas.width;
+                const y = canvas.height - ((val - min) / range) * canvas.height;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            
+            ctx.stroke();
+            
+            // Fill area
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.fillStyle = 'rgba(0, 245, 255, 0.1)';
+            ctx.fill();
+        }
+        
+        // Controls
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            document.getElementById('play-pause-btn').innerHTML = isPlaying ? '⏸ Pause' : '▶ Play';
+            document.getElementById('play-pause-btn').classList.toggle('active', isPlaying);
+        }
+        
+        function step() {
+            computeNextGeneration();
+        }
+        
+        function clearGrid() {
+            grid = [];
+            nextGrid = [];
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                grid[x] = [];
+                nextGrid[x] = [];
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    grid[x][y] = [];
+                    nextGrid[x][y] = [];
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        grid[x][y][z] = null;
+                        nextGrid[x][y][z] = null;
+                    }
+                }
+            }
+            generation = 0;
+            populationHistory = [];
+            updateCellMeshes();
+            updateStats();
+        }
+        
+        function updateSpeed(value) {
+            CONFIG.simulationSpeed = parseInt(value);
+            frameInterval = 1000 / CONFIG.simulationSpeed;
+            document.getElementById('speed-display').textContent = value + ' FPS';
+        }
+        
+        function updateGridSize(value) {
+            CONFIG.gridSize = parseInt(value);
+            document.getElementById('size-display').textContent = value + '³';
+            createGrid();
+        }
+        
+        function updateDensity(value) {
+            CONFIG.initialDensity = value / 100;
+            document.getElementById('density-display').textContent = value + '%';
+        }
+        
+        function toggleConnections() {
+            CONFIG.showConnections = document.getElementById('show-connections').checked;
+            updateConnections();
+        }
+        
+        function toggleTrails() {
+            CONFIG.showTrails = document.getElementById('show-trails').checked;
+        }
+        
+        function toggleAutoRotate() {
+            CONFIG.autoRotate = document.getElementById('auto-rotate').checked;
+            controls.autoRotate = CONFIG.autoRotate;
+        }
+        
+        function toggleGlow() {
+            CONFIG.glowEffect = document.getElementById('glow-effect').checked;
+            updateCellMeshes();
+        }
+        
+        function togglePaintMode() {
+            CONFIG.paintMode = !CONFIG.paintMode;
+            document.body.style.cursor = CONFIG.paintMode ? 'crosshair' : 'default';
+        }
+        
+        // Pattern presets
+        function spawnPattern(pattern) {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            const cy = Math.floor(CONFIG.gridSize / 2);
+            const cz = Math.floor(CONFIG.gridSize / 2);
+            
+            const patterns = {
+                glider: [
+                    [0, 1, 0], [0, 0, 1], [1, 1, 1]
+                ],
+                pulsar: [
+                    [0,0,1,1,1,0,0,0,1,1,1,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [1,0,0,0,0,1,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,1,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,1,0,1,0,0,0,0,1],
+                    [0,0,1,1,1,0,0,0,1,1,1,0,0],
+                ],
+                gosper: [
+                    // Simplified Gosper glider gun
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1],
+                ],
+                spaceship: [
+                    [1,0,0,1,0],
+                    [0,0,0,0,1],
+                    [1,0,0,0,1],
+                    [0,1,1,1,1]
+                ],
+                diehard: [
+                    [0,0,0,0,0,0,1,0],
+                    [1,1,0,0,0,0,0,0],
+                    [0,1,0,0,0,1,1,1]
+                ],
+                acorn: [
+                    [0,1,0,0,0,0,0],
+                    [0,0,0,1,0,0,0],
+                    [1,1,0,0,1,1,1]
+                ],
+                rpentomino: [
+                    [0,1,1],
+                    [1,1,0],
+                    [0,1,0]
+                ],
+                puffer: [
+                    [1,1,1,1,1,1,1,1],
+                    [1,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,0,0,0],
+                    [1,1,1,1,1,1,1,1],
+                    [1,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,1]
+                ]
+            };
+            
+            const p = patterns[pattern];
+            if (!p) return;
+            
+            // Clear center area
+            for (let x = cx - 20; x < cx + 20; x++) {
+                for (let y = cy - 20; y < cy + 20; y++) {
+                    for (let z = cz; z < cz + 5; z++) {
+                        if (x >= 0 && x < CONFIG.gridSize && y >= 0 && y < CONFIG.gridSize && z >= 0 && z < CONFIG.gridSize) {
+                            grid[x][y][z] = null;
+                        }
+                    }
+                }
+            }
+            
+            // Place pattern
+            for (let y = 0; y < p.length; y++) {
+                for (let x = 0; x < p[y].length; x++) {
+                    if (p[y][x]) {
+                        const px = cx + x - Math.floor(p[y].length / 2);
+                        const py = cy + y - Math.floor(p.length / 2);
+                        if (px >= 0 && px < CONFIG.gridSize && py >= 0 && py < CONFIG.gridSize) {
+                            grid[px][py][cz] = {
+                                type: CELL_TYPES.STANDARD,
+                                age: 0,
+                                energy: 100
+                            };
+                        }
+                    }
+                }
+            }
+            
+            updateCellMeshes();
+            updateStats();
+        }
+        
+        function loadPreset(preset) {
+            clearGrid();
+            
+            switch (preset) {
+                case 'random':
+                    createGrid();
+                    break;
+                case 'galaxy':
+                    createSpiralGalaxy();
+                    break;
+                case 'crystal':
+                    createCrystal();
+                    break;
+                case 'coral':
+                    createCoral();
+                    break;
+                case 'neural':
+                    createNeuralNetwork();
+                    break;
+                case 'explosion':
+                    createBigBang();
+                    break;
+            }
+            
+            updateCellMeshes();
+            updateStats();
+        }
+        
+        function createSpiralGalaxy() {
+            const cx = CONFIG.gridSize / 2;
+            const cy = CONFIG.gridSize / 2;
+            const cz = CONFIG.gridSize / 2;
+            
+            for (let i = 0; i < 1000; i++) {
+                const angle = i * 0.1;
+                const radius = i * 0.05;
+                const x = Math.floor(cx + Math.cos(angle) * radius);
+                const y = Math.floor(cy + Math.sin(angle) * radius);
+                const z = Math.floor(cz + (Math.random() - 0.5) * 5);
+                
+                if (x >= 0 && x < CONFIG.gridSize && y >= 0 && y < CONFIG.gridSize && z >= 0 && z < CONFIG.gridSize) {
+                    grid[x][y][z] = {
+                        type: Math.random() > 0.7 ? CELL_TYPES.PRODUCER : CELL_TYPES.STANDARD,
+                        age: 0,
+                        energy: 100
+                    };
+                }
+            }
+        }
+        
+        function createCrystal() {
+            const cx = CONFIG.gridSize / 2;
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        const dx = x - cx;
+                        const dy = y - cx;
+                        const dz = z - cx;
+                        const dist = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+                        
+                        if (dist < 8 && dist % 2 === 0) {
+                            grid[x][y][z] = {
+                                type: CELL_TYPES.CONSUMER,
+                                age: 0,
+                                energy: 100
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        
+        function createCoral() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            const cy = 5;
+            const cz = Math.floor(CONFIG.gridSize / 2);
+            
+            for (let i = 0; i < 500; i++) {
+                let x = cx;
+                let y = cy;
+                let z = cz;
+                
+                for (let j = 0; j < 20; j++) {
+                    if (x >= 0 && x < CONFIG.gridSize && y >= 0 && y < CONFIG.gridSize && z >= 0 && z < CONFIG.gridSize) {
+                        grid[x][y][z] = {
+                            type: Math.random() > 0.8 ? CELL_TYPES.PREDATOR : CELL_TYPES.STANDARD,
+                            age: 0,
+                            energy: 100
+                        };
+                    }
+                    
+                    x += Math.floor(Math.random() * 3) - 1;
+                    y += Math.floor(Math.random() * 2);
+                    z += Math.floor(Math.random() * 3) - 1;
+                }
+            }
+        }
+        
+        function createNeuralNetwork() {
+            const layers = 5;
+            const nodesPerLayer = 20;
+            
+            for (let l = 0; l < layers; l++) {
+                const z = Math.floor((l / (layers - 1)) * (CONFIG.gridSize - 10)) + 5;
+                
+                for (let n = 0; n < nodesPerLayer; n++) {
+                    const angle = (n / nodesPerLayer) * Math.PI * 2;
+                    const radius = 8;
+                    const x = Math.floor(CONFIG.gridSize / 2 + Math.cos(angle) * radius);
+                    const y = Math.floor(CONFIG.gridSize / 2 + Math.sin(angle) * radius);
+                    
+                    if (x >= 0 && x < CONFIG.gridSize && y >= 0 && y < CONFIG.gridSize) {
+                        grid[x][y][z] = {
+                            type: CELL_TYPES.MUTANT,
+                            age: 0,
+                            energy: 100
+                        };
+                    }
+                }
+            }
+        }
+        
+        function createBigBang() {
+            const cx = CONFIG.gridSize / 2;
+            
+            for (let i = 0; i < 5000; i++) {
+                const r = Math.random() * 5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                
+                const x = Math.floor(cx + r * Math.sin(phi) * Math.cos(theta));
+                const y = Math.floor(cx + r * Math.sin(phi) * Math.sin(theta));
+                const z = Math.floor(cx + r * Math.cos(phi));
+                
+                if (x >= 0 && x < CONFIG.gridSize && y >= 0 && y < CONFIG.gridSize && z >= 0 && z < CONFIG.gridSize) {
+                    const rand = Math.random();
+                    let type = CELL_TYPES.STANDARD;
+                    if (rand > 0.9) type = CELL_TYPES.PRODUCER;
+                    else if (rand > 0.8) type = CELL_TYPES.CONSUMER;
+                    else if (rand > 0.75) type = CELL_TYPES.PREDATOR;
+                    
+                    grid[x][y][z] = { type, age: 0, energy: 100 };
+                }
+            }
+        }
+        
+        // Event handlers
+        function setupEventListeners() {
+            renderer.domElement.addEventListener('click', onMouseClick);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+        }
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(cellMeshes);
+            
+            if (intersects.length > 0) {
+                hoveredCell = intersects[0].object;
+                document.body.style.cursor = CONFIG.paintMode ? 'crosshair' : 'pointer';
+            } else {
+                hoveredCell = null;
+                document.body.style.cursor = CONFIG.paintMode ? 'crosshair' : 'default';
+            }
+        }
+        
+        function onMouseClick(event) {
+            if (!CONFIG.paintMode || !hoveredCell) return;
+            
+            const { x, y, z } = hoveredCell.userData;
+            
+            if (grid[x][y][z]) {
+                grid[x][y][z] = null;
+            } else {
+                grid[x][y][z] = {
+                    type: CELL_TYPES.STANDARD,
+                    age: 0,
+                    energy: 100
+                };
+            }
+            
+            updateCellMeshes();
+            updateStats();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function closeModal() {
+            document.getElementById('info-modal').classList.remove('active');
+        }
+        
+        // Main render loop
+        function render(currentTime = 0) {
+            requestAnimationFrame(render);
+            
+            controls.update();
+            
+            // Simulation update
+            if (isPlaying && currentTime - lastFrameTime >= frameInterval) {
+                computeNextGeneration();
+                lastFrameTime = currentTime;
+            }
+            
+            // Update trails
+            if (CONFIG.showTrails) {
+                updateTrails();
+            }
+            
+            // Animate cells
+            cellMeshes.forEach((mesh, i) => {
+                const time = currentTime * 0.001;
+                const offset = i * 0.1;
+                mesh.rotation.x = Math.sin(time + offset) * 0.1;
+                mesh.rotation.y = Math.cos(time + offset) * 0.1;
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

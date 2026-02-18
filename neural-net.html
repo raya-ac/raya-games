@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #0f0f23, #1a1a3e, #0f0f23);
+            padding: 15px 30px;
+            border-bottom: 2px solid #00d4ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf, #00d4ff);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 3s ease infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #1a1a3e, #2d2d5a);
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            color: #fff;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 260px 1fr 300px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: linear-gradient(145deg, rgba(26, 26, 62, 0.9), rgba(15, 15, 35, 0.95));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .panel h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: #a0a0c0;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            background: #0f0f23;
+            border: 1px solid #2d2d5a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+
+        .control-group input[type="range"] {
+            padding: 0;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #1a1a3e, #2d2d5a);
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .value-display {
+            display: inline-block;
+            background: #0f0f23;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #00d4ff;
+            font-size: 0.85rem;
+            margin-left: 10px;
+        }
+
+        .training-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .training-controls .btn {
+            flex: 1;
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        .network-canvas {
+            width: 100%;
+            height: 500px;
+            background: radial-gradient(ellipse at center, #0f0f23 0%, #050510 100%);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .drawing-canvas {
+            width: 100%;
+            height: 280px;
+            background: #0a0a1a;
+            border-radius: 10px;
+            border: 2px dashed rgba(0, 212, 255, 0.4);
+            cursor: crosshair;
+        }
+
+        .drawing-canvas.drawing {
+            border-color: #00d4ff;
+            background: #0f0f23;
+        }
+
+        .canvas-label {
+            text-align: center;
+            color: #606080;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(123, 44, 191, 0.1));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-box .label {
+            font-size: 0.75rem;
+            color: #8080a0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-box .value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #00d4ff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .loss-canvas {
+            width: 100%;
+            height: 150px;
+            background: #0a0a1a;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .activation-heatmap {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .layer-activations {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .layer-label {
+            font-size: 0.75rem;
+            color: #8080a0;
+            width: 60px;
+        }
+
+        .neuron-bars {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .neuron-bar {
+            flex: 1;
+            height: 24px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .neuron-bar::after {
+            content: attr(data-value);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.65rem;
+            color: #fff;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .prediction-display {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(123, 44, 191, 0.15));
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            margin-top: 15px;
+        }
+
+        .prediction-display h4 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .prediction-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .prediction-item {
+            padding: 8px 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .prediction-item .digit {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .prediction-item .prob {
+            font-size: 0.7rem;
+            color: #a0a0c0;
+        }
+
+        .prediction-item.highlight {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+        }
+
+        .clear-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .dataset-preview {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .data-sample {
+            aspect-ratio: 1;
+            background: #0a0a1a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .data-sample:hover {
+            border-color: #00d4ff;
+            transform: scale(1.1);
+        }
+
+        .epoch-progress {
+            width: 100%;
+            height: 6px;
+            background: #0f0f23;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .epoch-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            transition: width 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .music-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        #musicVolume::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+        }
+
+        #musicVolume::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .info-text {
+            font-size: 0.8rem;
+            color: #606080;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
+        .layer-config {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .layer-config input {
+            width: 60px;
+            padding: 6px;
+            background: #0f0f23;
+            border: 1px solid #2d2d5a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            text-align: center;
+        }
+
+        .speed-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .speed-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 1s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 Neural Network Visualizer</h1>
+        <div class="header-buttons">
+            <button class="btn" id="musicToggle">
+                🔊 Music
+            </button>
+            <a href="/games" class="btn">🎮 Games</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel: Controls -->
+        <div class="left-panel">
+            <div class="panel">
+                <h3>⚙️ Configuration</h3>
+                
+                <div class="control-group">
+                    <label>Dataset</label>
+                    <select id="datasetSelect">
+                        <option value="xor">XOR (Logic Gate)</option>
+                        <option value="digits">Simple Digits (0-9)</option>
+                        <option value="patterns">Geometric Patterns</option>
+                        <option value="mnist">MNIST-like Digits</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Architecture</label>
+                    <div id="layerConfig">
+                        <div class="layer-config">
+                            <span>Input:</span>
+                            <input type="number" id="inputSize" value="2" min="1" max="784">
+                        </div>
+                        <div class="layer-config">
+                            <span>Hidden:</span>
+                            <input type="number" id="hiddenSize" value="4" min="1" max="128">
+                        </div>
+                        <div class="layer-config">
+                            <span>Output:</span>
+                            <input type="number" id="outputSize" value="1" min="1" max="10">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Activation Function</label>
+                    <select id="activationSelect">
+                        <option value="sigmoid">Sigmoid</option>
+                        <option value="tanh">Tanh</option>
+                        <option value="relu">ReLU</option>
+                        <option value="leakyrelu">Leaky ReLU</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Learning Rate: <span class="value-display" id="lrValue">0.1</span></label>
+                    <input type="range" id="learningRate" min="0.001" max="1" step="0.001" value="0.1">
+                </div>
+
+                <div class="control-group">
+                    <label>Training Speed: <span class="value-display" id="speedValue">Fast</span></label>
+                    <input type="range" id="trainingSpeed" min="1" max="100" value="50">
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <h3>▶️ Training Controls</h3>
+                <div class="training-controls">
+                    <button class="btn" id="playBtn">▶ Play</button>
+                    <button class="btn" id="pauseBtn">⏸ Pause</button>
+                    <button class="btn" id="stepBtn">⏭ Step</button>
+                    <button class="btn" id="resetBtn">↺ Reset</button>
+                </div>
+                
+                <div class="epoch-progress">
+                    <div class="epoch-progress-bar" id="epochProgress" style="width: 0%"></div>
+                </div>
+                <div class="info-text" style="text-align: center; margin-top: 5px;">
+                    Epoch: <span id="epochDisplay">0</span> / 1000
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <h3>📊 Dataset Preview</h3>
+                <div class="dataset-preview" id="datasetPreview">
+                    <!-- Samples generated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel: Network Visualization -->
+        <div class="center-panel">
+            <div class="panel">
+                <h3>🕸️ Neural Network</h3>
+                <canvas id="networkCanvas" class="network-canvas"></canvas>
+                <div class="info-text">
+                    Blue neurons = input | Purple = hidden | Green = output. 
+                    Line thickness = weight magnitude. Red = negative, Cyan = positive.
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Stats & Drawing -->
+        <div class="right-panel">
+            <div class="panel">
+                <h3>📈 Training Stats</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="label">Loss</div>
+                        <div class="value" id="lossValue">0.00</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Accuracy</div>
+                        <div class="value" id="accValue">0%</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Iterations</div>
+                        <div class="value" id="iterValue">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Status</div>
+                        <div class="value" style="font-size: 0.9rem;" id="statusValue">Idle</div>
+                    </div>
+                </div>
+                
+                <h4 style="color: #7b2cbf; font-size: 0.9rem; margin-bottom: 10px;">Loss History</h4>
+                <canvas id="lossCanvas" class="loss-canvas"></canvas>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <h3>🎨 Test Network</h3>
+                <p class="info-text" style="margin-bottom: 10px;">Draw a digit (0-9) to test the trained network</p>
+                <canvas id="drawingCanvas" class="drawing-canvas" width="280" height="280"></canvas>
+                <button class="btn clear-btn" id="clearDrawing">🗑️ Clear Canvas</button>
+                
+                <div class="prediction-display">
+                    <h4>🔮 Predictions</h4>
+                    <div class="prediction-grid" id="predictionGrid">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <h3>🔥 Activation Heatmap</h3>
+                <div class="activation-heatmap" id="activationHeatmap">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Music Volume Control (bottom left to complement toggle on right) -->
+    <div class="music-volume" style="position: fixed; bottom: 20px; left: 20px; z-index: 100; display: flex; align-items: center; gap: 10px; background: rgba(15, 15, 35, 0.9); border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 8px; padding: 8px 15px;">
+        <span style="color: #00d4ff; font-size: 0.85rem;">🎵 Vol</span>
+        <input type="range" id="musicVolume" min="0" max="100" value="15" style="width: 100px; height: 6px; -webkit-appearance: none; background: linear-gradient(90deg, #1a1a3e, #2d2d5a); border-radius: 3px;">
+    </div>
+
+    <script>
+        // ==================== Neural Network Class ====================
+        class NeuralNetwork {
+            constructor(inputSize, hiddenSize, outputSize, activation = 'sigmoid') {
+                this.inputSize = inputSize;
+                this.hiddenSize = hiddenSize;
+                this.outputSize = outputSize;
+                this.activation = activation;
+                this.learningRate = 0.1;
+                
+                // Initialize weights with Xavier initialization
+                this.W1 = this.initializeWeights(inputSize, hiddenSize);
+                this.b1 = new Array(hiddenSize).fill(0);
+                this.W2 = this.initializeWeights(hiddenSize, outputSize);
+                this.b2 = new Array(outputSize).fill(0);
+                
+                // Activations for visualization
+                this.hiddenActivations = new Array(hiddenSize).fill(0);
+                this.outputActivations = new Array(outputSize).fill(0);
+            }
+
+            initializeWeights(rows, cols) {
+                const weights = [];
+                const scale = Math.sqrt(2.0 / (rows + cols));
+                for (let i = 0; i < rows; i++) {
+                    weights[i] = [];
+                    for (let j = 0; j < cols; j++) {
+                        weights[i][j] = (Math.random() - 0.5) * 2 * scale;
+                    }
+                }
+                return weights;
+            }
+
+            activate(x) {
+                switch (this.activation) {
+                    case 'sigmoid': return 1 / (1 + Math.exp(-x));
+                    case 'tanh': return Math.tanh(x);
+                    case 'relu': return Math.max(0, x);
+                    case 'leakyrelu': return x > 0 ? x : 0.01 * x;
+                    default: return 1 / (1 + Math.exp(-x));
+                }
+            }
+
+            activateDerivative(x) {
+                switch (this.activation) {
+                    case 'sigmoid': { const s = 1 / (1 + Math.exp(-x)); return s * (1 - s); }
+                    case 'tanh': { const t = Math.tanh(x); return 1 - t * t; }
+                    case 'relu': return x > 0 ? 1 : 0;
+                    case 'leakyrelu': return x > 0 ? 1 : 0.01;
+                    default: { const s = 1 / (1 + Math.exp(-x)); return s * (1 - s); }
+                }
+            }
+
+            forward(inputs) {
+                // Hidden layer
+                this.hiddenZ = [];
+                this.hiddenActivations = [];
+                for (let j = 0; j < this.hiddenSize; j++) {
+                    let sum = this.b1[j];
+                    for (let i = 0; i < this.inputSize; i++) {
+                        sum += inputs[i] * this.W1[i][j];
+                    }
+                    this.hiddenZ[j] = sum;
+                    this.hiddenActivations[j] = this.activate(sum);
+                }
+
+                // Output layer (softmax for classification)
+                this.outputZ = [];
+                let maxZ = -Infinity;
+                for (let k = 0; k < this.outputSize; k++) {
+                    let sum = this.b2[k];
+                    for (let j = 0; j < this.hiddenSize; j++) {
+                        sum += this.hiddenActivations[j] * this.W2[j][k];
+                    }
+                    this.outputZ[k] = sum;
+                    maxZ = Math.max(maxZ, sum);
+                }
+
+                // Softmax
+                const expSum = this.outputZ.reduce((sum, z) => sum + Math.exp(z - maxZ), 0);
+                this.outputActivations = this.outputZ.map(z => Math.exp(z - maxZ) / expSum);
+
+                return this.outputActivations;
+            }
+
+            train(inputs, targets) {
+                // Forward pass
+                const outputs = this.forward(inputs);
+
+                // Calculate loss (cross-entropy)
+                let loss = 0;
+                for (let k = 0; k < this.outputSize; k++) {
+                    loss -= targets[k] * Math.log(outputs[k] + 1e-15);
+                }
+
+                // Backward pass - Output layer
+                const outputErrors = [];
+                for (let k = 0; k < this.outputSize; k++) {
+                    outputErrors[k] = outputs[k] - targets[k];
+                }
+
+                // Backward pass - Hidden layer
+                const hiddenErrors = [];
+                for (let j = 0; j < this.hiddenSize; j++) {
+                    let error = 0;
+                    for (let k = 0; k < this.outputSize; k++) {
+                        error += outputErrors[k] * this.W2[j][k];
+                    }
+                    hiddenErrors[j] = error * this.activateDerivative(this.hiddenZ[j]);
+                }
+
+                // Update weights - W2
+                for (let j = 0; j < this.hiddenSize; j++) {
+                    for (let k = 0; k < this.outputSize; k++) {
+                        this.W2[j][k] -= this.learningRate * outputErrors[k] * this.hiddenActivations[j];
+                    }
+                }
+
+                // Update biases - b2
+                for (let k = 0; k < this.outputSize; k++) {
+                    this.b2[k] -= this.learningRate * outputErrors[k];
+                }
+
+                // Update weights - W1
+                for (let i = 0; i < this.inputSize; i++) {
+                    for (let j = 0; j < this.hiddenSize; j++) {
+                        this.W1[i][j] -= this.learningRate * hiddenErrors[j] * inputs[i];
+                    }
+                }
+
+                // Update biases - b1
+                for (let j = 0; j < this.hiddenSize; j++) {
+                    this.b1[j] -= this.learningRate * hiddenErrors[j];
+                }
+
+                return loss;
+            }
+
+            predict(inputs) {
+                const outputs = this.forward(inputs);
+                let maxIndex = 0;
+                let maxVal = outputs[0];
+                for (let i = 1; i < outputs.length; i++) {
+                    if (outputs[i] > maxVal) {
+                        maxVal = outputs[i];
+                        maxIndex = i;
+                    }
+                }
+                return { index: maxIndex, confidence: maxVal, probabilities: outputs };
+            }
+        }
+
+        // ==================== Datasets ====================
+        const datasets = {
+            xor: {
+                inputs: [[0, 0], [0, 1], [1, 0], [1, 1]],
+                targets: [[0], [1], [1], [0]],
+                inputSize: 2,
+                hiddenSize: 4,
+                outputSize: 1,
+                labels: ['0⊕0', '0⊕1', '1⊕0', '1⊕1']
+            },
+            digits: {
+                inputs: generateDigitPatterns(),
+                targets: Array.from({length: 10}, (_, i) => oneHot(i, 10)),
+                inputSize: 25,
+                hiddenSize: 16,
+                outputSize: 10,
+                labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+            },
+            patterns: {
+                inputs: generateGeometricPatterns(),
+                targets: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                inputSize: 16,
+                hiddenSize: 8,
+                outputSize: 4,
+                labels: ['□', '○', '△', '✕']
+            },
+            mnist: {
+                inputs: generateMNISTPatterns(),
+                targets: Array.from({length: 10}, (_, i) => oneHot(i, 10)),
+                inputSize: 64,
+                hiddenSize: 32,
+                outputSize: 10,
+                labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+            }
+        };
+
+        function oneHot(index, size) {
+            const arr = new Array(size).fill(0);
+            arr[index] = 1;
+            return arr;
+        }
+
+        function generateDigitPatterns() {
+            // 5x5 grid patterns for digits 0-9
+            return [
+                [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0], // 0
+                [0,0,1,0,0, 0,1,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,1,1,1,0], // 1
+                [0,1,1,1,0, 1,0,0,0,1, 0,0,1,1,0, 0,1,0,0,0, 1,1,1,1,1], // 2
+                [1,1,1,1,0, 0,0,0,0,1, 0,0,1,1,0, 0,0,0,0,1, 1,1,1,1,0], // 3
+                [0,0,1,0,0, 0,1,1,0,0, 1,0,1,0,0, 1,1,1,1,1, 0,0,1,0,0], // 4
+                [1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 0,0,0,0,1, 1,1,1,1,0], // 5
+                [0,1,1,1,0, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,1, 0,1,1,1,0], // 6
+                [1,1,1,1,1, 0,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,0,1,0,0], // 7
+                [0,1,1,1,0, 1,0,0,0,1, 0,1,1,1,0, 1,0,0,0,1, 0,1,1,1,0], // 8
+                [0,1,1,1,0, 1,0,0,0,1, 0,1,1,1,1, 0,0,0,0,1, 0,1,1,1,0], // 9
+            ];
+        }
+
+        function generateGeometricPatterns() {
+            // 4x4 grid patterns
+            return [
+                [1,1,1,1, 1,0,0,1, 1,0,0,1, 1,1,1,1], // Square
+                [0,0,1,0, 0,1,1,1, 0,1,1,1, 0,0,1,0], // Circle approximation
+                [0,0,1,0, 0,1,1,1, 1,1,1,1, 1,1,1,1], // Triangle
+                [1,0,0,1, 0,1,1,0, 0,1,1,0, 1,0,0,1], // X
+            ];
+        }
+
+        function generateMNISTPatterns() {
+            // 8x8 simplified patterns
+            const patterns = [];
+            for (let d = 0; d < 10; d++) {
+                const pattern = new Array(64).fill(0);
+                // Simple digit representations
+                const centers = {
+                    0: [9, 10, 13, 14, 17, 18, 21, 22, 25, 26, 29, 30, 33, 34, 37, 38, 41, 42, 45, 46, 49, 50, 53, 54],
+                    1: [17, 18, 25, 26, 33, 34, 41, 42, 49, 50, 57, 58, 59, 60],
+                    2: [8, 9, 10, 11, 14, 15, 22, 23, 30, 31, 38, 39, 46, 47, 54, 55, 56, 57, 58, 59, 60, 61],
+                    3: [8, 9, 10, 11, 14, 15, 22, 23, 28, 29, 30, 31, 38, 39, 46, 47, 54, 55, 56, 57, 58, 59],
+                    4: [11, 12, 18, 19, 25, 26, 33, 34, 35, 36, 37, 38, 39, 40, 43, 44, 51, 52, 59, 60],
+                    5: [8, 9, 10, 11, 12, 13, 16, 17, 24, 25, 26, 27, 30, 31, 38, 39, 46, 47, 56, 57, 58, 59, 60, 61],
+                    6: [10, 11, 12, 17, 18, 24, 25, 32, 33, 34, 35, 38, 39, 46, 47, 54, 55, 58, 59, 60],
+                    7: [8, 9, 10, 11, 12, 13, 14, 15, 22, 23, 30, 31, 38, 39, 46, 47, 54, 55],
+                    8: [9, 10, 11, 12, 17, 18, 21, 22, 25, 26, 29, 30, 33, 34, 37, 38, 41, 42, 45, 46, 49, 50, 53, 54, 57, 58],
+                    9: [9, 10, 11, 12, 17, 18, 21, 22, 25, 26, 29, 30, 31, 33, 34, 37, 38, 41, 42, 45, 46, 49, 50, 53, 54]
+                };
+                centers[d].forEach(i => pattern[i] = 1);
+                patterns.push(pattern);
+            }
+            return patterns;
+        }
+
+        // ==================== Application State ====================
+        let nn = null;
+        let currentDataset = 'xor';
+        let isTraining = false;
+        let trainingInterval = null;
+        let currentEpoch = 0;
+        let maxEpochs = 1000;
+        let lossHistory = [];
+        let trainingSpeed = 50;
+        let drawingData = new Array(64).fill(0);
+        let isDrawing = false;
+
+        // ==================== DOM Elements ====================
+        const networkCanvas = document.getElementById('networkCanvas');
+        const lossCanvas = document.getElementById('lossCanvas');
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const networkCtx = networkCanvas.getContext('2d');
+        const lossCtx = lossCanvas.getContext('2d');
+        const drawingCtx = drawingCanvas.getContext('2d');
+
+        // ==================== Initialization ====================
+        function init() {
+            resizeCanvases();
+            loadDataset('xor');
+            initDrawingCanvas();
+            initPredictionGrid();
+            updateDatasetPreview();
+            animate();
+
+            window.addEventListener('resize', resizeCanvases);
+        }
+
+        function resizeCanvases() {
+            networkCanvas.width = networkCanvas.offsetWidth;
+            networkCanvas.height = networkCanvas.offsetHeight;
+            lossCanvas.width = lossCanvas.offsetWidth;
+            lossCanvas.height = lossCanvas.offsetHeight;
+            drawingCanvas.width = 280;
+            drawingCanvas.height = 280;
+        }
+
+        function loadDataset(name) {
+            currentDataset = name;
+            const ds = datasets[name];
+            
+            document.getElementById('inputSize').value = ds.inputSize;
+            document.getElementById('hiddenSize').value = ds.hiddenSize;
+            document.getElementById('outputSize').value = ds.outputSize;
+            
+            createNetwork();
+            updateDatasetPreview();
+            resetTraining();
+        }
+
+        function createNetwork() {
+            const inputSize = parseInt(document.getElementById('inputSize').value);
+            const hiddenSize = parseInt(document.getElementById('hiddenSize').value);
+            const outputSize = parseInt(document.getElementById('outputSize').value);
+            const activation = document.getElementById('activationSelect').value;
+            
+            nn = new NeuralNetwork(inputSize, hiddenSize, outputSize, activation);
+            nn.learningRate = parseFloat(document.getElementById('learningRate').value);
+            updateActivationHeatmap();
+        }
+
+        function resetTraining() {
+            stopTraining();
+            currentEpoch = 0;
+            lossHistory = [];
+            createNetwork();
+            updateStats();
+            drawLossGraph();
+            document.getElementById('epochProgress').style.width = '0%';
+            document.getElementById('epochDisplay').textContent = '0';
+            document.getElementById('statusValue').textContent = 'Ready';
+        }
+
+        // ==================== Training ====================
+        function startTraining() {
+            if (isTraining) return;
+            isTraining = true;
+            document.getElementById('playBtn').classList.add('active');
+            document.getElementById('pauseBtn').classList.remove('active');
+            document.getElementById('statusValue').textContent = 'Training...';
+            
+            const ds = datasets[currentDataset];
+            const batchSize = Math.max(1, Math.floor(1000 / trainingSpeed));
+            
+            trainingInterval = setInterval(() => {
+                let totalLoss = 0;
+                let correct = 0;
+                
+                for (let b = 0; b < batchSize && currentEpoch < maxEpochs; b++) {
+                    // Random sample
+                    const idx = Math.floor(Math.random() * ds.inputs.length);
+                    const input = ds.inputs[idx];
+                    const target = ds.targets[idx];
+                    
+                    const loss = nn.train(input, target);
+                    totalLoss += loss;
+                    
+                    // Check accuracy
+                    const pred = nn.predict(input);
+                    const trueLabel = target.indexOf(1);
+                    if (pred.index === trueLabel) correct++;
+                    
+                    currentEpoch++;
+                }
+                
+                const avgLoss = totalLoss / batchSize;
+                lossHistory.push(avgLoss);
+                if (lossHistory.length > 100) lossHistory.shift();
+                
+                // Update stats
+                const accuracy = (correct / batchSize) * 100;
+                updateStats(avgLoss, accuracy);
+                updateActivationHeatmap();
+                
+                // Update progress
+                const progress = (currentEpoch / maxEpochs) * 100;
+                document.getElementById('epochProgress').style.width = `${progress}%`;
+                document.getElementById('epochDisplay').textContent = currentEpoch;
+                
+                if (currentEpoch >= maxEpochs) {
+                    stopTraining();
+                    document.getElementById('statusValue').textContent = 'Complete';
+                }
+            }, 16);
+        }
+
+        function stopTraining() {
+            isTraining = false;
+            if (trainingInterval) {
+                clearInterval(trainingInterval);
+                trainingInterval = null;
+            }
+            document.getElementById('playBtn').classList.remove('active');
+            document.getElementById('pauseBtn').classList.add('active');
+            if (currentEpoch < maxEpochs) {
+                document.getElementById('statusValue').textContent = 'Paused';
+            }
+        }
+
+        function stepTraining() {
+            if (isTraining) stopTraining();
+            
+            const ds = datasets[currentDataset];
+            const idx = Math.floor(Math.random() * ds.inputs.length);
+            const input = ds.inputs[idx];
+            const target = ds.targets[idx];
+            
+            const loss = nn.train(input, target);
+            lossHistory.push(loss);
+            if (lossHistory.length > 100) lossHistory.shift();
+            
+            currentEpoch++;
+            updateStats(loss);
+            updateActivationHeatmap();
+            
+            const progress = (currentEpoch / maxEpochs) * 100;
+            document.getElementById('epochProgress').style.width = `${progress}%`;
+            document.getElementById('epochDisplay').textContent = currentEpoch;
+            document.getElementById('statusValue').textContent = 'Step';
+        }
+
+        // ==================== Visualization ====================
+        function drawNetwork() {
+            const ctx = networkCtx;
+            const w = networkCanvas.width;
+            const h = networkCanvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            if (!nn) return;
+            
+            const layerGap = w / 4;
+            const neuronRadius = Math.min(20, h / (Math.max(nn.inputSize, nn.hiddenSize, nn.outputSize) + 2) / 2);
+            
+            // Calculate positions
+            const inputX = layerGap;
+            const hiddenX = layerGap * 2;
+            const outputX = layerGap * 3;
+            
+            const inputY = i => h / 2 + (i - (nn.inputSize - 1) / 2) * neuronRadius * 2.5;
+            const hiddenY = j => h / 2 + (j - (nn.hiddenSize - 1) / 2) * neuronRadius * 2.5;
+            const outputY = k => h / 2 + (k - (nn.outputSize - 1) / 2) * neuronRadius * 2.5;
+            
+            // Draw connections
+            // Input to Hidden
+            for (let i = 0; i < nn.inputSize && i < 20; i++) {
+                for (let j = 0; j < nn.hiddenSize && j < 20; j++) {
+                    const weight = nn.W1[i][j];
+                    const alpha = Math.min(1, Math.abs(weight));
+                    const color = weight > 0 ? `rgba(0, 212, 255, ${alpha})` : `rgba(255, 50, 100, ${alpha})`;
+                    const width = Math.min(3, Math.abs(weight) * 2);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(inputX, inputY(i));
+                    ctx.lineTo(hiddenX, hiddenY(j));
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = width;
+                    ctx.stroke();
+                }
+            }
+            
+            // Hidden to Output
+            for (let j = 0; j < nn.hiddenSize && j < 20; j++) {
+                for (let k = 0; k < nn.outputSize; k++) {
+                    const weight = nn.W2[j][k];
+                    const alpha = Math.min(1, Math.abs(weight));
+                    const color = weight > 0 ? `rgba(0, 212, 255, ${alpha})` : `rgba(255, 50, 100, ${alpha})`;
+                    const width = Math.min(3, Math.abs(weight) * 2);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(hiddenX, hiddenY(j));
+                    ctx.lineTo(outputX, outputY(k));
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = width;
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw neurons
+            function drawNeuron(x, y, r, activation, label, color) {
+                const grad = ctx.createRadialGradient(x - r/3, y - r/3, r/10, x, y, r);
+                grad.addColorStop(0, lighten(color, 50));
+                grad.addColorStop(1, color);
+                
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Glow for active neurons
+                if (activation > 0.3) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${color === '#00d4ff' ? '0, 212, 255' : color === '#7b2cbf' ? '123, 44, 191' : '0, 255, 136'}, ${activation})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${Math.min(12, r)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, x, y);
+            }
+            
+            // Draw input layer
+            for (let i = 0; i < nn.inputSize && i < 20; i++) {
+                drawNeuron(inputX, inputY(i), neuronRadius, 0.5, i.toString(), '#00d4ff');
+            }
+            if (nn.inputSize > 20) {
+                ctx.fillStyle = '#8080a0';
+                ctx.font = '12px Arial';
+                ctx.fillText(`+${nn.inputSize - 20} more`, inputX, inputY(20));
+            }
+            
+            // Draw hidden layer
+            for (let j = 0; j < nn.hiddenSize && j < 20; j++) {
+                const act = nn.hiddenActivations[j] || 0;
+                drawNeuron(hiddenX, hiddenY(j), neuronRadius, act, 'h' + j, '#7b2cbf');
+            }
+            if (nn.hiddenSize > 20) {
+                ctx.fillStyle = '#8080a0';
+                ctx.font = '12px Arial';
+                ctx.fillText(`+${nn.hiddenSize - 20} more`, hiddenX, hiddenY(20));
+            }
+            
+            // Draw output layer
+            for (let k = 0; k < nn.outputSize; k++) {
+                const act = nn.outputActivations[k] || 0;
+                drawNeuron(outputX, outputY(k), neuronRadius, act, datasets[currentDataset]?.labels?.[k] || k.toString(), '#00ff88');
+            }
+        }
+
+        function lighten(color, percent) {
+            // Simple hex lightener
+            return color;
+        }
+
+        function drawLossGraph() {
+            const ctx = lossCtx;
+            const w = lossCanvas.width;
+            const h = lossCanvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            if (lossHistory.length < 2) return;
+            
+            // Grid
+            ctx.strokeStyle = 'rgba(0, 212, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, h - h * i / 4);
+                ctx.lineTo(w, h - h * i / 4);
+                ctx.stroke();
+            }
+            
+            // Loss line
+            const maxLoss = Math.max(...lossHistory, 0.1);
+            const minLoss = Math.min(...lossHistory) * 0.9;
+            const range = maxLoss - minLoss || 1;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, h - ((lossHistory[0] - minLoss) / range) * h);
+            
+            for (let i = 1; i < lossHistory.length; i++) {
+                const x = (i / (lossHistory.length - 1)) * w;
+                const y = h - ((lossHistory[i] - minLoss) / range) * h;
+                ctx.lineTo(x, y);
+            }
+            
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, '#00d4ff');
+            grad.addColorStop(1, '#7b2cbf');
+            
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Fill
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
+            ctx.fill();
+        }
+
+        function updateStats(loss = 0, accuracy = 0) {
+            document.getElementById('lossValue').textContent = loss.toFixed(4);
+            document.getElementById('accValue').textContent = accuracy.toFixed(1) + '%';
+            document.getElementById('iterValue').textContent = currentEpoch;
+        }
+
+        function updateActivationHeatmap() {
+            const container = document.getElementById('activationHeatmap');
+            container.innerHTML = '';
+            
+            if (!nn) return;
+            
+            const layers = [
+                { name: 'Input', activations: new Array(nn.inputSize).fill(0.5) },
+                { name: 'Hidden', activations: nn.hiddenActivations },
+                { name: 'Output', activations: nn.outputActivations }
+            ];
+            
+            layers.forEach(layer => {
+                const row = document.createElement('div');
+                row.className = 'layer-activations';
+                
+                const label = document.createElement('div');
+                label.className = 'layer-label';
+                label.textContent = layer.name;
+                row.appendChild(label);
+                
+                const bars = document.createElement('div');
+                bars.className = 'neuron-bars';
+                
+                layer.activations.slice(0, 10).forEach(act => {
+                    const bar = document.createElement('div');
+                    bar.className = 'neuron-bar';
+                    const intensity = Math.round((act || 0) * 255);
+                    bar.style.background = `rgb(${255 - intensity}, ${intensity}, 100)`;
+                    bar.dataset.value = (act || 0).toFixed(2);
+                    bars.appendChild(bar);
+                });
+                
+                row.appendChild(bars);
+                container.appendChild(row);
+            });
+        }
+
+        function updateDatasetPreview() {
+            const container = document.getElementById('datasetPreview');
+            container.innerHTML = '';
+            
+            const ds = datasets[currentDataset];
+            ds.inputs.slice(0, 8).forEach((input, idx) => {
+                const div = document.createElement('div');
+                div.className = 'data-sample';
+                div.textContent = ds.labels[idx] || idx;
+                div.title = `Sample ${idx}`;
+                container.appendChild(div);
+            });
+        }
+
+        function animate() {
+            drawNetwork();
+            drawLossGraph();
+            requestAnimationFrame(animate);
+        }
+
+        // ==================== Drawing Canvas ====================
+        function initDrawingCanvas() {
+            drawingCtx.fillStyle = '#0a0a1a';
+            drawingCtx.fillRect(0, 0, 280, 280);
+            
+            drawingCtx.strokeStyle = '#00d4ff';
+            drawingCtx.lineWidth = 15;
+            drawingCtx.lineCap = 'round';
+            drawingCtx.lineJoin = 'round';
+            
+            drawingCanvas.addEventListener('mousedown', startDrawing);
+            drawingCanvas.addEventListener('mousemove', draw);
+            drawingCanvas.addEventListener('mouseup', stopDrawing);
+            drawingCanvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch support
+            drawingCanvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startDrawing(e.touches[0]);
+            });
+            drawingCanvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                draw(e.touches[0]);
+            });
+            drawingCanvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            drawingCanvas.classList.add('drawing');
+            const rect = drawingCanvas.getBoundingClientRect();
+            const x = (e.clientX || e.pageX) - rect.left;
+            const y = (e.clientY || e.pageY) - rect.top;
+            drawingCtx.beginPath();
+            drawingCtx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = drawingCanvas.getBoundingClientRect();
+            const x = (e.clientX || e.pageX) - rect.left;
+            const y = (e.clientY || e.pageY) - rect.top;
+            drawingCtx.lineTo(x, y);
+            drawingCtx.stroke();
+        }
+
+        function stopDrawing() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            drawingCanvas.classList.remove('drawing');
+            drawingCtx.closePath();
+            processDrawing();
+        }
+
+        function processDrawing() {
+            // Downsample to network input size
+            const inputSize = nn ? nn.inputSize : 64;
+            const gridSize = Math.sqrt(inputSize);
+            const cellSize = 280 / gridSize;
+            
+            const imageData = drawingCtx.getImageData(0, 0, 280, 280);
+            drawingData = [];
+            
+            for (let gy = 0; gy < gridSize; gy++) {
+                for (let gx = 0; gx < gridSize; gx++) {
+                    let sum = 0;
+                    for (let py = 0; py < cellSize; py++) {
+                        for (let px = 0; px < cellSize; px++) {
+                            const x = Math.floor(gx * cellSize + px);
+                            const y = Math.floor(gy * cellSize + py);
+                            const idx = (y * 280 + x) * 4;
+                            const brightness = imageData.data[idx]; // Red channel
+                            sum += brightness;
+                        }
+                    }
+                    const avg = sum / (cellSize * cellSize);
+                    drawingData.push(avg / 255);
+                }
+            }
+            
+            // Normalize
+            const maxVal = Math.max(...drawingData);
+            if (maxVal > 0) {
+                drawingData = drawingData.map(v => v / maxVal);
+            }
+            
+            predictDrawing();
+        }
+
+        function predictDrawing() {
+            if (!nn) return;
+            
+            const prediction = nn.predict(drawingData);
+            updatePredictionGrid(prediction);
+            
+            // Feed forward to update activations
+            nn.forward(drawingData);
+            updateActivationHeatmap();
+        }
+
+        function initPredictionGrid() {
+            const grid = document.getElementById('predictionGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const item = document.createElement('div');
+                item.className = 'prediction-item';
+                item.dataset.digit = i;
+                item.innerHTML = `<div class="digit">${i}</div><div class="prob">0%</div>`;
+                grid.appendChild(item);
+            }
+        }
+
+        function updatePredictionGrid(prediction) {
+            const items = document.querySelectorAll('.prediction-item');
+            items.forEach((item, idx) => {
+                const prob = (prediction.probabilities[idx] || 0) * 100;
+                item.querySelector('.prob').textContent = prob.toFixed(1) + '%';
+                item.classList.toggle('highlight', idx === prediction.index);
+            });
+        }
+
+        // ==================== Event Listeners ====================
+        document.getElementById('datasetSelect').addEventListener('change', (e) => {
+            loadDataset(e.target.value);
+        });
+
+        document.getElementById('activationSelect').addEventListener('change', () => {
+            createNetwork();
+        });
+
+        document.getElementById('learningRate').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('lrValue').textContent = val.toFixed(3);
+            if (nn) nn.learningRate = val;
+        });
+
+        document.getElementById('trainingSpeed').addEventListener('input', (e) => {
+            trainingSpeed = parseInt(e.target.value);
+            const labels = { 1: 'Slow', 50: 'Fast', 100: 'Max' };
+            const label = trainingSpeed <= 10 ? 'Slow' : trainingSpeed <= 60 ? 'Fast' : 'Max';
+            document.getElementById('speedValue').textContent = label;
+        });
+
+        document.getElementById('inputSize').addEventListener('change', createNetwork);
+        document.getElementById('hiddenSize').addEventListener('change', createNetwork);
+        document.getElementById('outputSize').addEventListener('change', createNetwork);
+
+        document.getElementById('playBtn').addEventListener('click', startTraining);
+        document.getElementById('pauseBtn').addEventListener('click', stopTraining);
+        document.getElementById('stepBtn').addEventListener('click', stepTraining);
+        document.getElementById('resetBtn').addEventListener('click', resetTraining);
+
+        document.getElementById('clearDrawing').addEventListener('click', () => {
+            drawingCtx.fillStyle = '#0a0a1a';
+            drawingCtx.fillRect(0, 0, 280, 280);
+            drawingData.fill(0);
+            initPredictionGrid();
+        });
+
+        // ==================== Chill Lofi Hip-Hop Music System ====================
+        const MusicSystem = {
+            ctx: null,
+            isPlaying: false,
+            masterGain: null,
+            compressor: null,
+            volume: 0.15, // 15% default
+            bpm: 75,
+            beatInterval: null,
+            chordInterval: null,
+            vinylNode: null,
+            
+            // Jazz chord frequencies (Cmaj7, Am7, Fmaj7, G7)
+            chords: [
+                { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] },  // C4, E4, G4, B4
+                { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },   // A3, C4, E4, G4
+                { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 329.63] }, // F3, A3, C4, E4
+                { name: 'G7', notes: [196.00, 246.94, 293.66, 392.00] }     // G3, B3, D4, G4
+            ],
+            currentChord: 0,
+            
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    // Master compressor: threshold -24dB, ratio 4:1
+                    this.compressor = this.ctx.createDynamicsCompressor();
+                    this.compressor.threshold.value = -24;
+                    this.compressor.knee.value = 30;
+                    this.compressor.ratio.value = 4;
+                    this.compressor.attack.value = 0.003;
+                    this.compressor.release.value = 0.25;
+                    
+                    // Master gain
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.gain.value = this.volume;
+                    
+                    this.compressor.connect(this.masterGain);
+                    this.masterGain.connect(this.ctx.destination);
+                }
+            },
+            
+            // Create vinyl crackle texture
+            createVinylCrackle() {
+                const bufferSize = 2 * this.ctx.sampleRate;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Generate brown noise for vinyl crackle
+                let lastOut = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    // Very low volume crackle
+                    data[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = data[i];
+                    data[i] *= 0.03; // Very gentle
+                }
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                noise.loop = true;
+                
+                // Filter to make it sound like vinyl crackle
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.015; // Very low volume
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.compressor);
+                
+                noise.start();
+                return noise;
+            },
+            
+            // Play a chord with sine waves
+            playChord(chordIndex) {
+                const chord = this.chords[chordIndex];
+                const now = this.ctx.currentTime;
+                
+                chord.notes.forEach(freq => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    
+                    // Slow attack/release: 1.5s attack, 1s release
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.025, now + 1.5); // Attack
+                    gain.gain.setValueAtTime(0.025, now + 4); // Sustain
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 5); // Release
+                    
+                    osc.connect(gain);
+                    gain.connect(this.compressor);
+                    
+                    osc.start(now);
+                    osc.stop(now + 5);
+                });
+            },
+            
+            // Play soft kick drum
+            playKick(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.frequency.setValueAtTime(60, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                
+                gain.gain.setValueAtTime(0.03, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(this.compressor);
+                
+                osc.start(time);
+                osc.stop(time + 0.5);
+            },
+            
+            // Play soft snare
+            playSnare(time) {
+                const osc = this.ctx.createOscillator();
+                const noise = this.ctx.createBufferSource();
+                const noiseGain = this.ctx.createGain();
+                const oscGain = this.ctx.createGain();
+                
+                // Create noise buffer for snare
+                const bufferSize = this.ctx.sampleRate * 0.1;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                noise.buffer = buffer;
+                
+                osc.type = 'triangle';
+                osc.frequency.value = 200;
+                
+                noiseGain.gain.setValueAtTime(0.02, time);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                
+                oscGain.gain.setValueAtTime(0.02, time);
+                oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                
+                osc.connect(oscGain);
+                noise.connect(noiseGain);
+                oscGain.connect(this.compressor);
+                noiseGain.connect(this.compressor);
+                
+                osc.start(time);
+                noise.start(time);
+                osc.stop(time + 0.1);
+                noise.stop(time + 0.1);
+            },
+            
+            // Start the beat at 75 BPM
+            startBeat() {
+                const beatTime = 60 / this.bpm; // 0.8 seconds per beat
+                let nextNoteTime = this.ctx.currentTime;
+                let beatCount = 0;
+                
+                const scheduler = () => {
+                    while (nextNoteTime < this.ctx.currentTime + 0.1) {
+                        // Kick on beats 1 and 3
+                        if (beatCount % 4 === 0 || beatCount % 4 === 2) {
+                            this.playKick(nextNoteTime);
+                        }
+                        // Snare on beats 2 and 4 (softly)
+                        if (beatCount % 4 === 1 || beatCount % 4 === 3) {
+                            this.playSnare(nextNoteTime);
+                        }
+                        
+                        nextNoteTime += beatTime;
+                        beatCount++;
+                    }
+                    if (this.isPlaying) {
+                        this.beatInterval = requestAnimationFrame(scheduler);
+                    }
+                };
+                scheduler();
+            },
+            
+            // Start chord progression
+            startChords() {
+                // Play first chord immediately
+                this.playChord(0);
+                
+                this.chordInterval = setInterval(() => {
+                    this.currentChord = (this.currentChord + 1) % this.chords.length;
+                    this.playChord(this.currentChord);
+                }, 8000); // Change chord every 8 seconds
+            },
+            
+            play() {
+                this.init();
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                
+                this.isPlaying = true;
+                
+                // Start vinyl crackle
+                if (!this.vinylNode) {
+                    this.vinylNode = this.createVinylCrackle();
+                }
+                
+                // Start chords and beat
+                this.startChords();
+                this.startBeat();
+            },
+            
+            stop() {
+                this.isPlaying = false;
+                
+                if (this.beatInterval) {
+                    cancelAnimationFrame(this.beatInterval);
+                    this.beatInterval = null;
+                }
+                
+                if (this.chordInterval) {
+                    clearInterval(this.chordInterval);
+                    this.chordInterval = null;
+                }
+                
+                // Fade out master
+                if (this.masterGain) {
+                    const now = this.ctx.currentTime;
+                    this.masterGain.gain.setValueAtTime(this.volume, now);
+                    this.masterGain.gain.linearRampToValueAtTime(0, now + 0.5);
+                }
+            },
+            
+            setVolume(vol) {
+                this.volume = vol;
+                if (this.masterGain) {
+                    this.masterGain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                }
+            }
+        };
+
+        document.getElementById('musicToggle').addEventListener('click', () => {
+            const btn = document.getElementById('musicToggle');
+            btn.classList.toggle('active');
+            
+            if (btn.classList.contains('active')) {
+                MusicSystem.play();
+                btn.textContent = '🔇 Music';
+            } else {
+                MusicSystem.stop();
+                btn.textContent = '🔊 Music';
+            }
+        });
+
+        document.getElementById('musicVolume').addEventListener('input', (e) => {
+            const vol = parseInt(e.target.value) / 100;
+            MusicSystem.setVolume(vol);
+        });
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

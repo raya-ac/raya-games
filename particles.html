@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Universe - Physics-Based Artificial Life</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --neon-blue: #00f5ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff88;
+            --neon-purple: #b829dd;
+            --neon-orange: #ff6b35;
+            --neon-yellow: #ffff00;
+            --dark-bg: #050508;
+            --panel-bg: rgba(5, 5, 8, 0.98);
+            --panel-border: rgba(0, 245, 255, 0.2);
+        }
+        
+        body {
+            background: var(--dark-bg);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .hud {
+            position: fixed;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .hud-top {
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 25px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, transparent 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+            pointer-events: none;
+        }
+        
+        .hud-top > * {
+            pointer-events: auto;
+        }
+        
+        .title-block {
+            flex-shrink: 0;
+            max-width: 300px;
+        }
+        
+        .stats-container {
+            flex: 1;
+            min-width: 200px;
+            max-width: 500px;
+        }
+        
+        .hud-left {
+            top: 100px;
+            left: 20px;
+            width: 320px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .hud-right {
+            top: 100px;
+            right: 20px;
+            width: 320px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .hud-bottom {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, transparent 100%);
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            pointer-events: auto;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .title-block h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titlePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes titlePulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+        
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .panel-section {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panel-section h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            background: rgba(0,245,255,0.1);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            pointer-events: all;
+        }
+        
+        .btn:hover {
+            background: rgba(0,245,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .btn.active {
+            background: var(--neon-green);
+            border-color: var(--neon-green);
+            color: #000;
+        }
+        
+        .btn.primary {
+            background: var(--neon-blue);
+            border-color: var(--neon-blue);
+            color: #000;
+        }
+        
+        .btn.danger {
+            background: rgba(255,51,51,0.2);
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+        
+        .btn-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .stats-container {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        
+        .stat-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        
+        .stat-box .value {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        .stat-box .label {
+            font-size: 8px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .slider-group {
+            margin-bottom: 10px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .particle-legend {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            padding: 4px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .chart-container {
+            height: 70px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+            padding: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        select {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/games" style="background: rgba(10,10,15,0.9); border: 1px solid #00f5ff; color: #00f5ff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; font-family: 'Rajdhani', sans-serif; display: inline-block; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">🎮 Games</a>
+    </div>
+    
+    <div id="canvas-container"></div>
+    
+    <div class="hud hud-top">
+        <div class="title-block">
+            <h1>⚛️ Particle Universe</h1>
+            <p style="font-size: 11px; color: #888; margin-top: 4px;">Physics-Based Artificial Life</p>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="value" id="particle-count">0</div>
+                    <div class="label">Particles</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="time-elapsed">0s</div>
+                    <div class="label">Time</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="bonds-formed">0</div>
+                    <div class="label">Bonds</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="reactions">0</div>
+                    <div class="label">Reactions</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="species-count">0</div>
+                    <div class="label">Species</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="energy-total">0</div>
+                    <div class="label">Energy</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud hud-left">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Simulation Control</h3>
+                <div class="btn-row">
+                    <button class="btn primary" id="play-btn" onclick="togglePlay()">▶ PLAY</button>
+                    <button class="btn" onclick="reset()">🔄 RESET</button>
+                    <button class="btn danger" onclick="clearAll()">🗑 CLEAR</button>
+                </div>
+                
+                <div class="slider-group" style="margin-top: 15px;">
+                    <div class="slider-label">
+                        <span>Speed</span>
+                        <span id="speed-display">1x</span>
+                    </div>
+                    <input type="range" id="speed" min="0.1" max="5" step="0.1" value="1" onchange="updateSpeed(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Gravity</span>
+                        <span id="gravity-display">0.1</span>
+                    </div>
+                    <input type="range" id="gravity" min="0" max="1" step="0.05" value="0.1" onchange="updateGravity(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Particle Types</h3>
+                <div class="particle-legend" id="particle-legend"></div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Environment</h3>
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Temperature</span>
+                        <span id="temp-display">300K</span>
+                    </div>
+                    <input type="range" id="temp" min="0" max="1000" value="300" onchange="updateTemp(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Friction</span>
+                        <span id="friction-display">0.99</span>
+                    </div>
+                    <input type="range" id="friction" min="0.90" max="1" step="0.001" value="0.99" onchange="updateFriction(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Boundary</span>
+                    </div>
+                    <select id="boundary" onchange="updateBoundary(this.value)">
+                        <option value="bounce">Bounce</option>
+                        <option value="wrap">Wrap</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud hud-right">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Spawn Particles</h3>
+                <div class="btn-row">
+                    <button class="btn" onclick="spawnBatch('hydrogen', 50)">H₂</button>
+                    <button class="btn" onclick="spawnBatch('oxygen', 50)">O₂</button>
+                    <button class="btn" onclick="spawnBatch('carbon', 30)">C</button>
+                    <button class="btn" onclick="spawnBatch('helium', 30)">He</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn" onclick="spawnBatch('iron', 20)">Fe</button>
+                    <button class="btn" onclick="spawnBatch('gold', 15)">Au</button>
+                    <button class="btn" onclick="spawnBatch('uranium', 10)">U</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn" onclick="spawnBatch('photon', 20)">⚡ Photon</button>
+                    <button class="btn" onclick="spawnBatch('electron', 30)">⚡ e⁻</button>
+                    <button class="btn" onclick="spawnBatch('plasma', 20)">🔥 Plasma</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn" onclick="spawnBatch('darkmatter', 20)">🌑 Dark</button>
+                    <button class="btn pink" onclick="spawnBatch('life', 10)">🦠 Life</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Universe Presets</h3>
+                <div class="btn-row">
+                    <button class="btn" onclick="loadPreset('bigbang')">💥 Big Bang</button>
+                    <button class="btn" onclick="loadPreset('solarsystem')">☀️ Solar</button>
+                    <button class="btn" onclick="loadPreset('chemistry')">⚗️ Chemistry</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn" onclick="loadPreset('life')">🧬 Primordial</button>
+                    <button class="btn" onclick="loadPreset('plasma')">🔥 Plasma</button>
+                    <button class="btn" onclick="loadPreset('crystal')">💎 Crystal</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn" onclick="loadPreset('magnetic')">🧲 Magnetic</button>
+                    <button class="btn" onclick="loadPreset('reactor')">☢️ Reactor</button>
+                    <button class="btn" onclick="loadPreset('fusion')">⚛️ Fusion</button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn" onclick="loadPreset('darkuniverse')">🌑 Dark</button>
+                    <button class="btn" onclick="loadPreset('goldrush')">👑 Gold</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Population History</h3>
+                <div class="chart-container">
+                    <canvas id="history-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hud hud-bottom">
+        <button class="btn" onclick="spawnParticle('hydrogen')">💧 H</button>
+        <button class="btn" onclick="spawnParticle('oxygen')">🌊 O</button>
+        <button class="btn" onclick="spawnParticle('carbon')">⚫ C</button>
+        <button class="btn" onclick="spawnParticle('helium')">🎈 He</button>
+        <button class="btn" onclick="spawnParticle('iron')">🧲 Fe</button>
+        <button class="btn" onclick="spawnParticle('gold')">👑 Au</button>
+        <button class="btn" onclick="spawnParticle('uranium')">☢️ U</button>
+        <button class="btn" onclick="spawnParticle('photon')">⚡ γ</button>
+        <button class="btn" onclick="spawnParticle('electron')">⚡ e⁻</button>
+        <button class="btn" onclick="spawnParticle('plasma')">🔥 Plasma</button>
+        <button class="btn" onclick="spawnParticle('darkmatter')">🌑 Dark</button>
+        <button class="btn pink" onclick="spawnParticle('life')">🦠 Life</button>
+        <button class="btn" onclick="spawnParticle('virus')">🧬 Virus</button>
+        <button class="btn danger" onclick="spawnParticle('antimatter')">💥 Anti</button>
+    </div>
+
+    <script>
+        // ============================================
+        // PARTICLE UNIVERSE - Physics-Based ALife
+        // ============================================
+        
+        const CONFIG = {
+            maxParticles: 2000,
+            timeScale: 1,
+            gravity: 0.1,
+            friction: 0.99,
+            boundary: 'bounce',
+            temperature: 300,
+            worldSize: 100
+        };
+        
+        // Particle Types with physics properties
+        const PARTICLE_TYPES = {
+            hydrogen: {
+                mass: 1, radius: 0.5, color: 0xffffff, charge: 0.1,
+                reactivity: 0.8, bonds: ['hydrogen', 'oxygen', 'carbon'], energy: 10,
+                description: 'Basic building block'
+            },
+            oxygen: {
+                mass: 16, radius: 1.2, color: 0xff4444, charge: -0.2,
+                reactivity: 0.9, bonds: ['hydrogen', 'carbon', 'metal'], energy: 20,
+                description: 'Reactive element'
+            },
+            carbon: {
+                mass: 12, radius: 1.0, color: 0x444444, charge: 0,
+                reactivity: 0.7, bonds: ['hydrogen', 'oxygen', 'nitrogen', 'carbon'], energy: 30,
+                description: 'Life backbone'
+            },
+            nitrogen: {
+                mass: 14, radius: 1.1, color: 0x4444ff, charge: -0.1,
+                reactivity: 0.6, bonds: ['hydrogen', 'carbon'], energy: 25,
+                description: 'Atmospheric gas'
+            },
+            metal: {
+                mass: 50, radius: 2, color: 0x888888, charge: 0.3,
+                reactivity: 0.3, bonds: ['metal', 'oxygen'], energy: 50,
+                description: 'Heavy conductor'
+            },
+            photon: {
+                mass: 0.1, radius: 0.3, color: 0xffff00, charge: 0,
+                reactivity: 0, bonds: [], energy: 100, speed: 2,
+                description: 'Light energy'
+            },
+            neutron: {
+                mass: 1, radius: 0.6, color: 0x00ff00, charge: 0,
+                reactivity: 0.1, bonds: [], energy: 5,
+                description: 'Radiation'
+            },
+            life: {
+                mass: 20, radius: 2.5, color: 0x00ff88, charge: 0.1,
+                reactivity: 0.95, bonds: ['life'], energy: 100, metabolism: true,
+                description: 'Self-replicating'
+            },
+            virus: {
+                mass: 5, radius: 1.5, color: 0xff00ff, charge: -0.3,
+                reactivity: 0.99, bonds: ['life'], energy: 50,
+                description: 'Infects life'
+            },
+            antimatter: {
+                mass: 1, radius: 0.8, color: 0x000000, charge: 0,
+                reactivity: 1, bonds: [], energy: -1000, glow: 0xff0000,
+                description: 'Destroys matter'
+            },
+            helium: {
+                mass: 4, radius: 0.8, color: 0xffffdd, charge: 0,
+                reactivity: 0.1, bonds: [], energy: 15,
+                description: 'Inert gas'
+            },
+            iron: {
+                mass: 56, radius: 2.2, color: 0x8b4513, charge: 0.4,
+                reactivity: 0.2, bonds: ['iron', 'oxygen'], energy: 80, magnetic: true,
+                description: 'Magnetic metal'
+            },
+            gold: {
+                mass: 197, radius: 2.5, color: 0xffd700, charge: 0.5,
+                reactivity: 0.05, bonds: [], energy: 200,
+                description: 'Noble metal'
+            },
+            uranium: {
+                mass: 238, radius: 3, color: 0x32cd32, charge: 0.6,
+                reactivity: 0.4, bonds: [], energy: 500, radioactive: true,
+                description: 'Radioactive'
+            },
+            darkmatter: {
+                mass: 100, radius: 2, color: 0x4b0082, charge: 0,
+                reactivity: 0, bonds: [], energy: 1000, dark: true,
+                description: 'Invisible mass'
+            },
+            plasma: {
+                mass: 0.5, radius: 1.5, color: 0xff6600, charge: 1,
+                reactivity: 1, bonds: [], energy: 200, glowing: true,
+                description: 'Ionized gas'
+            },
+            electron: {
+                mass: 0.01, radius: 0.2, color: 0x00ffff, charge: -1,
+                reactivity: 0.5, bonds: [], energy: 50, speed: 3,
+                description: 'Negative charge'
+            }
+        };
+        
+        let particles = [];
+        let bonds = [];
+        let reactions = 0;
+        let startTime = Date.now();
+        let isPlaying = false;
+        let scene, camera, renderer, controls;
+        let particleMeshes = [];
+        let history = [];
+        
+        class Particle {
+            constructor(type, x, y, z) {
+                const props = PARTICLE_TYPES[type];
+                this.type = type;
+                this.x = x || (Math.random() - 0.5) * CONFIG.worldSize;
+                this.y = y || (Math.random() - 0.5) * CONFIG.worldSize;
+                this.z = z || (Math.random() - 0.5) * CONFIG.worldSize;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.vz = (Math.random() - 0.5) * 2;
+                this.mass = props.mass;
+                this.radius = props.radius;
+                this.charge = props.charge;
+                this.energy = props.energy;
+                this.age = 0;
+                this.bonds = [];
+                this.id = Math.random().toString(36).substr(2, 9);
+                
+                // Special properties
+                if (type === 'photon') {
+                    const speed = props.speed || 1;
+                    this.vx *= speed;
+                    this.vy *= speed;
+                    this.vz *= speed;
+                }
+            }
+            
+            update() {
+                // Apply forces
+                this.vy -= CONFIG.gravity * 0.1;
+                
+                // Temperature = random motion
+                const thermalEnergy = CONFIG.temperature / 300;
+                this.vx += (Math.random() - 0.5) * 0.01 * thermalEnergy;
+                this.vy += (Math.random() - 0.5) * 0.01 * thermalEnergy;
+                this.vz += (Math.random() - 0.5) * 0.01 * thermalEnergy;
+                
+                // Friction
+                this.vx *= CONFIG.friction;
+                this.vy *= CONFIG.friction;
+                this.vz *= CONFIG.friction;
+                
+                // Update position
+                this.x += this.vx * CONFIG.timeScale;
+                this.y += this.vy * CONFIG.timeScale;
+                this.z += this.vz * CONFIG.timeScale;
+                
+                // Boundaries
+                const limit = CONFIG.worldSize / 2;
+                if (CONFIG.boundary === 'bounce') {
+                    if (Math.abs(this.x) > limit) {
+                        this.x = Math.sign(this.x) * limit;
+                        this.vx *= -0.8;
+                    }
+                    if (Math.abs(this.y) > limit) {
+                        this.y = Math.sign(this.y) * limit;
+                        this.vy *= -0.8;
+                    }
+                    if (Math.abs(this.z) > limit) {
+                        this.z = Math.sign(this.z) * limit;
+                        this.vz *= -0.8;
+                    }
+                } else if (CONFIG.boundary === 'wrap') {
+                    if (Math.abs(this.x) > limit) this.x = -Math.sign(this.x) * limit;
+                    if (Math.abs(this.y) > limit) this.y = -Math.sign(this.y) * limit;
+                    if (Math.abs(this.z) > limit) this.z = -Math.sign(this.z) * limit;
+                }
+                
+                this.age++;
+                
+                // Life metabolism
+                if (this.type === 'life') {
+                    this.energy -= 0.1;
+                    if (this.energy <= 0) return false; // Die
+                    
+                    // Reproduce if healthy
+                    if (this.energy > 150 && Math.random() < 0.001) {
+                        this.energy -= 50;
+                        return 'reproduce';
+                    }
+                }
+                
+                // Photon decay
+                if (this.type === 'photon' && Math.random() < 0.01) {
+                    return false;
+                }
+                
+                return true;
+            }
+        }
+        
+        function init() {
+            setupThreeJS();
+            updateLegend();
+            render();
+            updateStats();
+        }
+        
+        function setupThreeJS() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050508);
+            scene.fog = new THREE.FogExp2(0x050508, 0.008);
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(80, 60, 80);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            scene.add(directionalLight);
+            
+            // Boundary box
+            const boxGeo = new THREE.BoxGeometry(CONFIG.worldSize, CONFIG.worldSize, CONFIG.worldSize);
+            const boxEdges = new THREE.EdgesGeometry(boxGeo);
+            const boxMat = new THREE.LineBasicMaterial({ color: 0x00f5ff, transparent: true, opacity: 0.1 });
+            const box = new THREE.LineSegments(boxEdges, boxMat);
+            scene.add(box);
+            
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function spawnParticle(type, x, y, z) {
+            if (particles.length >= CONFIG.maxParticles) return;
+            
+            const p = new Particle(type, x, y, z);
+            particles.push(p);
+            
+            // Create mesh
+            const props = PARTICLE_TYPES[type];
+            const geometry = new THREE.SphereGeometry(props.radius, 16, 16);
+            const material = new THREE.MeshPhongMaterial({
+                color: props.color,
+                emissive: props.glow || props.color,
+                emissiveIntensity: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(p.x, p.y, p.z);
+            scene.add(mesh);
+            particleMeshes.push({ mesh, particle: p });
+            
+            updateStats();
+        }
+        
+        function spawnBatch(type, count) {
+            for (let i = 0; i < count; i++) {
+                spawnParticle(type);
+            }
+        }
+        
+        function updatePhysics() {
+            const toRemove = [];
+            const toAdd = [];
+            
+            // Update particles
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                const result = p.update();
+                
+                if (result === false) {
+                    toRemove.push(i);
+                } else if (result === 'reproduce') {
+                    toAdd.push(new Particle(p.type, p.x + (Math.random() - 0.5) * 5, 
+                                           p.y + (Math.random() - 0.5) * 5, 
+                                           p.z + (Math.random() - 0.5) * 5));
+                }
+            }
+            
+            // Check collisions and reactions
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p1 = particles[i];
+                    const p2 = particles[j];
+                    
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const dz = p2.z - p1.z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    const minDist = p1.radius + p2.radius;
+                    
+                    if (dist < minDist) {
+                        handleCollision(p1, p2, i, j, toRemove, toAdd);
+                    }
+                    
+                    // Electrostatic forces
+                    if (dist < 20 && dist > minDist) {
+                        const force = (p1.charge * p2.charge) / (dist * dist) * 10;
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+                        const fz = (dz / dist) * force;
+                        
+                        p1.vx -= fx / p1.mass;
+                        p1.vy -= fy / p1.mass;
+                        p1.vz -= fz / p1.mass;
+                        p2.vx += fx / p2.mass;
+                        p2.vy += fy / p2.mass;
+                        p2.vz += fz / p2.mass;
+                    }
+                    
+                    // Magnetic forces (dipole-dipole approximation)
+                    if (p1.magnetic && p2.magnetic && dist < 30) {
+                        const magneticForce = 50 / (dist * dist);
+                        const fx = (dx / dist) * magneticForce;
+                        const fy = (dy / dist) * magneticForce;
+                        const fz = (dz / dist) * magneticForce;
+                        
+                        p1.vx += fx / p1.mass;
+                        p1.vy += fy / p1.mass;
+                        p1.vz += fz / p1.mass;
+                        p2.vx -= fx / p2.mass;
+                        p2.vy -= fy / p2.mass;
+                        p2.vz -= fz / p2.mass;
+                    }
+                    
+                    // Dark matter gravity (only affects dark matter)
+                    if (p1.dark && p2.dark && dist < 50) {
+                        const darkForce = 100 / (dist * dist);
+                        const fx = (dx / dist) * darkForce;
+                        const fy = (dy / dist) * darkForce;
+                        const fz = (dz / dist) * darkForce;
+                        
+                        p1.vx -= fx / p1.mass;
+                        p1.vy -= fy / p1.mass;
+                        p1.vz -= fz / p1.mass;
+                        p2.vx += fx / p2.mass;
+                        p2.vy += fy / p2.mass;
+                        p2.vz += fz / p2.mass;
+                    }
+                    
+                    // Radioactive decay effects
+                    if (p1.radioactive && dist < 10) {
+                        p2.energy -= 0.5;
+                    }
+                    if (p2.radioactive && dist < 10) {
+                        p1.energy -= 0.5;
+                    }
+                }
+            }
+            
+            // Remove dead particles
+            for (let i = toRemove.length - 1; i >= 0; i--) {
+                const idx = toRemove[i];
+                if (particleMeshes[idx]) {
+                    scene.remove(particleMeshes[idx].mesh);
+                    particleMeshes[idx].mesh.geometry.dispose();
+                    particleMeshes[idx].mesh.material.dispose();
+                }
+                particles.splice(idx, 1);
+                particleMeshes.splice(idx, 1);
+            }
+            
+            // Add new particles
+            for (const p of toAdd) {
+                if (particles.length < CONFIG.maxParticles) {
+                    particles.push(p);
+                    const props = PARTICLE_TYPES[p.type];
+                    const geometry = new THREE.SphereGeometry(props.radius, 16, 16);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: props.color,
+                        emissive: props.glow || props.color,
+                        emissiveIntensity: 0.3
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(p.x, p.y, p.z);
+                    scene.add(mesh);
+                    particleMeshes.push({ mesh, particle: p });
+                }
+            }
+        }
+        
+        function handleCollision(p1, p2, i, j, toRemove, toAdd) {
+            // Antimatter annihilation
+            if ((p1.type === 'antimatter' || p2.type === 'antimatter') && 
+                !(p1.type === 'antimatter' && p2.type === 'antimatter')) {
+                toRemove.push(i);
+                toRemove.push(j);
+                reactions++;
+                
+                // Release energy as photons
+                for (let k = 0; k < 10; k++) {
+                    toAdd.push(new Particle('photon', p1.x, p1.y, p1.z));
+                }
+                return;
+            }
+            
+            // Virus infects life
+            if ((p1.type === 'virus' && p2.type === 'life') ||
+                (p2.type === 'virus' && p1.type === 'life')) {
+                const life = p1.type === 'life' ? p1 : p2;
+                const virus = p1.type === 'virus' ? p1 : p2;
+                
+                life.energy -= 20;
+                virus.energy += 10;
+                
+                if (life.energy <= 0) {
+                    toRemove.push(particles.indexOf(life));
+                    // Virus reproduces
+                    if (Math.random() < 0.5) {
+                        toAdd.push(new Particle('virus', virus.x, virus.y, virus.z));
+                    }
+                }
+                return;
+            }
+            
+            // Uranium fission
+            if ((p1.type === 'uranium' || p2.type === 'uranium') &&
+                (p1.type === 'neutron' || p2.type === 'neutron')) {
+                const u = p1.type === 'uranium' ? p1 : p2;
+                const n = p1.type === 'neutron' ? p1 : p2;
+                
+                toRemove.push(particles.indexOf(u));
+                toRemove.push(particles.indexOf(n));
+                reactions++;
+                
+                // Fission products
+                for (let k = 0; k < 3; k++) {
+                    toAdd.push(new Particle('iron', u.x + (Math.random() - 0.5) * 5, 
+                                           u.y + (Math.random() - 0.5) * 5, 
+                                           u.z + (Math.random() - 0.5) * 5));
+                }
+                // Release more neutrons
+                for (let k = 0; k < 3; k++) {
+                    toAdd.push(new Particle('neutron', u.x, u.y, u.z));
+                }
+                // Energy
+                for (let k = 0; k < 5; k++) {
+                    toAdd.push(new Particle('photon', u.x, u.y, u.z));
+                }
+                return;
+            }
+            
+            // Plasma fusion
+            if (p1.type === 'plasma' && p2.type === 'plasma') {
+                if (Math.random() < 0.1) {
+                    toRemove.push(i);
+                    toRemove.push(j);
+                    reactions++;
+                    
+                    toAdd.push(new Particle('helium', p1.x, p1.y, p1.z));
+                    // Release energy
+                    for (let k = 0; k < 5; k++) {
+                        toAdd.push(new Particle('photon', p1.x, p1.y, p1.z));
+                    }
+                    return;
+                }
+            }
+            
+            // Gold-electron interaction (conduction)
+            if ((p1.type === 'gold' && p2.type === 'electron') ||
+                (p2.type === 'gold' && p1.type === 'electron')) {
+                const electron = p1.type === 'electron' ? p1 : p2;
+                // Electron bounces off with high energy
+                electron.vx *= 1.5;
+                electron.vy *= 1.5;
+                electron.vz *= 1.5;
+            }
+            
+            // Life eats other particles
+            if (p1.type === 'life' || p2.type === 'life') {
+                const life = p1.type === 'life' ? p1 : p2;
+                const food = p1.type === 'life' ? p2 : p1;
+                
+                if (['hydrogen', 'oxygen', 'carbon', 'photon'].includes(food.type)) {
+                    life.energy += food.energy * 0.5;
+                    toRemove.push(particles.indexOf(food));
+                    return;
+                }
+            }
+            
+            // Bounce
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dz = p2.z - p1.z;
+            const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const nz = dz / dist;
+            
+            const dvx = p2.vx - p1.vx;
+            const dvy = p2.vy - p1.vy;
+            const dvz = p2.vz - p1.vz;
+            
+            const velAlongNormal = dvx * nx + dvy * ny + dvz * nz;
+            
+            if (velAlongNormal > 0) return;
+            
+            const e = 0.8; // Restitution
+            const impulse = -(1 + e) * velAlongNormal / (1/p1.mass + 1/p2.mass);
+            
+            p1.vx -= impulse * nx / p1.mass;
+            p1.vy -= impulse * ny / p1.mass;
+            p1.vz -= impulse * nz / p1.mass;
+            p2.vx += impulse * nx / p2.mass;
+            p2.vy += impulse * ny / p2.mass;
+            p2.vz += impulse * nz / p2.mass;
+            
+            // Separate particles
+            const overlap = (p1.radius + p2.radius - dist) / 2;
+            p1.x -= nx * overlap;
+            p1.y -= ny * overlap;
+            p1.z -= nz * overlap;
+            p2.x += nx * overlap;
+            p2.y += ny * overlap;
+            p2.z += nz * overlap;
+        }
+        
+        function updateVisuals() {
+            const time = Date.now() * 0.001;
+            
+            for (let i = 0; i < particleMeshes.length; i++) {
+                const pm = particleMeshes[i];
+                pm.mesh.position.set(pm.particle.x, pm.particle.y, pm.particle.z);
+                
+                // Scale based on energy
+                const scale = 0.8 + (pm.particle.energy / 200);
+                
+                // Pulsing effect for certain particles
+                if (pm.particle.type === 'life' || pm.particle.type === 'plasma') {
+                    const pulse = 1 + Math.sin(time * 3 + i) * 0.1;
+                    pm.mesh.scale.setScalar(scale * pulse);
+                } else if (pm.particle.type === 'uranium') {
+                    const pulse = 1 + Math.sin(time * 10 + i) * 0.05;
+                    pm.mesh.scale.setScalar(scale * pulse);
+                } else {
+                    pm.mesh.scale.setScalar(scale);
+                }
+                
+                // Glowing effect
+                if (pm.particle.type === 'photon' || pm.particle.type === 'plasma') {
+                    pm.mesh.material.emissiveIntensity = 0.5 + Math.sin(time * 5 + i) * 0.3;
+                }
+                
+                // Dark matter visibility
+                if (pm.particle.type === 'darkmatter') {
+                    pm.mesh.material.opacity = 0.3 + Math.sin(time + i) * 0.1;
+                    pm.mesh.material.transparent = true;
+                }
+            }
+        }
+        
+        function render() {
+            requestAnimationFrame(render);
+            
+            if (isPlaying) {
+                updatePhysics();
+                updateVisuals();
+                
+                if (Date.now() % 30 === 0) {
+                    updateStats();
+                }
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function updateStats() {
+            document.getElementById('particle-count').textContent = particles.length;
+            document.getElementById('time-elapsed').textContent = 
+                Math.floor((Date.now() - startTime) / 1000) + 's';
+            document.getElementById('reactions').textContent = reactions;
+            
+            const totalEnergy = particles.reduce((sum, p) => sum + p.energy, 0);
+            document.getElementById('energy-total').textContent = Math.floor(totalEnergy);
+            
+            // Count species
+            const types = {};
+            particles.forEach(p => types[p.type] = (types[p.type] || 0) + 1);
+            document.getElementById('species-count').textContent = Object.keys(types).length;
+            
+            // Update history chart
+            history.push(particles.length);
+            if (history.length > 100) history.shift();
+            drawHistoryChart();
+        }
+        
+        function drawHistoryChart() {
+            const canvas = document.getElementById('history-chart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (history.length < 2) return;
+            
+            const max = Math.max(...history, 100);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#00f5ff';
+            ctx.lineWidth = 2;
+            
+            history.forEach((val, i) => {
+                const x = (i / (history.length - 1)) * canvas.width;
+                const y = canvas.height - (val / max) * canvas.height;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            
+            ctx.stroke();
+        }
+        
+        function updateLegend() {
+            const container = document.getElementById('particle-legend');
+            let html = '';
+            
+            for (const [name, props] of Object.entries(PARTICLE_TYPES)) {
+                const hexColor = '#' + props.color.toString(16).padStart(6, '0');
+                html += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: ${hexColor};"></div>
+                        <span>${name.charAt(0).toUpperCase() + name.slice(1)}</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Controls
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            document.getElementById('play-btn').textContent = isPlaying ? '⏸ PAUSE' : '▶ PLAY';
+            document.getElementById('play-btn').classList.toggle('active', isPlaying);
+        }
+        
+        function reset() {
+            clearAll();
+            loadPreset('bigbang');
+        }
+        
+        function clearAll() {
+            particleMeshes.forEach(pm => {
+                scene.remove(pm.mesh);
+                pm.mesh.geometry.dispose();
+                pm.mesh.material.dispose();
+            });
+            particles = [];
+            particleMeshes = [];
+            bonds = [];
+            reactions = 0;
+            history = [];
+            updateStats();
+        }
+        
+        function updateSpeed(val) {
+            CONFIG.timeScale = parseFloat(val);
+            document.getElementById('speed-display').textContent = val + 'x';
+        }
+        
+        function updateGravity(val) {
+            CONFIG.gravity = parseFloat(val);
+            document.getElementById('gravity-display').textContent = val;
+        }
+        
+        function updateTemp(val) {
+            CONFIG.temperature = parseInt(val);
+            document.getElementById('temp-display').textContent = val + 'K';
+        }
+        
+        function updateFriction(val) {
+            CONFIG.friction = parseFloat(val);
+            document.getElementById('friction-display').textContent = val;
+        }
+        
+        function updateBoundary(val) {
+            CONFIG.boundary = val;
+        }
+        
+        function loadPreset(name) {
+            clearAll();
+            
+            switch(name) {
+                case 'bigbang':
+                    spawnBatch('hydrogen', 300);
+                    spawnBatch('helium', 100);
+                    particles.forEach(p => {
+                        p.vx *= 5;
+                        p.vy *= 5;
+                        p.vz *= 5;
+                    });
+                    break;
+                    
+                case 'solarsystem':
+                    // Central star
+                    for (let i = 0; i < 50; i++) {
+                        spawnParticle('photon', 0, 0, 0);
+                    }
+                    // Planets
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i / 5) * Math.PI * 2;
+                        const dist = 20 + i * 15;
+                        const x = Math.cos(angle) * dist;
+                        const z = Math.sin(angle) * dist;
+                        spawnParticle('metal', x, 0, z);
+                        // Give orbital velocity
+                        const planet = particles[particles.length - 1];
+                        planet.vx = -Math.sin(angle) * 2;
+                        planet.vz = Math.cos(angle) * 2;
+                    }
+                    break;
+                    
+                case 'chemistry':
+                    spawnBatch('hydrogen', 200);
+                    spawnBatch('oxygen', 100);
+                    spawnBatch('carbon', 80);
+                    spawnBatch('nitrogen', 50);
+                    break;
+                    
+                case 'life':
+                    spawnBatch('life', 20);
+                    spawnBatch('hydrogen', 200);
+                    spawnBatch('oxygen', 100);
+                    spawnBatch('photon', 50);
+                    break;
+                    
+                case 'plasma':
+                    spawnBatch('photon', 300);
+                    CONFIG.temperature = 800;
+                    break;
+                    
+                case 'crystal':
+                    for (let x = -20; x <= 20; x += 4) {
+                        for (let y = -20; y <= 20; y += 4) {
+                            for (let z = -20; z <= 20; z += 4) {
+                                spawnParticle('metal', x, y, z);
+                            }
+                        }
+                    }
+                    break;
+                    
+                case 'magnetic':
+                    spawnBatch('iron', 100);
+                    spawnBatch('electron', 50);
+                    break;
+                    
+                case 'reactor':
+                    spawnBatch('uranium', 20);
+                    spawnBatch('neutron', 100);
+                    break;
+                    
+                case 'darkuniverse':
+                    spawnBatch('darkmatter', 200);
+                    spawnBatch('hydrogen', 100);
+                    break;
+                    
+                case 'fusion':
+                    spawnBatch('plasma', 300);
+                    CONFIG.temperature = 1000;
+                    break;
+                    
+                case 'goldrush':
+                    spawnBatch('gold', 50);
+                    spawnBatch('electron', 100);
+                    break;
+            }
+            
+            updateStats();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

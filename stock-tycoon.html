@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Tycoon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --green: #22c55e;
+            --green-dark: #16a34a;
+            --red: #ef4444;
+            --red-dark: #dc2626;
+            --accent: #3b82f6;
+            --accent-dark: #2563eb;
+            --warning: #f59e0b;
+            --purple: #8b5cf6;
+            --orange: #f97316;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #22c55e 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-dark); transform: translateY(-2px); }
+        .btn-success { background: var(--green); color: white; }
+        .btn-success:hover { background: var(--green-dark); transform: translateY(-2px); }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-danger:hover { background: var(--red-dark); transform: translateY(-2px); }
+        .btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+        .btn-warning { background: var(--warning); color: black; }
+        .btn-purple { background: var(--purple); color: white; }
+        .btn-orange { background: var(--orange); color: white; }
+
+        .price-up { color: var(--green); font-weight: 600; }
+        .price-down { color: var(--red); font-weight: 600; }
+
+        .chart-container { position: relative; height: 200px; width: 100%; }
+        .mini-chart { height: 60px; }
+
+        .sentiment-meter {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--red) 0%, #f59e0b 50%, var(--green) 100%);
+            position: relative;
+        }
+
+        .sentiment-indicator {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: left 0.5s ease;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-btn:hover { color: var(--text-primary); }
+
+        .scroll-hide::-webkit-scrollbar { display: none; }
+        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        input[type="number"], input[type="text"] {
+            background: var(--bg-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text-primary);
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="number"]:focus, input[type="text"]:focus { border-color: var(--accent); }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        .progress-bar { height: 6px; background: var(--bg-dark); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge-info { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+        .badge-purple { background: rgba(139, 92, 246, 0.2); color: var(--purple); }
+
+        .event-popup {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border-left: 4px solid var(--accent);
+            animation: slideInRight 0.5s ease;
+            z-index: 999;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(120%); }
+            to { transform: translateX(0); }
+        }
+
+        .heatmap-cell { transition: all 0.2s; cursor: pointer; }
+        .heatmap-cell:hover { transform: scale(1.05); z-index: 10; }
+
+        .grid-pattern {
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .achievement-badge {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .achievement-badge.locked {
+            background: rgba(100, 116, 139, 0.3);
+            filter: grayscale(1);
+            opacity: 0.5;
+        }
+
+        .achievement-badge.unlocked {
+            background: linear-gradient(135deg, var(--green), var(--accent));
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+            animation: achievementPulse 2s infinite;
+        }
+
+        @keyframes achievementPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .achievement-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+        }
+
+        .achievement-badge:hover .achievement-tooltip { opacity: 1; }
+
+        .ipo-banner {
+            background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            border-radius: 12px;
+            padding: 16px;
+            animation: ipoGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes ipoGlow {
+            0%, 100% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.6); }
+        }
+
+        .option-card {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1));
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .option-card.put {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(245, 158, 11, 0.1));
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .margin-call-alert {
+            animation: marginCallFlash 1s ease-in-out infinite;
+        }
+
+        @keyframes marginCallFlash {
+            0%, 100% { background: rgba(239, 68, 68, 0.2); }
+            50% { background: rgba(239, 68, 68, 0.5); }
+        }
+
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .music-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #a78bfa, #f472b6);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .music-btn:hover { transform: scale(1.1); }
+        .music-btn.muted { background: linear-gradient(135deg, #64748b, #475569); }
+
+        .volume-slider {
+            width: 100px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #a78bfa, #f472b6);
+            cursor: pointer;
+        }
+
+        .indicator-row {
+            display: flex;
+            gap: 8px;
+            font-size: 0.75rem;
+            padding: 4px 0;
+        }
+
+        .indicator-label { color: var(--text-secondary); min-width: 50px; }
+        .indicator-value { font-family: monospace; font-weight: 600; }
+        .indicator-value.buy { color: var(--green); }
+        .indicator-value.sell { color: var(--red); }
+        .indicator-value.neutral { color: var(--text-secondary); }
+
+        .news-item {
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
+            margin-bottom: 8px;
+            animation: newsSlide 0.3s ease;
+        }
+
+        @keyframes newsSlide {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="grid-pattern">
+    <!-- Back Button -->
+    <a href="/games" class="fixed top-4 left-4 z-50 flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-all border border-slate-700">
+        <span>🎮</span>
+        <span class="font-medium">Games</span>
+    </a>
+
+    <!-- Event Notifications Container -->
+    <div id="eventContainer" class="fixed top-20 right-4 z-50 space-y-3"></div>
+
+    <!-- Margin Call Alert -->
+    <div id="marginCallBanner" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50 font-bold">
+        ⚠️ MARGIN CALL - Deposit funds or positions will be liquidated!
+    </div>
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+                <div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+                    <div>
+                        <h1 class="text-3xl font-bold gradient-text">📈 Stock Market Tycoon</h1>
+                        <p class="text-slate-400 text-sm mt-1">Day <span id="dayCounter" class="text-blue-400 font-bold">1</span> • <span id="timeDisplay" class="text-slate-300">09:30 AM</span> <span id="lastSaved" class="text-slate-600 ml-2"></span></p>
+                    </div>
+                    
+                    <div class="flex items-center gap-6">
+                        <div class="text-center">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Market Status</p>
+                            <span id="marketStatus" class="badge badge-success">🟢 Open</span>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Sentiment</p>
+                            <div class="w-32 mt-1">
+                                <div class="sentiment-meter">
+                                    <div id="sentimentIndicator" class="sentiment-indicator" style="left: 50%"></div>
+                                </div>
+                                <p id="sentimentLabel" class="text-xs mt-1 text-slate-400">Neutral</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div class="flex gap-4 sm:gap-6">
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Cash</p>
+                            <p id="cashDisplay" class="text-xl font-bold text-white">$100,000</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Portfolio</p>
+                            <p id="portfolioValue" class="text-xl font-bold text-blue-400">$0</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-500 uppercase tracking-wider">Total P&L</p>
+                            <p id="totalPnL" class="text-xl font-bold text-slate-400">$0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 border-l border-slate-700 pl-4">
+                        <button onclick="saveGameState()" class="btn btn-success text-xs px-3 py-2" title="Save Game">💾 Save</button>
+                        <button onclick="resetGame()" class="btn btn-danger text-xs px-3 py-2" title="New Game">🔄 New</button>
+                        <button id="autoSaveBtn" onclick="toggleAutoSave()" class="btn btn-success text-xs px-3 py-2" title="Toggle Auto-Save">✅ Auto</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News Ticker -->
+        <div class="bg-slate-950 border-t border-slate-800 overflow-hidden">
+            <div class="flex items-center">
+                <div class="bg-blue-600 text-white px-4 py-2 text-sm font-bold shrink-0">📰 NEWS</div>
+                <div class="overflow-hidden flex-1 relative h-9">
+                    <div id="newsTicker" class="absolute whitespace-nowrap flex items-center h-full gap-8 text-sm text-slate-300">
+                        <span>Welcome to Stock Market Tycoon! Start trading to build your fortune.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Quick Stats Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="card p-4">
+                <p class="text-xs text-slate-500 uppercase">Buying Power</p>
+                <p id="buyingPower" class="text-lg font-bold text-white">$100,000</p>
+                <p class="text-xs text-slate-400 mt-1">Including margin</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-xs text-slate-500 uppercase">Margin Used</p>
+                <p id="marginUsed" class="text-lg font-bold text-slate-400">$0</p>
+                <p id="marginHealth" class="text-xs text-green-400 mt-1">Healthy</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-xs text-slate-500 uppercase">Day Trades</p>
+                <p id="dayTrades" class="text-lg font-bold text-white">0/3</p>
+                <p class="text-xs text-slate-400 mt-1">Pattern day trader</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-xs text-slate-500 uppercase">Dividends Earned</p>
+                <p id="dividendsEarned" class="text-lg font-bold text-green-400">$0</p>
+                <p id="nextDividend" class="text-xs text-slate-400 mt-1">Next: Day 7</p>
+            </div>
+        </div>
+
+        <!-- IPO Banner (Hidden by default) -->
+        <div id="ipoBanner" class="hidden ipo-banner mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <span class="text-4xl">🚀</span>
+                    <div>
+                        <h3 class="font-bold text-lg">New IPO Available!</h3>
+                        <p class="text-slate-300"><span id="ipoSymbol" class="font-bold text-purple-400"></span> - <span id="ipoName"></span> is now trading at <span id="ipoPrice" class="font-mono"></span></p>
+                    </div>
+                </div>
+                <button onclick="buyIPO()" class="btn btn-purple">Buy IPO Shares</button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="border-b border-slate-800 mb-6">
+            <div class="flex gap-2 overflow-x-auto scroll-hide">
+                <button class="tab-btn active" onclick="switchTab('market')">🏢 Market</button>
+                <button class="tab-btn" onclick="switchTab('portfolio')">💼 Portfolio</button>
+                <button class="tab-btn" onclick="switchTab('options')">📊 Options</button>
+                <button class="tab-btn" onclick="switchTab('watchlist')">⭐ Watchlist</button>
+                <button class="tab-btn" onclick="switchTab('news')">📰 News Feed</button>
+                <button class="tab-btn" onclick="switchTab('calendar')">📅 Calendar</button>
+                <button class="tab-btn" onclick="switchTab('margin')">⚡ Margin & Short</button>
+                <button class="tab-btn" onclick="switchTab('heatmap')">🔥 Heatmap</button>
+                <button class="tab-btn" onclick="switchTab('achievements')">🏆 Achievements</button>
+            </div>
+        </div>
+
+        <!-- Market Tab -->
+        <div id="marketTab" class="tab-content">
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div>
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold">Stock Market</h2>
+                            <div class="flex gap-2">
+                                <input type="text" id="stockSearch" placeholder="Search stocks..." class="w-40 text-sm" onkeyup="searchStocks()">
+                                <select id="sectorFilter" class="bg-slate-800 border border-slate-700 rounded-lg px-3 text-sm" onchange="filterBySector()">
+                                    <option value="all">All Sectors</option>
+                                    <option value="tech">Technology</option>
+                                    <option value="finance">Finance</option>
+                                    <option value="healthcare">Healthcare</option>
+                                    <option value="energy">Energy</option>
+                                    <option value="retail">Retail</option>
+                                    <option value="crypto">Crypto</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                                        <th class="pb-3 cursor-pointer" onclick="sortStocks('symbol')">Symbol ↕</th>
+                                        <th class="pb-3">Company</th>
+                                        <th class="pb-3 cursor-pointer" onclick="sortStocks('price')">Price ↕</th>
+                                        <th class="pb-3">Change</th>
+                                        <th class="pb-3 hidden md:table-cell">Chart</th>
+                                        <th class="pb-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stockList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card p-6" id="stockDetails">
+                        <div class="text-center text-slate-500 py-8">
+                            <p class="text-4xl mb-3">📊</p>
+                            <p>Select a stock to view details</p>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 mt-6">
+                        <h3 class="font-bold mb-4">⚡ Quick Actions</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="btn btn-success" onclick="openBuyModal(STOCKS[0].symbol)">Buy AAPL</button>
+                            <button class="btn btn-secondary" onclick="addToWatchlist(STOCKS[0].symbol)">⭐ Watch AAPL</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-3">Click any stock in the list for detailed trading options.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Tab -->
+        <div id="portfolioTab" class="tab-content hidden">
+            <div class="grid lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="card p-6">
+                        <h2 class="text-xl font-bold mb-4">Your Holdings</h2>
+                        <div id="holdingsList" class="space-y-3">
+                            <div class="text-center text-slate-500 py-8">
+                                <p class="text-4xl mb-3">📭</p>
+                                <p>No holdings yet. Start trading!</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <h3 class="font-bold mb-4">Portfolio Performance</h3>
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="portfolioChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="card p-6">
+                        <h3 class="font-bold mb-4">📊 Allocation</h3>
+                        <div style="height: 200px;">
+                            <canvas id="allocationChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="font-bold mb-4">📈 Performance Metrics</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Total Return</span>
+                                <span id="totalReturn" class="font-mono">0.00%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Annualized Return</span>
+                                <span id="annualizedReturn" class="font-mono">0.00%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Best Performer</span>
+                                <span id="bestPerformer" class="font-mono text-green-400">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Worst Performer</span>
+                                <span id="worstPerformer" class="font-mono text-red-400">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Sharpe Ratio</span>
+                                <span id="sharpeRatio" class="font-mono">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <h3 class="font-bold mb-4">📝 Recent Trades</h3>
+                        <div id="tradeHistory" class="space-y-2 max-h-64 overflow-y-auto">
+                            <p class="text-slate-500 text-sm text-center">No trades yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Options Tab -->
+        <div id="optionsTab" class="tab-content hidden">
+            <div class="grid lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold">📊 Options Chain</h2>
+                            <select id="optionsStockSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" onchange="updateOptionsChain()">
+                                <option value="">Select a stock...</option>
+                            </select>
+                        </div>
+                        <div id="optionsChain" class="space-y-4">
+                            <div class="text-center text-slate-500 py-8">
+                                <p class="text-4xl mb-3">📊</p>
+                                <p>Select a stock to view options</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="card p-6">
+                        <h3 class="font-bold mb-4">Your Options Positions</h3>
+                        <div id="optionsPositions" class="space-y-3">
+                            <p class="text-slate-500 text-center">No options positions</p>
+                        </div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="font-bold mb-4">Options Guide</h3>
+                        <div class="text-sm text-slate-400 space-y-2">
+                            <p><span class="text-green-400 font-bold">Call:</span> Right to buy at strike price. Profit when stock goes UP.</p>
+                            <p><span class="text-red-400 font-bold">Put:</span> Right to sell at strike price. Profit when stock goes DOWN.</p>
+                            <p><span class="text-blue-400">Expiration:</span> Date when option expires worthless if not exercised.</p>
+                            <p><span class="text-yellow-400">Premium:</span> Price paid for the option contract.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Watchlist Tab -->
+        <div id="watchlistTab" class="tab-content hidden">
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">⭐ Your Watchlist</h2>
+                    <button class="btn btn-secondary" onclick="addToWatchlistPrompt()">+ Add Symbol</button>
+                </div>
+                <div id="watchlistContainer" class="space-y-3">
+                    <div class="text-center text-slate-500 py-8">
+                        <p class="text-4xl mb-3">⭐</p>
+                        <p>Your watchlist is empty. Add stocks to track them here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News Feed Tab -->
+        <div id="newsTab" class="tab-content hidden">
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold mb-4">📰 Market News</h2>
+                    <div id="newsFeed" class="space-y-4 max-h-96 overflow-y-auto">
+                        <p class="text-slate-500 text-center">No news yet</p>
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold mb-4">📊 Market Sentiment Analysis</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span>Fear & Greed Index</span>
+                                <span id="fearGreedValue" class="font-bold">50 - Neutral</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="fearGreedBar" class="progress-fill bg-gradient-to-r from-red-500 via-yellow-500 to-green-500" style="width: 50%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span>VIX Volatility Index</span>
+                                <span id="vixValue" class="font-bold">15.2</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="vixBar" class="progress-fill bg-blue-500" style="width: 25%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span>Interest Rate</span>
+                                <span id="interestRateValue" class="font-bold">5.25%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="interestRateBar" class="progress-fill bg-purple-500" style="width: 52%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-bold mt-6 mb-3">Sector Performance</h3>
+                    <div id="sectorPerformance" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Economic Calendar Tab -->
+        <div id="calendarTab" class="tab-content hidden">
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold mb-4">📅 Upcoming Events</h2>
+                    <div id="calendarEvents" class="space-y-3"></div>
+                </div>
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold mb-4">📊 Economic Indicators</h2>
+                    <div class="space-y-4">
+                        <div class="bg-slate-800/50 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-slate-400">Fed Funds Rate</span>
+                                <span id="fedRate" class="font-bold text-lg">5.25%</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Last changed: Day 1</p>
+                        </div>
+                        <div class="bg-slate-800/50 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-slate-400">Inflation Rate</span>
+                                <span id="inflationRate" class="font-bold text-lg">3.2%</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Year over year</p>
+                        </div>
+                        <div class="bg-slate-800/50 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-slate-400">Unemployment</span>
+                                <span id="unemploymentRate" class="font-bold text-lg">3.8%</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Non-farm payrolls</p>
+                        </div>
+                    </div>
+                    
+                    <h3 class="font-bold mt-6 mb-3">Earnings This Week</h3>
+                    <div id="earningsList" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Margin & Short Tab -->
+        <div id="marginTab" class="tab-content hidden">
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold mb-4">⚡ Margin Trading</h2>
+                    <div class="bg-slate-800/50 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-slate-400">Available Margin</span>
+                            <span id="availableMargin" class="text-xl font-bold text-white">$50,000</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-slate-400">Margin Used</span>
+                            <span id="marginUsed2" class="font-bold text-orange-400">$0</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-slate-400">Maintenance Requirement</span>
+                            <span id="maintenanceReq" class="font-bold text-green-400">25%</span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-700">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400">Margin Level</span>
+                                <span id="marginLevel" class="font-bold text-green-400">200%</span>
+                            </div>
+                            <div class="progress-bar mt-2">
+                                <div id="marginLevelBar" class="progress-fill bg-green-500" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-400 mb-4">
+                        Margin allows you to borrow money to buy stocks. You can borrow up to 50% of your portfolio value.
+                        <span class="text-orange-400">Warning: Trading on margin amplifies both gains and losses.</span>
+                    </p>
+                </div>
+
+                <div class="card p-6">
+                    <h2 class="text-xl font-bold mb-4">📉 Short Positions</h2>
+                    <div id="shortPositions" class="space-y-3 mb-4">
+                        <p class="text-slate-500 text-center">No short positions</p>
+                    </div>
+                    <p class="text-sm text-slate-400">
+                        Short selling lets you profit from falling prices by borrowing and selling shares, then buying them back later at a lower price.
+                        <span class="text-red-400">Risk: Losses are theoretically unlimited.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heatmap Tab -->
+        <div id="heatmapTab" class="tab-content hidden">
+            <div class="card p-6">
+                <h2 class="text-xl font-bold mb-4">🔥 Market Heatmap</h2>
+                <p class="text-slate-400 text-sm mb-4">Visual representation of stock performance by sector. Green = Up, Red = Down.</p>
+                <div id="marketHeatmap" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2"></div>
+            </div>
+        </div>
+
+        <!-- Achievements Tab -->
+        <div id="achievementsTab" class="tab-content hidden">
+            <div class="card p-6">
+                <h2 class="text-xl font-bold mb-4">🏆 Achievements</h2>
+                <p class="text-slate-400 mb-6">Complete challenges to earn badges and prove your trading prowess!</p>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6" id="achievementsGrid">
+                    <!-- Achievements will be rendered here -->
+                </div>
+                
+                <div class="mt-8 p-4 bg-slate-800/50 rounded-lg">
+                    <h3 class="font-bold mb-2">📊 Your Stats</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <span class="text-slate-400">Total Trades:</span>
+                            <span id="statTotalTrades" class="font-mono ml-2">0</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Win Rate:</span>
+                            <span id="statWinRate" class="font-mono ml-2">0%</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Profitable Days:</span>
+                            <span id="statProfitableDays" class="font-mono ml-2">0</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Largest Gain:</span>
+                            <span id="statLargestGain" class="font-mono ml-2 text-green-400">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Trade Modal -->
+    <div id="tradeModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="tradeModalTitle" class="text-2xl font-bold mb-4">Trade</h2>
+            <div id="tradeModalContent"></div>
+        </div>
+    </div>
+
+    <!-- Options Modal -->
+    <div id="optionsModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="optionsModalTitle" class="text-2xl font-bold mb-4">Trade Options</h2>
+            <div id="optionsModalContent"></div>
+        </div>
+    </div>
+
+    <!-- Music Control -->
+    <div class="music-control">
+        <button id="musicToggle" class="music-btn muted" onclick="toggleMusic()" title="Toggle Music">🔇</button>
+        <div>
+            <div class="music-label">Chill Lofi</div>
+            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="15" onchange="setVolume(this.value)" title="Volume">
+        </div>
+    </div>
+
+    <script>

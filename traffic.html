@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Simulator - City Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-panel: #21262d;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-orange: #f0883e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .header p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Tool sections */
+        .tool-section {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tool-section h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .tool-btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tool-btn:hover {
+            background: var(--border);
+            border-color: var(--accent);
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .tool-btn .icon {
+            font-size: 1.2rem;
+        }
+
+        /* Metrics panel */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric {
+            background: var(--bg-panel);
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        .metric-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .metric.warning .metric-value {
+            color: var(--accent-yellow);
+        }
+
+        .metric.danger .metric-value {
+            color: var(--accent-red);
+        }
+
+        /* Controls */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .control-row label {
+            flex: 1;
+            color: var(--text-muted);
+        }
+
+        .control-row input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent);
+        }
+
+        .control-row input[type="number"] {
+            width: 50px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 4px;
+            color: var(--text);
+            text-align: center;
+        }
+
+        /* Time display */
+        .time-display {
+            background: var(--bg-panel);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .time-display .time {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .time-display .phase {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Action buttons */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px 16px;
+        }
+
+        .btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--border);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .btn.primary:hover {
+            background: #79b8ff;
+        }
+
+        .btn.danger {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            color: #fff;
+        }
+
+        .btn.danger:hover {
+            background: #ff6b63;
+        }
+
+        /* Canvas area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .toolbar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toolbar-btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            color: var(--text);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--border);
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: #1a1f2e;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 12px;
+        }
+
+        .modal label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .modal input[type="text"],
+        .modal textarea {
+            width: 100%;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            color: var(--text);
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .modal textarea {
+            height: 120px;
+            resize: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .modal-actions .btn {
+            flex: 1;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+
+        .tooltip.show {
+            display: block;
+        }
+
+        /* Traffic light controls */
+        .light-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .light-control {
+            background: var(--bg-panel);
+            border-radius: 6px;
+            padding: 8px;
+        }
+
+        .light-control label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .light-control input {
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 50;
+        }
+
+        /* Speed indicator */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .speed-btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            color: var(--text);
+            font-size: 0.8rem;
+        }
+
+        .speed-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        /* Event log */
+        .event-log {
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .event-log .event {
+            padding: 2px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .event-log .event.warning {
+            color: var(--accent-yellow);
+        }
+
+        .event-log .event.danger {
+            color: var(--accent-red);
+        }
+
+        .event-log .event.success {
+            color: var(--accent-green);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Mini map */
+        .minimap {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            width: 150px;
+            height: 150px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Loading screen */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            margin-top: 16px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading Traffic Simulator...</p>
+    </div>
+
+    <a href="/games" class="btn back-btn">🎮 Games</a>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="header">
+                <h1>🚦 Traffic Simulator</h1>
+                <p>City Traffic Management System</p>
+            </div>
+
+            <div class="tool-section">
+                <h3>Road Building</h3>
+                <div class="tool-grid">
+                    <button class="tool-btn active" data-tool="road">
+                        <span class="icon">🛣️</span>
+                        <span>Road</span>
+                    </button>
+                    <button class="tool-btn" data-tool="intersection">
+                        <span class="icon">➕</span>
+                        <span>Intersect</span>
+                    </button>
+                    <button class="tool-btn" data-tool="highway">
+                        <span class="icon">🛤️</span>
+                        <span>Highway</span>
+                    </button>
+                    <button class="tool-btn" data-tool="roundabout">
+                        <span class="icon">🔄</span>
+                        <span>Roundabout</span>
+                    </button>
+                    <button class="tool-btn" data-tool="bridge">
+                        <span class="icon">🌉</span>
+                        <span>Bridge</span>
+                    </button>
+                    <button class="tool-btn" data-tool="tunnel">
+                        <span class="icon">🚇</span>
+                        <span>Tunnel</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Traffic Control</h3>
+                <div class="tool-grid">
+                    <button class="tool-btn" data-tool="trafficlight">
+                        <span class="icon">🚥</span>
+                        <span>Light</span>
+                    </button>
+                    <button class="tool-btn" data-tool="stop">
+                        <span class="icon">🛑</span>
+                        <span>Stop</span>
+                    </button>
+                    <button class="tool-btn" data-tool="crosswalk">
+                        <span class="icon">🚶</span>
+                        <span>Cross</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Public Transport</h3>
+                <div class="tool-grid">
+                    <button class="tool-btn" data-tool="bus">
+                        <span class="icon">🚌</span>
+                        <span>Bus</span>
+                    </button>
+                    <button class="tool-btn" data-tool="metro">
+                        <span class="icon">🚇</span>
+                        <span>Metro</span>
+                    </button>
+                    <button class="tool-btn" data-tool="station">
+                        <span class="icon">🚉</span>
+                        <span>Station</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Events</h3>
+                <div class="tool-grid">
+                    <button class="tool-btn" data-tool="accident">
+                        <span class="icon">💥</span>
+                        <span>Crash</span>
+                    </button>
+                    <button class="tool-btn" data-tool="roadwork">
+                        <span class="icon">🚧</span>
+                        <span>Work</span>
+                    </button>
+                    <button class="tool-btn" data-tool="delete">
+                        <span class="icon">🗑️</span>
+                        <span>Remove</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Time & Simulation</h3>
+                <div class="time-display">
+                    <div class="time" id="timeDisplay">08:00</div>
+                    <div class="phase" id="phaseDisplay">Morning Rush</div>
+                </div>
+                <div class="control-group" style="margin-top: 12px;">
+                    <div class="control-row">
+                        <label>Time Speed:</label>
+                        <div class="speed-control">
+                            <button class="speed-btn" data-speed="0">⏸️</button>
+                            <button class="speed-btn active" data-speed="1">1x</button>
+                            <button class="speed-btn" data-speed="2">2x</button>
+                            <button class="speed-btn" data-speed="5">5x</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Traffic Metrics</h3>
+                <div class="metrics-grid">
+                    <div class="metric" id="metricSpeed">
+                        <div class="metric-value" id="avgSpeed">45</div>
+                        <div class="metric-label">km/h avg</div>
+                    </div>
+                    <div class="metric" id="metricCongestion">
+                        <div class="metric-value" id="congestion">12%</div>
+                        <div class="metric-label">congestion</div>
+                    </div>
+                    <div class="metric" id="metricEmissions">
+                        <div class="metric-value" id="emissions">84</div>
+                        <div class="metric-label">CO₂ g/km</div>
+                    </div>
+                    <div class="metric" id="metricCars">
+                        <div class="metric-value" id="carCount">0</div>
+                        <div class="metric-label">vehicles</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Events Log</h3>
+                <div class="event-log" id="eventLog">
+                    <div class="event">Simulator initialized</div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn" id="btnMusic">🎵 Music: Off</button>
+                <button class="btn" id="btnSave">💾 Save City</button>
+                <button class="btn" id="btnLoad">📂 Load City</button>
+                <button class="btn danger" id="btnClear">🗑️ Clear All</button>
+            </div>
+        </aside>
+
+        <main class="main-area">
+            <div class="toolbar">
+                <button class="toolbar-btn" id="btnPlay">▶️ Play</button>
+                <button class="toolbar-btn" id="btnPause">⏸️ Pause</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" id="btnGrid">⊞ Grid</button>
+                <button class="toolbar-btn" id="btnZoomIn">🔍+</button>
+                <button class="toolbar-btn" id="btnZoomOut">🔍-</button>
+                <div class="toolbar-separator"></div>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">
+                    Tool: <span id="currentTool" style="color: var(--text);">Road</span>
+                </span>
+            </div>
+            <div class="canvas-container">
+                <canvas id="gameCanvas"></canvas>
+                <div class="minimap">
+                    <canvas id="minimapCanvas"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Save Modal -->
+    <div class="modal-overlay" id="saveModal">
+        <div class="modal">
+            <h2>💾 Save City</h2>
+            <div class="form-group">
+                <label>Save Code (copy this to load later):</label>
+                <textarea id="saveCode" readonly></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="btnCopy">📋 Copy</button>
+                <button class="btn primary" id="btnCloseSave">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Modal -->
+    <div class="modal-overlay" id="loadModal">
+        <div class="modal">
+            <h2>📂 Load City</h2>
+            <div class="form-group">
+                <label>Paste save code:</label>
+                <textarea id="loadCode" placeholder="Paste your save code here..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="btnCloseLoad">Cancel</button>
+                <button class="btn primary" id="btnConfirmLoad">Load</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio context for music -->
+    <script>
+        // Audio system for chill lofi hip-hop music
+        class AudioSystem {
+            constructor() {
+                this.enabled = false;
+                this.ctx = null;
+                this.masterGain = null;
+                this.volume = 0.15; // Default 15% volume
+                this.bpm = 75; // Downtempo beat
+                this.nextBeatTime = 0;
+                this.beatInterval = 60 / this.bpm;
+                this.beatCount = 0;
+                this.chordIndex = 0;
+                this.scheduledNodes = [];
+                this.isPlaying = false;
+                
+                // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
+                // Frequencies for each chord (root, third, fifth, seventh)
+                this.chords = [
+                    [261.63, 329.63, 392.00, 493.88], // Cmaj7
+                    [220.00, 261.63, 329.63, 440.00], // Am7 (relative to A3 base)
+                    [349.23, 440.00, 523.25, 659.25], // Fmaj7
+                    [196.00, 246.94, 293.66, 349.23]  // G7 (G3 dominant)
+                ];
+                // Adjust Am7 to proper octave
+                this.chords[1] = [220.00, 261.63, 329.63, 392.00]; // Am7 proper
+                this.chords[3] = [196.00, 246.94, 293.66, 349.23]; // G7
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            toggle() {
+                this.init();
+                this.enabled = !this.enabled;
+                if (this.enabled) {
+                    this.play();
+                } else {
+                    this.stop();
+                }
+                return this.enabled;
+            }
+
+            createCompressor() {
+                // Master compressor: threshold -24dB, ratio 4:1
+                const compressor = this.ctx.createDynamicsCompressor();
+                compressor.threshold.value = -24;
+                compressor.knee.value = 30;
+                compressor.ratio.value = 4;
+                compressor.attack.value = 0.003;
+                compressor.release.value = 0.25;
+                return compressor;
+            }
+
+            createVinylCrackle() {
+                // Gentle vinyl crackle background texture
+                const bufferSize = 2 * this.ctx.sampleRate;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Create pink noise-like crackle
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    // Occasional pops like vinyl
+                    if (Math.random() < 0.001) {
+                        data[i] = (Math.random() - 0.5) * 0.3;
+                    } else {
+                        // Gentle background hiss
+                        data[i] = white * 0.02;
+                    }
+                }
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                noise.loop = true;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.015; // Very subtle vinyl texture
+                
+                noise.connect(gain);
+                return { source: noise, gain };
+            }
+
+            playChord(time) {
+                const chord = this.chords[this.chordIndex];
+                const chordDuration = this.beatInterval * 4; // 4 beats per chord
+                
+                chord.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    // Soft sine wave for chords
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    
+                    // Slow attack/release envelopes (1.5s attack, 1s release)
+                    gain.gain.setValueAtTime(0, time);
+                    gain.gain.linearRampToValueAtTime(0.025, time + 1.5); // Very low volume
+                    gain.gain.setValueAtTime(0.025, time + chordDuration - 1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + chordDuration);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    osc.start(time);
+                    osc.stop(time + chordDuration + 1.5);
+                    
+                    this.scheduledNodes.push(osc, gain);
+                });
+                
+                // Advance chord progression
+                this.chordIndex = (this.chordIndex + 1) % this.chords.length;
+            }
+
+            playKick(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                // Soft kick - low frequency sine
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(40, time + 0.1);
+                
+                // Very gentle volume
+                gain.gain.setValueAtTime(0.03, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(time);
+                osc.stop(time + 0.2);
+                
+                this.scheduledNodes.push(osc, gain);
+            }
+
+            playSnare(time) {
+                const noiseBuffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < data.length; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.02, time); // Very soft snare
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                noise.start(time);
+                noise.stop(time + 0.1);
+                
+                this.scheduledNodes.push(noise, filter, gain);
+            }
+
+            scheduleBeat() {
+                if (!this.enabled || !this.isPlaying) return;
+                
+                const lookahead = 0.1; // Schedule 100ms ahead
+                const currentTime = this.ctx.currentTime;
+                
+                while (this.nextBeatTime < currentTime + lookahead) {
+                    // Play kick on beats 0 and 2 (typical downtempo pattern)
+                    if (this.beatCount % 4 === 0 || this.beatCount % 4 === 2) {
+                        this.playKick(this.nextBeatTime);
+                    }
+                    
+                    // Play snare on beats 1 and 3
+                    if (this.beatCount % 4 === 1 || this.beatCount % 4 === 3) {
+                        this.playSnare(this.nextBeatTime);
+                    }
+                    
+                    // Play chord at the start of each 4-beat measure
+                    if (this.beatCount % 4 === 0) {
+                        this.playChord(this.nextBeatTime);
+                    }
+                    
+                    this.nextBeatTime += this.beatInterval;
+                    this.beatCount++;
+                }
+                
+                // Clean up old nodes periodically
+                if (this.beatCount % 16 === 0) {
+                    this.scheduledNodes = this.scheduledNodes.filter(node => {
+                        try {
+                            // Keep nodes that might still be playing
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+                }
+                
+                requestAnimationFrame(() => this.scheduleBeat());
+            }
+
+            play() {
+                if (!this.enabled || !this.ctx) return;
+                this.stop();
+                this.isPlaying = true;
+                
+                // Create master chain with compressor
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = this.volume;
+                
+                const compressor = this.createCompressor();
+                this.masterGain.connect(compressor);
+                compressor.connect(this.ctx.destination);
+                
+                // Start vinyl crackle
+                const vinyl = this.createVinylCrackle();
+                vinyl.source.connect(vinyl.gain);
+                vinyl.gain.connect(this.masterGain);
+                vinyl.source.start();
+                this.vinylSource = vinyl.source;
+                this.vinylGain = vinyl.gain;
+                
+                // Start scheduling
+                this.nextBeatTime = this.ctx.currentTime;
+                this.beatCount = 0;
+                this.chordIndex = 0;
+                this.scheduleBeat();
+            }
+
+            stop() {
+                this.isPlaying = false;
+                
+                // Stop vinyl
+                if (this.vinylSource) {
+                    try { this.vinylSource.stop(); } catch (e) {}
+                    this.vinylSource = null;
+                }
+                
+                // Clean up all scheduled nodes
+                this.scheduledNodes.forEach(node => {
+                    try {
+                        if (node.stop) node.stop();
+                        if (node.disconnect) node.disconnect();
+                    } catch (e) {}
+                });
+                this.scheduledNodes = [];
+                
+                // Clean up master
+                if (this.masterGain) {
+                    try { this.masterGain.disconnect(); } catch (e) {}
+                    this.masterGain = null;
+                }
+                
+                this.beatCount = 0;
+                this.chordIndex = 0;
+            }
+        }
+
+        // Traffic Simulator Game
+        class TrafficSimulator {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.minimap = document.getElementById('minimapCanvas');
+                this.minimapCtx = this.minimap.getContext('2d');
+                
+                this.camera = { x: 0, y: 0, zoom: 1 };
+                this.gridSize = 40;
+                this.showGrid = true;
+                
+                this.currentTool = 'road';
+                this.isPlaying = true;
+                this.timeSpeed = 1;
+                this.gameTime = 8 * 60; // 8:00 AM in minutes
+                
+                this.roads = [];
+                this.intersections = [];
+                this.trafficLights = [];
+                this.vehicles = [];
+                this.buildings = [];
+                this.events = [];
+                this.busStops = [];
+                this.metroLines = [];
+                
+                this.selectedCell = null;
+                this.hoveredCell = null;
+                
+                this.audio = new AudioSystem();
+                this.eventLog = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                this.setupInput();
+                this.setupUI();
+                
+                // Create initial city layout
+                this.createInitialCity();
+                
+                // Start game loop
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+                
+                // Hide loading screen
+                setTimeout(() => {
+                    document.getElementById('loading').classList.add('hidden');
+                }, 500);
+            }
+
+            resize() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                
+                this.minimap.width = 150;
+                this.minimap.height = 150;
+            }
+
+            setupInput() {
+                let isDragging = false;
+                let lastMouse = { x: 0, y: 0 };
+
+                this.canvas.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    lastMouse = { x: e.clientX, y: e.clientY };
+                    
+                    if (e.button === 0) {
+                        this.handleClick(e);
+                    }
+                });
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Calculate hovered cell
+                    const worldX = (x - this.canvas.width / 2 - this.camera.x) / this.camera.zoom;
+                    const worldY = (y - this.canvas.height / 2 - this.camera.y) / this.camera.zoom;
+                    this.hoveredCell = {
+                        x: Math.floor(worldX / this.gridSize),
+                        y: Math.floor(worldY / this.gridSize)
+                    };
+                    
+                    if (isDragging && e.buttons === 2) {
+                        // Right click drag to pan
+                        this.camera.x += e.clientX - lastMouse.x;
+                        this.camera.y += e.clientY - lastMouse.y;
+                    }
+                    
+                    lastMouse = { x: e.clientX, y: e.clientY };
+                });
+
+                this.canvas.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const zoomSpeed = 0.1;
+                    const newZoom = this.camera.zoom * (e.deltaY > 0 ? 1 - zoomSpeed : 1 + zoomSpeed);
+                    this.camera.zoom = Math.max(0.3, Math.min(3, newZoom));
+                });
+
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+
+            setupUI() {
+                // Tool selection
+                document.querySelectorAll('.tool-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.currentTool = btn.dataset.tool;
+                        
+                        const toolNames = {
+                            road: 'Road', intersection: 'Intersection', highway: 'Highway',
+                            roundabout: 'Roundabout', bridge: 'Bridge', tunnel: 'Tunnel',
+                            trafficlight: 'Traffic Light', stop: 'Stop Sign', crosswalk: 'Crosswalk',
+                            bus: 'Bus Route', metro: 'Metro Line', station: 'Station',
+                            accident: 'Accident', roadwork: 'Roadwork', delete: 'Delete'
+                        };
+                        document.getElementById('currentTool').textContent = toolNames[this.currentTool] || this.currentTool;
+                    });
+                });
+
+                // Speed control
+                document.querySelectorAll('.speed-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.timeSpeed = parseInt(btn.dataset.speed);
+                        this.isPlaying = this.timeSpeed > 0;
+                    });
+                });
+
+                // Toolbar buttons
+                document.getElementById('btnPlay').addEventListener('click', () => { this.isPlaying = true; });
+                document.getElementById('btnPause').addEventListener('click', () => { this.isPlaying = false; });
+                document.getElementById('btnGrid').addEventListener('click', () => { this.showGrid = !this.showGrid; });
+                document.getElementById('btnZoomIn').addEventListener('click', () => { this.camera.zoom = Math.min(3, this.camera.zoom * 1.2); });
+                document.getElementById('btnZoomOut').addEventListener('click', () => { this.camera.zoom = Math.max(0.3, this.camera.zoom / 1.2); });
+
+                // Music toggle
+                document.getElementById('btnMusic').addEventListener('click', () => {
+                    const enabled = this.audio.toggle();
+                    document.getElementById('btnMusic').textContent = enabled ? '🎵 Music: On' : '🎵 Music: Off';
+                });
+
+                // Save/Load
+                document.getElementById('btnSave').addEventListener('click', () => this.showSaveModal());
+                document.getElementById('btnLoad').addEventListener('click', () => this.showLoadModal());
+                document.getElementById('btnClear').addEventListener('click', () => this.clearCity());
+
+                // Modal actions
+                document.getElementById('btnCloseSave').addEventListener('click', () => {
+                    document.getElementById('saveModal').classList.remove('show');
+                });
+                document.getElementById('btnCloseLoad').addEventListener('click', () => {
+                    document.getElementById('loadModal').classList.remove('show');
+                });
+                document.getElementById('btnConfirmLoad').addEventListener('click', () => this.loadCity());
+                document.getElementById('btnCopy').addEventListener('click', () => {
+                    const saveCode = document.getElementById('saveCode');
+                    saveCode.select();
+                    document.execCommand('copy');
+                    this.logEvent('Save code copied to clipboard!', 'success');
+                });
+            }
+
+            createInitialCity() {
+                // Create a simple grid layout
+                const size = 12;
+                for (let x = -size; x <= size; x++) {
+                    for (let y = -size; y <= size; y++) {
+                        if (x % 4 === 0 || y % 4 === 0) {
+                            const type = (x % 8 === 0 && y % 8 === 0) ? 'intersection' : 
+                                         (Math.abs(x) > 8 || Math.abs(y) > 8) ? 'highway' : 'road';
+                            this.roads.push({ x, y, type, id: this.roads.length });
+                            
+                            // Add traffic lights at major intersections
+                            if (x % 8 === 0 && y % 8 === 0) {
+                                this.trafficLights.push({
+                                    x, y,
+                                    state: 'NS', // NS or EW
+                                    timer: 0,
+                                    nsDuration: 120,
+                                    ewDuration: 100
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Add some initial buildings
+                for (let x = -size; x <= size; x += 4) {
+                    for (let y = -size; y <= size; y += 4) {
+                        if (x % 4 !== 0 && y % 4 !== 0 && Math.random() > 0.3) {
+                            this.buildings.push({
+                                x, y,
+                                type: Math.random() > 0.5 ? 'residential' : 'commercial',
+                                width: 2 + Math.random() * 2,
+                                height: 2 + Math.random() * 3
+                            });
+                        }
+                    }
+                }
+
+                // Add bus stops
+                for (let i = -8; i <= 8; i += 4) {
+                    if (i !== 0) {
+                        this.busStops.push({ x: i, y: 0 });
+                        this.busStops.push({ x: 0, y: i });
+                    }
+                }
+
+                this.logEvent('Initial city created', 'success');
+            }
+
+            handleClick(e) {
+                if (!this.hoveredCell) return;
+                
+                const { x, y } = this.hoveredCell;
+                
+                switch (this.currentTool) {
+                    case 'road':
+                        this.addRoad(x, y, 'road');
+                        break;
+                    case 'highway':
+                        this.addRoad(x, y, 'highway');
+                        break;
+                    case 'intersection':
+                        this.addIntersection(x, y);
+                        break;
+                    case 'roundabout':
+                        this.addRoundabout(x, y);
+                        break;
+                    case 'trafficlight':
+                        this.addTrafficLight(x, y);
+                        break;
+                    case 'stop':
+                        this.addStopSign(x, y);
+                        break;
+                    case 'delete':
+                        this.removeAt(x, y);
+                        break;
+                    case 'accident':
+                        this.addEvent(x, y, 'accident');
+                        break;
+                    case 'roadwork':
+                        this.addEvent(x, y, 'roadwork');
+                        break;
+                    case 'bus':
+                        this.addBusStop(x, y);
+                        break;
+                    case 'metro':
+                        this.addMetroStation(x, y);
+                        break;
+                }
+            }
+
+            addRoad(x, y, type) {
+                const exists = this.roads.find(r => r.x === x && r.y === y);
+                if (!exists) {
+                    this.roads.push({ x, y, type, id: this.roads.length });
+                    this.spawnVehicleAt(x, y);
+                }
+            }
+
+            addIntersection(x, y) {
+                const exists = this.roads.find(r => r.x === x && r.y === y);
+                if (exists) exists.type = 'intersection';
+                else this.roads.push({ x, y, type: 'intersection', id: this.roads.length });
+            }
+
+            addRoundabout(x, y) {
+                // Create roundabout structure
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const rx = x + dx, ry = y + dy;
+                        const exists = this.roads.find(r => r.x === rx && r.y === ry);
+                        if (!exists) {
+                            this.roads.push({ x: rx, y: ry, type: 'roundabout', id: this.roads.length });
+                        }
+                    }
+                }
+                this.logEvent('Roundabout built', 'success');
+            }
+
+            addTrafficLight(x, y) {
+                const exists = this.trafficLights.find(l => l.x === x && l.y === y);
+                if (!exists) {
+                    this.trafficLights.push({
+                        x, y, state: 'NS', timer: 0, nsDuration: 120, ewDuration: 100
+                    });
+                    this.logEvent('Traffic light installed', 'success');
+                }
+            }
+
+            addStopSign(x, y) {
+                const road = this.roads.find(r => r.x === x && r.y === y);
+                if (road) road.stopSign = true;
+            }
+
+            addBusStop(x, y) {
+                const exists = this.busStops.find(s => s.x === x && s.y === y);
+                if (!exists) {
+                    this.busStops.push({ x, y });
+                    this.logEvent('Bus stop added', 'success');
+                }
+            }
+
+            addMetroStation(x, y) {
+                const exists = this.metroLines.find(m => m.x === x && m.y === y);
+                if (!exists) {
+                    this.metroLines.push({ x, y, type: 'station' });
+                    this.logEvent('Metro station added', 'success');
+                }
+            }
+
+            addEvent(x, y, type) {
+                this.events.push({
+                    x, y, type,
+                    duration: type === 'accident' ? 600 : 1200,
+                    timer: 0
+                });
+                this.logEvent(`${type === 'accident' ? '💥 Accident' : '🚧 Roadwork'} at (${x}, ${y})`, 'danger');
+            }
+
+            removeAt(x, y) {
+                this.roads = this.roads.filter(r => r.x !== x || r.y !== y);
+                this.trafficLights = this.trafficLights.filter(l => l.x !== x || l.y !== y);
+                this.events = this.events.filter(e => e.x !== x || e.y !== y);
+                this.busStops = this.busStops.filter(s => s.x !== x || s.y !== y);
+            }
+
+            spawnVehicleAt(x, y) {
+                if (this.vehicles.length < 200) {
+                    this.vehicles.push({
+                        x: x * this.gridSize + this.gridSize / 2,
+                        y: y * this.gridSize + this.gridSize / 2,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        speed: 0,
+                        maxSpeed: 2 + Math.random() * 2,
+                        targetSpeed: 2 + Math.random() * 2,
+                        type: Math.random() > 0.9 ? 'bus' : Math.random() > 0.8 ? 'truck' : 'car',
+                        path: [],
+                        emissions: 0,
+                        waitTime: 0
+                    });
+                }
+            }
+
+            update(deltaTime) {
+                if (!this.isPlaying) return;
+                
+                const dt = deltaTime * this.timeSpeed;
+                
+                // Update game time
+                this.gameTime += dt / 1000 * 0.5; // 1 game minute per 2 real seconds at 1x
+                if (this.gameTime >= 24 * 60) this.gameTime = 0;
+                
+                // Update traffic lights
+                this.trafficLights.forEach(light => {
+                    light.timer += dt;
+                    const duration = light.state === 'NS' ? light.nsDuration : light.ewDuration;
+                    if (light.timer > duration) {
+                        light.timer = 0;
+                        light.state = light.state === 'NS' ? 'EW' : 'NS';
+                    }
+                });
+
+                // Update events
+                this.events.forEach(e => e.timer += dt);
+                this.events = this.events.filter(e => e.timer < e.duration);
+
+                // Calculate traffic density
+                const hour = Math.floor(this.gameTime / 60);
+                const isRushHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19);
+                const baseSpawnRate = isRushHour ? 0.15 : 0.05;
+
+                // Spawn vehicles based on time
+                if (Math.random() < baseSpawnRate && this.vehicles.length < 200) {
+                    const road = this.roads[Math.floor(Math.random() * this.roads.length)];
+                    if (road) this.spawnVehicleAt(road.x, road.y);
+                }
+
+                // Update vehicles
+                let totalSpeed = 0;
+                let stoppedCount = 0;
+                let totalEmissions = 0;
+
+                this.vehicles.forEach((v, i) => {
+                    // Check for nearby vehicles (collision avoidance)
+                    let minDist = Infinity;
+                    let shouldStop = false;
+
+                    this.vehicles.forEach((other, j) => {
+                        if (i === j) return;
+                        const dx = other.x - v.x;
+                        const dy = other.y - v.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < 30 && dist < minDist) {
+                            minDist = dist;
+                            if (dist < 20) shouldStop = true;
+                        }
+                    });
+
+                    // Check traffic lights
+                    const gx = Math.floor(v.x / this.gridSize);
+                    const gy = Math.floor(v.y / this.gridSize);
+                    const light = this.trafficLights.find(l => l.x === gx && l.y === gy);
+                    if (light) {
+                        const approaching = (Math.abs(v.vx) > Math.abs(v.vy) && light.state !== 'EW') ||
+                                           (Math.abs(v.vy) > Math.abs(v.vx) && light.state !== 'NS');
+                        if (approaching && this.distanceToCenter(v, gx, gy) < 25) {
+                            shouldStop = true;
+                        }
+                    }
+
+                    // Check events
+                    const event = this.events.find(e => e.x === gx && e.y === gy);
+                    if (event) shouldStop = true;
+
+                    // Update speed
+                    if (shouldStop) {
+                        v.speed *= 0.9;
+                        v.waitTime += dt;
+                        if (v.speed < 0.1) {
+                            v.speed = 0;
+                            stoppedCount++;
+                        }
+                    } else {
+                        const accel = 0.1;
+                        if (v.speed < v.targetSpeed) v.speed += accel;
+                        if (v.speed > v.targetSpeed) v.speed -= accel;
+                        v.waitTime = Math.max(0, v.waitTime - dt);
+                    }
+
+                    // Update position
+                    if (v.speed > 0) {
+                        // Follow road grid
+                        const snapX = (gx + 0.5) * this.gridSize;
+                        const snapY = (gy + 0.5) * this.gridSize;
+                        
+                        // Snap to road center
+                        if (Math.abs(v.x - snapX) > 5) v.x += (snapX - v.x) * 0.1;
+                        if (Math.abs(v.y - snapY) > 5) v.y += (snapY - v.y) * 0.1;
+                        
+                        // Choose direction at intersections
+                        const road = this.roads.find(r => r.x === gx && r.y === gy);
+                        if (road && Math.random() < 0.05) {
+                            const neighbors = this.roads.filter(r => 
+                                Math.abs(r.x - gx) + Math.abs(r.y - gy) === 1
+                            );
+                            if (neighbors.length > 0) {
+                                const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                                v.vx = next.x > gx ? 1 : next.x < gx ? -1 : 0;
+                                v.vy = next.y > gy ? 1 : next.y < gy ? -1 : 0;
+                            }
+                        }
+
+                        v.x += v.vx * v.speed;
+                        v.y += v.vy * v.speed;
+                    }
+
+                    // Keep on roads
+                    const newGx = Math.floor(v.x / this.gridSize);
+                    const newGy = Math.floor(v.y / this.gridSize);
+                    const onRoad = this.roads.some(r => r.x === newGx && r.y === newGy);
+                    if (!onRoad) {
+                        // Remove vehicle that went off-road
+                        v.offRoad = true;
+                    }
+
+                    // Calculate emissions
+                    const emissionRate = v.type === 'truck' ? 2 : v.type === 'bus' ? 1.5 : 1;
+                    v.emissions += v.speed * emissionRate * dt / 1000;
+                    totalEmissions += v.emissions;
+
+                    totalSpeed += v.speed;
+                });
+
+                // Remove off-road vehicles
+                this.vehicles = this.vehicles.filter(v => !v.offRoad);
+
+                // Update metrics
+                const avgSpeed = this.vehicles.length > 0 ? totalSpeed / this.vehicles.length : 0;
+                const congestion = this.vehicles.length > 0 ? (stoppedCount / this.vehicles.length) * 100 : 0;
+                const avgEmissions = this.vehicles.length > 0 ? totalEmissions / this.vehicles.length : 0;
+
+                this.updateMetrics(avgSpeed * 20, congestion, avgEmissions, this.vehicles.length);
+            }
+
+            distanceToCenter(vehicle, gx, gy) {
+                const cx = (gx + 0.5) * this.gridSize;
+                const cy = (gy + 0.5) * this.gridSize;
+                const dx = vehicle.x - cx;
+                const dy = vehicle.y - cy;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            updateMetrics(avgSpeed, congestion, emissions, count) {
+                document.getElementById('avgSpeed').textContent = Math.round(avgSpeed);
+                document.getElementById('congestion').textContent = Math.round(congestion) + '%';
+                document.getElementById('emissions').textContent = Math.round(emissions);
+                document.getElementById('carCount').textContent = count;
+
+                // Update metric colors
+                const speedEl = document.getElementById('metricSpeed');
+                const congEl = document.getElementById('metricCongestion');
+                
+                speedEl.className = 'metric' + (avgSpeed < 20 ? ' danger' : avgSpeed < 40 ? ' warning' : '');
+                congEl.className = 'metric' + (congestion > 50 ? ' danger' : congestion > 25 ? ' warning' : '');
+
+                // Update time display
+                const hours = Math.floor(this.gameTime / 60);
+                const minutes = Math.floor(this.gameTime % 60);
+                document.getElementById('timeDisplay').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                
+                let phase = 'Low Traffic';
+                if (hours >= 7 && hours <= 9) phase = 'Morning Rush';
+                else if (hours >= 12 && hours <= 13) phase = 'Lunch Peak';
+                else if (hours >= 17 && hours <= 19) phase = 'Evening Rush';
+                else if (hours >= 22 || hours <= 5) phase = 'Night';
+                document.getElementById('phaseDisplay').textContent = phase;
+            }
+
+            render() {
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                // Clear
+                ctx.fillStyle = '#1a1f2e';
+                ctx.fillRect(0, 0, w, h);
+
+                ctx.save();
+                ctx.translate(w / 2 + this.camera.x, h / 2 + this.camera.y);
+                ctx.scale(this.camera.zoom, this.camera.zoom);
+
+                // Draw grid
+                if (this.showGrid) {
+                    ctx.strokeStyle = '#21262d';
+                    ctx.lineWidth = 1 / this.camera.zoom;
+                    const gridRange = 50;
+                    for (let i = -gridRange; i <= gridRange; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(i * this.gridSize, -gridRange * this.gridSize);
+                        ctx.lineTo(i * this.gridSize, gridRange * this.gridSize);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(-gridRange * this.gridSize, i * this.gridSize);
+                        ctx.lineTo(gridRange * this.gridSize, i * this.gridSize);
+                        ctx.stroke();
+                    }
+                }
+
+                // Draw buildings
+                this.buildings.forEach(b => {
+                    const x = b.x * this.gridSize;
+                    const y = b.y * this.gridSize;
+                    const bw = b.width * this.gridSize * 0.8;
+                    const bh = b.height * this.gridSize * 0.8;
+                    
+                    ctx.fillStyle = b.type === 'residential' ? '#238636' : '#1f6feb';
+                    ctx.fillRect(x - bw / 2, y - bh / 2, bw, bh);
+                    
+                    // Windows
+                    ctx.fillStyle = '#c9d1d9';
+                    for (let wx = 0; wx < 2; wx++) {
+                        for (let wy = 0; wy < 2; wy++) {
+                            ctx.fillRect(
+                                x - bw / 2 + 4 + wx * (bw / 2),
+                                y - bh / 2 + 4 + wy * (bh / 2),
+                                4, 4
+                            );
+                        }
+                    }
+                });
+
+                // Draw roads
+                this.roads.forEach(road => {
+                    const x = road.x * this.gridSize;
+                    const y = road.y * this.gridSize;
+                    
+                    if (road.type === 'highway') {
+                        ctx.fillStyle = '#30363d';
+                        ctx.fillRect(x - this.gridSize / 2, y - this.gridSize / 2, this.gridSize, this.gridSize);
+                        ctx.strokeStyle = '#f0883e';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 5]);
+                        ctx.strokeRect(x - this.gridSize / 2 + 4, y - this.gridSize / 2 + 4, this.gridSize - 8, this.gridSize - 8);
+                        ctx.setLineDash([]);
+                    } else if (road.type === 'roundabout') {
+                        ctx.fillStyle = '#30363d';
+                        ctx.beginPath();
+                        ctx.arc(x, y, this.gridSize / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#8b949e';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    } else if (road.type === 'intersection') {
+                        ctx.fillStyle = '#21262d';
+                        ctx.fillRect(x - this.gridSize / 2, y - this.gridSize / 2, this.gridSize, this.gridSize);
+                    } else {
+                        ctx.fillStyle = '#30363d';
+                        ctx.fillRect(x - this.gridSize / 2, y - this.gridSize / 2, this.gridSize, this.gridSize);
+                        
+                        // Road markings
+                        ctx.strokeStyle = '#8b949e';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(x - this.gridSize / 2, y);
+                        ctx.lineTo(x + this.gridSize / 2, y);
+                        ctx.moveTo(x, y - this.gridSize / 2);
+                        ctx.lineTo(x, y + this.gridSize / 2);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                });
+
+                // Draw bus stops
+                this.busStops.forEach(stop => {
+                    const x = stop.x * this.gridSize;
+                    const y = stop.y * this.gridSize;
+                    ctx.fillStyle = '#f0883e';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🚌', x, y + 3);
+                });
+
+                // Draw metro lines
+                this.metroLines.forEach(metro => {
+                    const x = metro.x * this.gridSize;
+                    const y = metro.y * this.gridSize;
+                    ctx.fillStyle = '#a371f7';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('M', x, y + 3);
+                });
+
+                // Draw traffic lights
+                this.trafficLights.forEach(light => {
+                    const x = light.x * this.gridSize;
+                    const y = light.y * this.gridSize;
+                    
+                    // Light background
+                    ctx.fillStyle = '#161b22';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Light colors
+                    const nsColor = light.state === 'NS' ? '#3fb950' : '#f85149';
+                    const ewColor = light.state === 'EW' ? '#3fb950' : '#f85149';
+                    
+                    // NS light (vertical)
+                    ctx.fillStyle = nsColor;
+                    ctx.beginPath();
+                    ctx.arc(x, y - 4, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // EW light (horizontal)
+                    ctx.fillStyle = ewColor;
+                    ctx.beginPath();
+                    ctx.arc(x + 4, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw events
+                this.events.forEach(event => {
+                    const x = event.x * this.gridSize;
+                    const y = event.y * this.gridSize;
+                    const icon = event.type === 'accident' ? '💥' : '🚧';
+                    
+                    // Pulsing effect
+                    const pulse = Math.sin(performance.now() / 200) * 0.2 + 1;
+                    ctx.font = `${16 * pulse}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(icon, x, y + 5);
+                });
+
+                // Draw vehicles
+                this.vehicles.forEach(v => {
+                    const size = v.type === 'truck' ? 8 : v.type === 'bus' ? 10 : 6;
+                    const color = v.type === 'truck' ? '#8b949e' : 
+                                  v.type === 'bus' ? '#f0883e' : 
+                                  v.speed < 0.5 ? '#f85149' : '#58a6ff';
+                    
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(v.x, v.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Direction indicator
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(v.x, v.y);
+                    ctx.lineTo(v.x + v.vx * size * 1.5, v.y + v.vy * size * 1.5);
+                    ctx.stroke();
+                });
+
+                // Draw hover cell
+                if (this.hoveredCell) {
+                    const x = this.hoveredCell.x * this.gridSize;
+                    const y = this.hoveredCell.y * this.gridSize;
+                    ctx.strokeStyle = '#58a6ff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x - this.gridSize / 2, y - this.gridSize / 2, this.gridSize, this.gridSize);
+                }
+
+                ctx.restore();
+
+                // Render minimap
+                this.renderMinimap();
+            }
+
+            renderMinimap() {
+                const ctx = this.minimapCtx;
+                const w = this.minimap.width;
+                const h = this.minimap.height;
+
+                ctx.fillStyle = '#0d1117';
+                ctx.fillRect(0, 0, w, h);
+
+                const bounds = this.getWorldBounds();
+                const scale = Math.min(w / (bounds.maxX - bounds.minX + 100), h / (bounds.maxY - bounds.minY + 100));
+                const offsetX = (w - (bounds.maxX - bounds.minX) * scale) / 2 - bounds.minX * scale;
+                const offsetY = (h - (bounds.maxY - bounds.minY) * scale) / 2 - bounds.minY * scale;
+
+                // Draw roads
+                ctx.fillStyle = '#30363d';
+                this.roads.forEach(road => {
+                    const x = road.x * this.gridSize * scale + offsetX;
+                    const y = road.y * this.gridSize * scale + offsetY;
+                    const size = this.gridSize * scale;
+                    ctx.fillRect(x - size / 2, y - size / 2, size, size);
+                });
+
+                // Draw vehicles
+                ctx.fillStyle = '#58a6ff';
+                this.vehicles.forEach(v => {
+                    const x = v.x * scale + offsetX;
+                    const y = v.y * scale + offsetY;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw viewport rectangle
+                const vpX = (-this.camera.x - this.canvas.width / 2) * scale / this.camera.zoom + offsetX;
+                const vpY = (-this.camera.y - this.canvas.height / 2) * scale / this.camera.zoom + offsetY;
+                const vpW = this.canvas.width * scale / this.camera.zoom;
+                const vpH = this.canvas.height * scale / this.camera.zoom;
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(vpX, vpY, vpW, vpH);
+            }
+
+            getWorldBounds() {
+                let minX = 0, maxX = 0, minY = 0, maxY = 0;
+                this.roads.forEach(r => {
+                    minX = Math.min(minX, r.x * this.gridSize);
+                    maxX = Math.max(maxX, r.x * this.gridSize);
+                    minY = Math.min(minY, r.y * this.gridSize);
+                    maxY = Math.max(maxY, r.y * this.gridSize);
+                });
+                return { minX, maxX, minY, maxY };
+            }
+
+            loop(currentTime) {
+                const deltaTime = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+
+                this.update(deltaTime);
+                this.render();
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            logEvent(message, type = 'normal') {
+                const log = document.getElementById('eventLog');
+                const event = document.createElement('div');
+                event.className = `event ${type}`;
+                event.textContent = `[${this.formatTime()}] ${message}`;
+                log.insertBefore(event, log.firstChild);
+                
+                // Keep only last 20 events
+                while (log.children.length > 20) {
+                    log.removeChild(log.lastChild);
+                }
+            }
+
+            formatTime() {
+                const hours = Math.floor(this.gameTime / 60);
+                const minutes = Math.floor(this.gameTime % 60);
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+
+            showSaveModal() {
+                const data = {
+                    roads: this.roads,
+                    trafficLights: this.trafficLights,
+                    buildings: this.buildings,
+                    busStops: this.busStops,
+                    metroLines: this.metroLines,
+                    gameTime: this.gameTime
+                };
+                const json = JSON.stringify(data);
+                const encoded = btoa(json);
+                document.getElementById('saveCode').value = encoded;
+                document.getElementById('saveModal').classList.add('show');
+            }
+
+            showLoadModal() {
+                document.getElementById('loadCode').value = '';
+                document.getElementById('loadModal').classList.add('show');
+            }
+
+            loadCity() {
+                try {
+                    const encoded = document.getElementById('loadCode').value.trim();
+                    const json = atob(encoded);
+                    const data = JSON.parse(json);
+                    
+                    this.roads = data.roads || [];
+                    this.trafficLights = data.trafficLights || [];
+                    this.buildings = data.buildings || [];
+                    this.busStops = data.busStops || [];
+                    this.metroLines = data.metroLines || [];
+                    this.gameTime = data.gameTime || 8 * 60;
+                    this.vehicles = [];
+                    this.events = [];
+                    
+                    document.getElementById('loadModal').classList.remove('show');
+                    this.logEvent('City loaded successfully!', 'success');
+                } catch (e) {
+                    alert('Invalid save code!');
+                }
+            }
+
+            clearCity() {
+                if (confirm('Clear the entire city? This cannot be undone.')) {
+                    this.roads = [];
+                    this.trafficLights = [];
+                    this.vehicles = [];
+                    this.buildings = [];
+                    this.events = [];
+                    this.busStops = [];
+                    this.metroLines = [];
+                    this.logEvent('City cleared', 'warning');
+                }
+            }
+        }
+
+        // Start the game
+        window.addEventListener('load', () => {
+            new TrafficSimulator();
+        });
+    </script>
+</body>
+</html>

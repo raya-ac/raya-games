@@ -1,0 +1,3892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game of Life 4D - Hyperdimensional Cellular Automaton</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --neon-blue: #00f5ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff88;
+            --neon-purple: #b829dd;
+            --neon-orange: #ff6b35;
+            --neon-yellow: #ffff00;
+            --neon-red: #ff3333;
+            --neon-cyan: #00ffff;
+            --neon-lime: #39ff14;
+            --neon-gold: #ffd700;
+            --dark-bg: #050508;
+            --panel-bg: rgba(5, 5, 8, 0.98);
+            --panel-border: rgba(0, 245, 255, 0.2);
+        }
+        
+        body {
+            background: var(--dark-bg);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        /* HUD Overlay */
+        .hud {
+            position: fixed;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .hud-top {
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 25px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+        
+        .hud-top > * {
+            pointer-events: auto;
+        }
+        
+        .hud-left {
+            top: 100px;
+            left: 20px;
+            width: 320px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .hud-right {
+            top: 100px;
+            right: 20px;
+            width: 320px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .hud-bottom {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, transparent 100%);
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            pointer-events: auto;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .hud-top-right {
+            position: fixed;
+            top: 80px;
+            right: 360px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            pointer-events: auto;
+            z-index: 11;
+        }
+        
+        /* Title */
+        .title-block {
+            text-align: left;
+            flex-shrink: 0;
+        }
+        .title-block h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(0, 245, 255, 0.5);
+            animation: titlePulse 3s ease-in-out infinite;
+            white-space: nowrap;
+        }
+        @keyframes titlePulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+        .title-block p {
+            font-size: 12px;
+            color: #888;
+            letter-spacing: 3px;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        .dimension-badge {
+            display: inline-block;
+            background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink));
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #000;
+            margin-left: 10px;
+            animation: dimensionPulse 2s ease-in-out infinite;
+        }
+        @keyframes dimensionPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(184,41,221,0.5); }
+            50% { box-shadow: 0 0 25px rgba(184,41,221,0.8); }
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            min-width: 200px;
+        }
+        
+        .stat-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        .stat-box:hover {
+            border-color: var(--neon-blue);
+            transform: translateY(-2px);
+        }
+        .stat-box .value {
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .stat-box .label {
+            font-size: 8px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .stat-box.alive .value { color: var(--neon-green); text-shadow: 0 0 10px rgba(0,255,136,0.5); }
+        .stat-box.born .value { color: var(--neon-blue); text-shadow: 0 0 10px rgba(0,245,255,0.5); }
+        .stat-box.died .value { color: var(--neon-red); text-shadow: 0 0 10px rgba(255,51,51,0.5); }
+        .stat-box.generation .value { color: var(--neon-yellow); }
+        .stat-box.population .value { color: var(--neon-purple); }
+        .stat-box.stability .value { color: var(--neon-orange); }
+        
+        /* Control Panels */
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 14px;
+            backdrop-filter: blur(10px);
+        }
+        .control-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+        .control-panel::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+        }
+        .control-panel::-webkit-scrollbar-thumb {
+            background: var(--neon-blue);
+            border-radius: 3px;
+        }
+        
+        .panel-section {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .panel-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .panel-section h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel-section h3::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: linear-gradient(180deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 2px;
+        }
+        
+        /* Buttons */
+        .btn {
+            background: rgba(0,245,255,0.1);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: all;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background: rgba(0,245,255,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0,245,255,0.3);
+        }
+        .btn.active {
+            background: var(--neon-green);
+            border-color: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 30px rgba(0,255,136,0.5);
+        }
+        .btn.primary {
+            background: var(--neon-blue);
+            border-color: var(--neon-blue);
+            color: #000;
+        }
+        .btn.danger {
+            background: rgba(255,51,51,0.2);
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+        .btn.danger:hover {
+            background: rgba(255,51,51,0.3);
+            box-shadow: 0 0 20px rgba(255,51,51,0.3);
+        }
+        .btn.pink {
+            background: rgba(255,0,255,0.1);
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        .btn.pink:hover {
+            background: rgba(255,0,255,0.2);
+            box-shadow: 0 0 20px rgba(255,0,255,0.3);
+        }
+        .btn.purple {
+            background: rgba(184,41,221,0.1);
+            border-color: var(--neon-purple);
+            color: var(--neon-purple);
+        }
+        .btn-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        /* Sliders */
+        .slider-group {
+            margin-bottom: 10px;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #aaa;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .slider-label span:last-child {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0,245,255,0.8);
+        }
+        
+        /* Cell Type Legend */
+        .cell-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            color: #aaa;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .legend-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .legend-count {
+            margin-left: auto;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        /* Preset Grid */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+        .preset-btn {
+            background: linear-gradient(135deg, rgba(0,245,255,0.05), rgba(184,41,221,0.05));
+            border: 1px solid rgba(0,245,255,0.2);
+            border-radius: 6px;
+            padding: 10px 6px;
+            color: #fff;
+            font-size: 9px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: all;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .preset-btn:hover {
+            background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(184,41,221,0.15));
+            border-color: var(--neon-blue);
+            transform: translateY(-2px);
+        }
+        .preset-btn .emoji {
+            font-size: 18px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        /* Pattern Buttons */
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+        .pattern-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 8px 4px;
+            color: #fff;
+            font-size: 9px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: all;
+        }
+        .pattern-btn:hover {
+            background: rgba(0,245,255,0.1);
+            border-color: var(--neon-blue);
+        }
+        
+        /* Chart Container */
+        .chart-container {
+            height: 70px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+            padding: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #population-chart {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .checkbox-group:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .checkbox-group input {
+            width: 14px;
+            height: 14px;
+            accent-color: var(--neon-blue);
+        }
+        .checkbox-group label {
+            font-size: 10px;
+            color: #aaa;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Select dropdown */
+        select {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            width: 100%;
+            cursor: pointer;
+        }
+        select:focus {
+            outline: none;
+            border-color: var(--neon-blue);
+        }
+        
+        /* Event Log */
+        .event-log {
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 10px;
+            color: #888;
+        }
+        .event-log .event {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            line-height: 1.3;
+        }
+        .event-log .event.major {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+        .event-log .event.catastrophe {
+            color: var(--neon-red);
+            font-weight: 700;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.95);
+            border: 1px solid var(--neon-blue);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            max-width: 250px;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .modal h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(0,245,255,0.1);
+            border: 1px solid rgba(0,245,255,0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 10px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .hud-right { width: 280px; }
+            .hud-left { width: 280px; }
+            .hud-top-right { right: 300px; }
+        }
+        @media (max-width: 1200px) {
+            .hud-right { display: none; }
+            .hud-left { display: none; }
+            .hud-top-right { 
+                position: fixed;
+                top: 80px;
+                right: 20px;
+            }
+            .stats-grid { 
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+            .title-block h1 {
+                font-size: 18px;
+            }
+        }
+        @media (max-width: 800px) {
+            .hud-bottom {
+                max-height: 80px;
+            }
+            .hud-bottom .btn {
+                padding: 6px 10px;
+                font-size: 9px;
+            }
+        }
+        
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor; }
+        }
+        .pulsing {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <!-- HUD Top -->
+    <div class="hud hud-top">
+        <div class="title-block">
+            <h1>⚡ Game of Life <span class="dimension-badge" id="dimension-badge">4D HYPER</span></h1>
+            <p>Hyperdimensional Cellular Automaton Evolution</p>
+        </div>
+        
+        <div style="pointer-events: auto;">
+            <a href="/games" style="background: rgba(0,0,0,0.7); border: 1px solid #00f5ff; color: #00f5ff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; display: inline-block;">🎮 Games</a>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-box generation">
+                <div class="value" id="gen-count">0</div>
+                <div class="label">Generation</div>
+            </div>
+            <div class="stat-box alive">
+                <div class="value" id="alive-count">0</div>
+                <div class="label">Alive</div>
+            </div>
+            <div class="stat-box born">
+                <div class="value" id="born-count">0</div>
+                <div class="label">Born</div>
+            </div>
+            <div class="stat-box died">
+                <div class="value" id="died-count">0</div>
+                <div class="label">Died</div>
+            </div>
+            <div class="stat-box population">
+                <div class="value" id="total-pop">0</div>
+                <div class="label">Total Cells</div>
+            </div>
+            <div class="stat-box stability">
+                <div class="value" id="stability">0%</div>
+                <div class="label">Stability</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Top Right -->
+    <div class="hud hud-top-right">
+        <button class="btn" onclick="toggleDimension()">🔄 3D/4D</button>
+        <button class="btn pink" onclick="toggleBattleMode()">⚔️ Battle</button>
+        <button class="btn purple" onclick="triggerEvent()">🌋 Event</button>
+        <button class="btn" onclick="savePattern()">💾 Save</button>
+        <button class="btn" onclick="loadPattern()">📂 Load</button>
+    </div>
+    
+    <!-- HUD Left - Advanced Stats -->
+    <div class="hud hud-left">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Cell Type Distribution</h3>
+                <div class="cell-legend" id="cell-distribution">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Environment Status</h3>
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🌡️ Temperature</span>
+                        <span id="temp-display">20°C</span>
+                    </div>
+                    <input type="range" id="temp-slider" min="-50" max="100" value="20" onchange="updateTemperature(this.value)">
+                </div>
+                <div class="slider-group"
+>
+                    <div class="slider-label">
+                        <span>☢️ Radiation</span>
+                        <span id="radiation-display">0%</span>
+                    </div>
+                    <input type="range" id="radiation-slider" min="0" max="100" value="0" onchange="updateRadiation(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>💧 Humidity</span>
+                        <span id="humidity-display">50%</span>
+                    </div>
+                    <input type="range" id="humidity-slider" min="0" max="100" value="50" onchange="updateHumidity(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🧬 Mutation Rate</span>
+                        <span id="mutation-display">5%</span>
+                    </div>
+                    <input type="range" id="mutation-slider" min="0" max="50" value="5" onchange="updateMutationRate(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Event Log</h3>
+                <div class="event-log" id="event-log">
+                    <div class="event">Simulation initialized...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Right - Main Controls -->
+    <div class="hud hud-right">
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>Simulation Control</h3>
+                <div class="btn-row">
+                    <button class="btn primary" id="play-pause-btn" onclick="togglePlay()">▶ PLAY</button>
+                    <button class="btn" onclick="step()">⏭ STEP</button>
+                    <button class="btn danger" onclick="clearGrid()">🗑 CLEAR</button>
+                </div>
+                
+                <div class="slider-group" style="margin-top: 15px;">
+                    <div class="slider-label">
+                        <span>⚡ Speed</span>
+                        <span id="speed-display">30 FPS</span>
+                    </div>
+                    <input type="range" id="speed-slider" min="1" max="144" value="30" onchange="updateSpeed(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🔍 Zoom Scale</span>
+                        <span id="zoom-display">1.0x</span>
+                    </div>
+                    <input type="range" id="zoom-slider" min="0.5" max="3" step="0.1" value="1" onchange="updateZoom(this.value)">
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3>Grid Configuration</h3>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>📐 Grid Size</span>
+                        <span id="size-display">32³</span>
+                    </div>
+                    <input type="range" id="size-slider" min="16" max="64" value="32" onchange="updateGridSize(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🎲 Initial Density</span>
+                        <span id="density-display">12%</span>
+                    </div>
+                    <input type="range" id="density-slider" min="1" max="40" value="12" onchange="updateDensity(this.value)">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>🎨 Color Theme</span>
+                    </div>
+                    <select id="theme-select" onchange="changeTheme(this.value)">
+                        <option value="neon">Neon Cyberpunk</option>
+                        <option value="ocean">Deep Ocean</option>
+                        <option value="fire">Inferno</option>
+                        <option value="forest">Forest</option>
+                        <option value="matrix">Matrix Green</option>
+                        <option value="sunset">Sunset</option>
+                        <option value="monochrome">Monochrome</option>
+                    </select>
+                </div>
+            </div>
+            
+            
+            <div class="panel-section">
+                <h3>Visualization Options</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-connections" onchange="toggleConnections()">
+                    <label for="show-connections">Show Neural Connections</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-trails" checked onchange="toggleTrails()">
+                    <label for="show-trails">Show Death Trails</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-energy" checked onchange="toggleEnergy()">
+                    <label for="show-energy">Show Energy Levels</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="auto-rotate" onchange="toggleAutoRotate()">
+                    <label for="auto-rotate">Auto-Rotate Camera</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="bloom-effect" checked onchange="toggleBloom()">
+                    <label for="bloom-effect">HDR Bloom Effect</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="sound-enabled" onchange="toggleSound()">
+                    <label for="sound-enabled">🔊 Audio Feedback</label>
+                </div>
+            </div>
+            
+            
+            <div class="panel-section">
+                <h3>Universe Presets</h3>
+                <div class="preset-grid">
+                    <button class="preset-btn" onclick="loadPreset('bigbang')">💥 Big Bang</button>
+                    <button class="preset-btn" onclick="loadPreset('galaxy')">🌌 Galaxy</button>
+                    <button class="preset-btn" onclick="loadPreset('neural')">🧠 Neural Net</button>
+                    <button class="preset-btn" onclick="loadPreset('crystal')">💎 Crystal</button>
+                    <button class="preset-btn" onclick="loadPreset('dna')">🧬 DNA</button>
+                    <button class="preset-btn" onclick="loadPreset('coral')">🪸 Coral Reef</button>
+                    <button class="preset-btn" onclick="loadPreset('warzone')">⚔️ War Zone</button>
+                    <button class="preset-btn" onclick="loadPreset('forest')">🌲 Forest</button>
+                    <button class="preset-btn" onclick="loadPreset('virus')">🦠 Pandemic</button>
+                    <button class="preset-btn" onclick="loadPreset('city')">🏙️ Metropolis</button>
+                    <button class="preset-btn" onclick="loadPreset('mandala')">🔮 Mandala</button>
+                    <button class="preset-btn" onclick="loadPreset('chaos')">🌀 Chaos</button>
+                    <button class="preset-btn" onclick="loadPreset('ecosystem')">🌍 Ecosystem</button>
+                    <button class="preset-btn" onclick="loadPreset('volcano')">🌋 Volcano</button>
+                    <button class="preset-btn" onclick="loadPreset('quantumlab')">⚛️ Quantum Lab</button>
+                    <button class="preset-btn" onclick="loadPreset('acidrain')">☠️ Acid Rain</button>
+                    <button class="preset-btn" onclick="loadPreset('hivemind')">🐝 Hive Mind</button>
+                    <button class="preset-btn" onclick="loadPreset('terminator')">🤖 Terminator</button>
+                </div>
+            </div>
+            
+            
+            <div class="panel-section">
+                <h3>Population History</h3>
+                <div class="chart-container">
+                    <canvas id="population-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Bottom - Pattern Spawners -->
+    <div class="hud hud-bottom">
+        <button class="btn" onclick="spawnPattern('glider')">🛩️ Glider</button>
+        <button class="btn" onclick="spawnPattern('pulsar')">⭐ Pulsar</button>
+        <button class="btn" onclick="spawnPattern('gosper')">🔫 Gosper Gun</button>
+        <button class="btn" onclick="spawnPattern('puffer')">🚂 Puffer</button>
+        <button class="btn" onclick="spawnPattern('spaceship')">🛸 Spaceship</button>
+        <button class="btn" onclick="spawnPattern('diehard')">💀 Diehard</button>
+        <button class="btn" onclick="spawnPattern('acorn')">🌰 Acorn</button>
+        <button class="btn" onclick="spawnPattern('rpentomino')">📐 R-Pentomino</button>
+        <button class="btn" onclick="spawnPattern('hammerhead')">🔨 Hammerhead</button>
+        <button class="btn" onclick="spawnPattern('koksgalaxy')">🌟 Kok's Galaxy</button>
+        <button class="btn" onclick="spawnPattern('simkinglidergun')">👑 Simkin Gun</button>
+        <button class="btn" onclick="spawnPattern('puffertrain')">🚆 Train</button>
+        <button class="btn" onclick="togglePaintMode()">🎨 Paint</button>
+        <button class="btn pink" onclick="spawnRandomMutation()">🧬 Mutate</button>
+        <button class="btn" onclick="spawnFoodSource()">🍖 Food</button>
+        <button class="btn danger" onclick="spawnAsteroid()">☄️ Asteroid</button>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME OF LIFE 4D - HYPERDIMENSIONAL EVOLUTION
+        // ============================================
+        
+        // Configuration
+        const CONFIG = {
+            gridSize: 32,
+            cellSize: 0.6,
+            spacing: 1.0,
+            initialDensity: 0.12,
+            simulationSpeed: 30,
+            dimension: 3, // 3 or 4
+            battleMode: false,
+            temperature: 20,
+            radiation: 0,
+            humidity: 50,
+            mutationRate: 0.05,
+            showConnections: false,
+            showTrails: true,
+            showEnergy: true,
+            autoRotate: false,
+            bloomEffect: true,
+            soundEnabled: false,
+            zoomScale: 1.0,
+            paintMode: false,
+            currentTheme: 'neon'
+        };
+        
+        // Cell Types - MASSIVELY EXPANDED (35+ types)
+        const CELL_TYPES = {
+            EMPTY: 0,
+            
+            // TIER 1: BASIC LIFE
+            STANDARD: 1,      // Basic survival
+            PRODUCER: 2,      // Creates energy/food
+            CONSUMER: 3,      // Eats producers
+            DECOMPOSER: 4,    // Breaks down dead matter
+            
+            // TIER 2: PREDATORS & HUNTERS  
+            PREDATOR: 5,      // Hunts consumers
+            APEX: 6,          // Top of food chain
+            PARASITE: 7,      // Drains others
+            
+            // TIER 3: MUTATIONS & SPECIAL
+            MUTANT: 8,        // Random mutations
+            RADIOACTIVE: 9,   // Causes mutations nearby
+            CHIMERA: 10,      // Hybrid of two types
+            
+            // TIER 4: DISEASE & MEDICAL
+            VIRUS: 11,        // Infects others
+            BACTERIA: 12,     // Spreads, decomposes
+            ANTIBODY: 13,     // Fights disease
+            CANCER: 14,       // Uncontrolled growth
+            STEM: 15,         // Regenerates, heals
+            
+            // TIER 5: HIVE MIND
+            QUEEN: 16,        // Controls hive
+            WORKER: 17,       // Builds, gathers
+            WARRIOR: 18,      // Fights enemies
+            SCOUT: 19,        // Explores, fast
+            
+            // TIER 6: WEAPONS & DEFENSE
+            EXPLODER: 20,     // Suicide bomber
+            SHELL: 21,        // Armored, defensive
+            TRAP: 22,         // Captures prey
+            MINEFIELD: 23,    // Explodes when touched
+            
+            // TIER 7: RESOURCES
+            FOOD: 24,         // Nutritious
+            WATER: 25,        // Required for life
+            OXYGEN: 26,       // Required for most
+            TOXIN: 27,        // Poisonous
+            WASTE: 28,        // Pollution
+            
+            // TIER 8: STRUCTURES
+            WALL: 29,         // Blocks movement
+            PORTAL: 30,       // Teleports cells
+            NEST: 31,         // Spawns hive units
+            FACTORY: 32,      // Creates items
+            
+            // TIER 9: ADVANCED
+            PHOTON: 33,       // Light energy
+            CRYSTAL: 34,      // Stores energy
+            NANITE: 35,       // Self-repairing
+            QUANTUM: 36,      // Phase-shifts
+            
+            // TIER 10: CIVILIZATION
+            HOUSE: 37,        // Basic shelter
+            FARM: 38,         // Grows food
+            LAB: 39,          // Researches
+            TEMPLE: 40,       // Religious power
+            
+            // TIER 11: ELEMENTS
+            FIRE: 41,         // Burns, spreads
+            ICE: 42,          // Freezes, slows
+            ELECTRIC: 43,     // Zaps nearby
+            ACID: 44,         // Dissolves
+            VOID: 45          // Destroys matter
+        };
+        
+        // Theme Colors - ALL CELL TYPES
+        const THEMES = {
+            neon: {
+                [CELL_TYPES.EMPTY]: null,
+                [CELL_TYPES.STANDARD]: 0x00ff88,
+                [CELL_TYPES.PRODUCER]: 0x00f5ff,
+                [CELL_TYPES.CONSUMER]: 0xff00ff,
+                [CELL_TYPES.DECOMPOSER]: 0x8b4513,
+                [CELL_TYPES.PREDATOR]: 0xff6b35,
+                [CELL_TYPES.APEX]: 0xff0000,
+                [CELL_TYPES.PARASITE]: 0x9932cc,
+                [CELL_TYPES.MUTANT]: 0xb829dd,
+                [CELL_TYPES.RADIOACTIVE]: 0x7fff00,
+                [CELL_TYPES.CHIMERA]: 0xff1493,
+                [CELL_TYPES.VIRUS]: 0xff3333,
+                [CELL_TYPES.BACTERIA]: 0x00fa9a,
+                [CELL_TYPES.ANTIBODY]: 0x39ff14,
+                [CELL_TYPES.CANCER]: 0x800080,
+                [CELL_TYPES.STEM]: 0xffff00,
+                [CELL_TYPES.QUEEN]: 0xff1493,
+                [CELL_TYPES.WORKER]: 0x00ced1,
+                [CELL_TYPES.WARRIOR]: 0xff4500,
+                [CELL_TYPES.SCOUT]: 0xffd700,
+                [CELL_TYPES.EXPLODER]: 0xff0000,
+                [CELL_TYPES.SHELL]: 0x696969,
+                [CELL_TYPES.TRAP]: 0x2f4f4f,
+                [CELL_TYPES.MINEFIELD]: 0xdc143c,
+                [CELL_TYPES.FOOD]: 0xffd700,
+                [CELL_TYPES.WATER]: 0x1e90ff,
+                [CELL_TYPES.OXYGEN]: 0x87ceeb,
+                [CELL_TYPES.TOXIN]: 0x32cd32,
+                [CELL_TYPES.WASTE]: 0x556b2f,
+                [CELL_TYPES.WALL]: 0x444444,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.NEST]: 0xdaa520,
+                [CELL_TYPES.FACTORY]: 0xff8c00,
+                [CELL_TYPES.PHOTON]: 0xfffacd,
+                [CELL_TYPES.CRYSTAL]: 0xe0ffff,
+                [CELL_TYPES.NANITE]: 0xc0c0c0,
+                [CELL_TYPES.QUANTUM]: 0xda70d6,
+                [CELL_TYPES.HOUSE]: 0xd2691e,
+                [CELL_TYPES.FARM]: 0x228b22,
+                [CELL_TYPES.LAB]: 0x4169e1,
+                [CELL_TYPES.TEMPLE]: 0x9932cc,
+                [CELL_TYPES.FIRE]: 0xff4500,
+                [CELL_TYPES.ICE]: 0x00ffff,
+                [CELL_TYPES.ELECTRIC]: 0xffff00,
+                [CELL_TYPES.ACID]: 0xadff2f,
+                [CELL_TYPES.VOID]: 0x000000
+            },
+            ocean: {
+                [CELL_TYPES.STANDARD]: 0x006994,
+                [CELL_TYPES.PRODUCER]: 0x00b4d8,
+                [CELL_TYPES.CONSUMER]: 0x0077be,
+                [CELL_TYPES.PREDATOR]: 0x023e8a,
+                [CELL_TYPES.MUTANT]: 0x48cae4,
+                [CELL_TYPES.VIRUS]: 0x03045e,
+                [CELL_TYPES.ANTIBODY]: 0x90e0ef,
+                [CELL_TYPES.CANCER]: 0x0096c7,
+                [CELL_TYPES.STEM]: 0xcaf0f8,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.WALL]: 0x1a1a2e,
+                [CELL_TYPES.FOOD]: 0xffd60a,
+                [CELL_TYPES.ENERGY]: 0x48cae4,
+                [CELL_TYPES.QUEEN]: 0xf72585,
+                [CELL_TYPES.WORKER]: 0x4cc9f0,
+                [CELL_TYPES.WARRIOR]: 0x3a0ca3,
+                [CELL_TYPES.EXPLODER]: 0xf94144
+            },
+            fire: {
+                [CELL_TYPES.STANDARD]: 0xff6b35,
+                [CELL_TYPES.PRODUCER]: 0xffd166,
+                [CELL_TYPES.CONSUMER]: 0xff9f1c,
+                [CELL_TYPES.PREDATOR]: 0xe71d36,
+                [CELL_TYPES.MUTANT]: 0xff006e,
+                [CELL_TYPES.VIRUS]: 0x9d0208,
+                [CELL_TYPES.ANTIBODY]: 0xf4d03f,
+                [CELL_TYPES.CANCER]: 0x6a040f,
+                [CELL_TYPES.STEM]: 0xffba08,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.WALL]: 0x2d1b14,
+                [CELL_TYPES.FOOD]: 0x52b788,
+                [CELL_TYPES.ENERGY]: 0xf48c06,
+                [CELL_TYPES.QUEEN]: 0xd00000,
+                [CELL_TYPES.WORKER]: 0xe85d04,
+                [CELL_TYPES.WARRIOR]: 0x9d0208,
+                [CELL_TYPES.EXPLODER]: 0xff0000
+            },
+            forest: {
+                [CELL_TYPES.STANDARD]: 0x2d6a4f,
+                [CELL_TYPES.PRODUCER]: 0x40916c,
+                [CELL_TYPES.CONSUMER]: 0x52b788,
+                [CELL_TYPES.PREDATOR]: 0x1b4332,
+                [CELL_TYPES.MUTANT]: 0x74c69d,
+                [CELL_TYPES.VIRUS]: 0x6b2737,
+                [CELL_TYPES.ANTIBODY]: 0x95d5b2,
+                [CELL_TYPES.CANCER]: 0x8fbc8f,
+                [CELL_TYPES.STEM]: 0xd8f3dc,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.WALL]: 0x1a1a1a,
+                [CELL_TYPES.FOOD]: 0xffaa00,
+                [CELL_TYPES.ENERGY]: 0x90e0ef,
+                [CELL_TYPES.QUEEN]: 0xff6b9d,
+                [CELL_TYPES.WORKER]: 0x70e000,
+                [CELL_TYPES.WARRIOR]: 0x3a5a40,
+                [CELL_TYPES.EXPLODER]: 0xff0000
+            },
+            matrix: {
+                [CELL_TYPES.STANDARD]: 0x00ff41,
+                [CELL_TYPES.PRODUCER]: 0x008f11,
+                [CELL_TYPES.CONSUMER]: 0x003b00,
+                [CELL_TYPES.PREDATOR]: 0x0d0208,
+                [CELL_TYPES.MUTANT]: 0x00ff41,
+                [CELL_TYPES.VIRUS]: 0xff0000,
+                [CELL_TYPES.ANTIBODY]: 0x00cc00,
+                [CELL_TYPES.CANCER]: 0x1a1a1a,
+                [CELL_TYPES.STEM]: 0xc5ff00,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.WALL]: 0x0d0208,
+                [CELL_TYPES.FOOD]: 0xffff00,
+                [CELL_TYPES.ENERGY]: 0x00ff00,
+                [CELL_TYPES.QUEEN]: 0xff00ff,
+                [CELL_TYPES.WORKER]: 0x00ff00,
+                [CELL_TYPES.WARRIOR]: 0x008800,
+                [CELL_TYPES.EXPLODER]: 0xff0000
+            },
+            sunset: {
+                [CELL_TYPES.STANDARD]: 0xff6b6b,
+                [CELL_TYPES.PRODUCER]: 0xfeca57,
+                [CELL_TYPES.CONSUMER]: 0xff9ff3,
+                [CELL_TYPES.PREDATOR]: 0x54a0ff,
+                [CELL_TYPES.MUTANT]: 0x5f27cd,
+                [CELL_TYPES.VIRUS]: 0xee5253,
+                [CELL_TYPES.ANTIBODY]: 0x1dd1a1,
+                [CELL_TYPES.CANCER]: 0x341f97,
+                [CELL_TYPES.STEM]: 0xfeca57,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.WALL]: 0x2f3542,
+                [CELL_TYPES.FOOD]: 0xeccc68,
+                [CELL_TYPES.ENERGY]: 0x7bed9f,
+                [CELL_TYPES.QUEEN]: 0xff9ff3,
+                [CELL_TYPES.WORKER]: 0x70a1ff,
+                [CELL_TYPES.WARRIOR]: 0x5352ed,
+                [CELL_TYPES.EXPLODER]: 0xff4757
+            },
+            monochrome: {
+                [CELL_TYPES.STANDARD]: 0xffffff,
+                [CELL_TYPES.PRODUCER]: 0xcccccc,
+                [CELL_TYPES.CONSUMER]: 0x999999,
+                [CELL_TYPES.PREDATOR]: 0x666666,
+                [CELL_TYPES.MUTANT]: 0xff00ff,
+                [CELL_TYPES.VIRUS]: 0x333333,
+                [CELL_TYPES.ANTIBODY]: 0xeeeeee,
+                [CELL_TYPES.CANCER]: 0x111111,
+                [CELL_TYPES.STEM]: 0xdddddd,
+                [CELL_TYPES.PORTAL]: 0xffffff,
+                [CELL_TYPES.WALL]: 0x222222,
+                [CELL_TYPES.FOOD]: 0xffff00,
+                [CELL_TYPES.ENERGY]: 0x00ffff,
+                [CELL_TYPES.QUEEN]: 0xff00ff,
+                [CELL_TYPES.WORKER]: 0xaaaaaa,
+                [CELL_TYPES.WARRIOR]: 0x444444,
+                [CELL_TYPES.EXPLODER]: 0xff0000
+            }
+        };
+        
+        // State
+        let grid = [];
+        let nextGrid = [];
+        let hyperGrid = []; // For 4D
+        let generation = 0;
+        let isPlaying = false;
+        let lastFrameTime = 0;
+        let frameInterval = 1000 / CONFIG.simulationSpeed;
+        let populationHistory = [];
+        let eventHistory = [];
+        let cellMeshes = [];
+        let connectionLines = [];
+        let trailParticles = [];
+        let foodSources = [];
+        let obstacles = [];
+        let portals = [];
+        
+        // Statistics
+        let stats = {
+            alive: 0,
+            born: 0,
+            died: 0,
+            byType: {},
+            maxPopulation: 0,
+            totalBorn: 0,
+            totalDied: 0,
+            stabilityScore: 0
+        };
+        
+        // Three.js Setup
+        let scene, camera, renderer, controls, composer;
+        let gridGroup, cellGroup, connectionGroup, trailGroup, particleGroup;
+        let raycaster, mouse;
+        let hoveredCell = null;
+        let audioContext = null;
+        
+        // Initialize
+        function init() {
+            setupThreeJS();
+            createGrid();
+            setupEventListeners();
+            updateCellDistribution();
+            render();
+            updateStats();
+            
+            // Show info on first visit
+            if (!localStorage.getItem('gol4d-visited')) {
+                showNotification('Welcome to Game of Life 4D! Click presets to start.', 'info');
+                localStorage.setItem('gol4d-visited', 'true');
+            }
+        }
+        
+        function setupThreeJS() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050508);
+            scene.fog = new THREE.FogExp2(0x050508, 0.012);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(CONFIG.gridSize * 1.2, CONFIG.gridSize * 1.0, CONFIG.gridSize * 1.5);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            container.appendChild(renderer.domElement);
+            
+            // Post-processing removed - using standard rendering
+            composer = null;
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = CONFIG.autoRotate;
+            controls.autoRotateSpeed = 0.5;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Dynamic colored lights
+            const colors = [0x00f5ff, 0xff00ff, 0x00ff88, 0xb829dd];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.4, 80);
+                const angle = (i / colors.length) * Math.PI * 2;
+                light.position.set(
+                    Math.cos(angle) * CONFIG.gridSize * 0.8,
+                    CONFIG.gridSize / 2,
+                    Math.sin(angle) * CONFIG.gridSize * 0.8
+                );
+                scene.add(light);
+            });
+            
+            // Groups
+            gridGroup = new THREE.Group();
+            cellGroup = new THREE.Group();
+            connectionGroup = new THREE.Group();
+            trailGroup = new THREE.Group();
+            particleGroup = new THREE.Group();
+            scene.add(gridGroup);
+            scene.add(cellGroup);
+            scene.add(connectionGroup);
+            scene.add(trailGroup);
+            scene.add(particleGroup);
+            
+            // Create boundary
+            createBoundaryBox();
+            
+            // Raycaster
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Resize handler
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function createBoundaryBox() {
+            const size = CONFIG.gridSize * CONFIG.spacing;
+            const geometry = new THREE.BoxGeometry(size, size, size);
+            const edges = new THREE.EdgesGeometry(geometry);
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0x00f5ff, 
+                transparent: true, 
+                opacity: 0.08 
+            });
+            const box = new THREE.LineSegments(edges, material);
+            box.position.set(size/2 - 0.5, size/2 - 0.5, size/2 - 0.5);
+            gridGroup.add(box);
+        }
+        
+        function createGrid() {
+            grid = [];
+            nextGrid = [];
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                grid[x] = [];
+                nextGrid[x] = [];
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    grid[x][y] = [];
+                    nextGrid[x][y] = [];
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        if (Math.random() < CONFIG.initialDensity) {
+                            const rand = Math.random();
+                            let type = CELL_TYPES.STANDARD;
+                            
+                            if (rand > 0.92) type = CELL_TYPES.PRODUCER;
+                            else if (rand > 0.85) type = CELL_TYPES.CONSUMER;
+                            else if (rand > 0.80) type = CELL_TYPES.PREDATOR;
+                            else if (rand > 0.77) type = CELL_TYPES.MUTANT;
+                            else if (rand > 0.75) type = CELL_TYPES.VIRUS;
+                            else if (rand > 0.73) type = CELL_TYPES.ANTIBODY;
+                            
+                            grid[x][y][z] = createCell(type);
+                        } else {
+                            grid[x][y][z] = null;
+                        }
+                        nextGrid[x][y][z] = null;
+                    }
+                }
+            }
+            
+            updateCellMeshes();
+        }
+        
+        function createCell(type, parent = null) {
+            return {
+                type: type,
+                age: 0,
+                energy: 50 + Math.random() * 50,
+                maxEnergy: 100,
+                generation: generation,
+                dna: parent ? mutateDNA(parent.dna) : generateRandomDNA(),
+                team: parent ? parent.team : Math.floor(Math.random() * 4),
+                fitness: 0
+            };
+        }
+        
+        function generateRandomDNA() {
+            return {
+                reproductionRate: 0.1 + Math.random() * 0.4,
+                survivalInstinct: 0.3 + Math.random() * 0.5,
+                aggression: Math.random() * 0.5,
+                cooperation: Math.random() * 0.5,
+                adaptability: Math.random() * 0.5
+            };
+        }
+        
+        function mutateDNA(dna) {
+            if (Math.random() > CONFIG.mutationRate) return dna;
+            
+            return {
+                reproductionRate: Math.max(0, Math.min(1, dna.reproductionRate + (Math.random() - 0.5) * 0.2)),
+                survivalInstinct: Math.max(0, Math.min(1, dna.survivalInstinct + (Math.random() - 0.5) * 0.2)),
+                aggression: Math.max(0, Math.min(1, dna.aggression + (Math.random() - 0.5) * 0.2)),
+                cooperation: Math.max(0, Math.min(1, dna.cooperation + (Math.random() - 0.5) * 0.2)),
+                adaptability: Math.max(0, Math.min(1, dna.adaptability + (Math.random() - 0.5) * 0.2))
+            };
+        }
+        
+        function updateCellMeshes() {
+            // Clear existing
+            cellMeshes.forEach(mesh => cellGroup.remove(mesh));
+            cellMeshes = [];
+            
+            const geometry = new THREE.BoxGeometry(CONFIG.cellSize, CONFIG.cellSize, CONFIG.cellSize);
+            const theme = THEMES[CONFIG.currentTheme];
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        const cell = grid[x][y][z];
+                        if (cell && cell.type !== CELL_TYPES.EMPTY) {
+                            const color = theme[cell.type] || 0xffffff;
+                            
+                            const material = new THREE.MeshPhongMaterial({
+                                color: color,
+                                emissive: color,
+                                emissiveIntensity: CONFIG.showEnergy ? (cell.energy / 150) : 0.2,
+                                transparent: true,
+                                opacity: 0.9,
+                                shininess: 100
+                            });
+                            
+                            const mesh = new THREE.Mesh(geometry, material);
+                            mesh.position.set(
+                                x * CONFIG.spacing,
+                                y * CONFIG.spacing,
+                                z * CONFIG.spacing
+                            );
+                            mesh.castShadow = true;
+                            mesh.receiveShadow = true;
+                            mesh.userData = { x, y, z, cell };
+                            
+                            // Scale by energy
+                            const scale = CONFIG.zoomScale * (0.5 + (cell.energy / 200));
+                            mesh.scale.set(scale, scale, scale);
+                            
+                            cellGroup.add(mesh);
+                            cellMeshes.push(mesh);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function countNeighbors(x, y, z) {
+            let count = 0;
+            let byType = {};
+            let byTeam = [0, 0, 0, 0];
+            let enemies = 0;
+            let friends = 0;
+            let totalEnergy = 0;
+            
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        const neighbor = grid[nx][ny][nz];
+                        if (neighbor) {
+                            count++;
+                            byType[neighbor.type] = (byType[neighbor.type] || 0) + 1;
+                            if (neighbor.team !== undefined) {
+                                byTeam[neighbor.team]++;
+                                if (neighbor.team !== grid[x][y][z]?.team) enemies++;
+                                else friends++;
+                            }
+                            totalEnergy += neighbor.energy;
+                        }
+                    }
+                }
+            }
+            
+            return { count, byType, byTeam, enemies, friends, totalEnergy };
+        }
+        
+        function computeNextGeneration() {
+            stats.born = 0;
+            stats.died = 0;
+            stats.byType = {};
+            
+            // Environmental factors
+            const tempFactor = (CONFIG.temperature - 20) / 50;
+            const radiationDamage = CONFIG.radiation / 100;
+            const humidityBonus = CONFIG.humidity / 100;
+            
+            // Seasonal cycle affects behavior
+            const season = Math.floor(generation / 100) % 4; // 0=spring, 1=summer, 2=fall, 3=winter
+            const seasonMultiplier = [1.2, 1.5, 0.8, 0.5][season];
+            
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        const cell = grid[x][y][z];
+                        const { count, byType, enemies, friends, totalEnergy } = countNeighbors(x, y, z);
+                        
+                        if (cell && cell.type !== CELL_TYPES.EMPTY) {
+                            // Cell is alive
+                            let survives = false;
+                            let newType = cell.type;
+                            let newEnergy = cell.energy - 2 - radiationDamage * 5;
+                            let reproduce = false;
+                            
+                            // === TIER 1: BASIC LIFE FORMS ===
+                            switch (cell.type) {
+                                case CELL_TYPES.STANDARD:
+                                    survives = count >= 4 + tempFactor && count <= 6 + tempFactor;
+                                    newEnergy -= 1;
+                                    if (byType[CELL_TYPES.OXYGEN] > 0) newEnergy += 2;
+                                    if (byType[CELL_TYPES.FOOD] > 0) {
+                                        newEnergy += byType[CELL_TYPES.FOOD] * 10;
+                                        // Eat the food
+                                        consumeResource(x, y, z, CELL_TYPES.FOOD);
+                                    }
+                                    break;
+                                    
+                                case CELL_TYPES.PRODUCER:
+                                    survives = count >= 2 && count <= 7;
+                                    // Photosynthesis with season
+                                    const light = Math.max(0, 20 - count) * seasonMultiplier;
+                                    newEnergy += light * humidityBonus;
+                                    if (byType[CELL_TYPES.WATER] > 0) newEnergy += 5;
+                                    if (byType[CELL_TYPES.PHOTON] > 0) newEnergy += 10;
+                                    // Produce oxygen
+                                    if (newEnergy > 80 && Math.random() < 0.1) {
+                                        spawnResourceNearby(x, y, z, CELL_TYPES.OXYGEN);
+                                    }
+                                    break;
+                                    
+                                case CELL_TYPES.CONSUMER:
+                                    survives = count >= 3 && count <= 5;
+                                    // Hunt producers
+                                    if (byType[CELL_TYPES.PRODUCER] > 0) {
+                                        newEnergy += byType[CELL_TYPES.PRODUCER] * 15;
+                                        consumeResource(x, y, z, CELL_TYPES.PRODUCER);
+                                    }
+                                    // Eat food
+                                    if (byType[CELL_TYPES.FOOD] > 0) {
+                                        newEnergy += byType[CELL_TYPES.FOOD] * 20;
+                                    }
+                                    // Need oxygen
+                                    if (byType[CELL_TYPES.OXYGEN] === 0) newEnergy -= 5;
+                                    break;
+                                    
+                                case CELL_TYPES.DECOMPOSER:
+                                    survives = count >= 1 && count <= 6;
+                                    // Feed on dead/waste
+                                    if (byType[CELL_TYPES.WASTE] > 0) {
+                                        newEnergy += byType[CELL_TYPES.WASTE] * 25;
+                                        // Clean up waste
+                                        consumeResource(x, y, z, CELL_TYPES.WASTE);
+                                    }
+                                    // Break down dead cells (represented by low energy cells)
+                                    if (totalEnergy < 200) newEnergy += 15;
+                                    // Produce nutrients
+                                    if (newEnergy > 70 && Math.random() < 0.1) {
+                                        spawnResourceNearby(x, y, z, CELL_TYPES.FOOD);
+                                    }
+                                    break;
+                            }
+                            
+                            // === TIER 2: PREDATORS & HUNTERS ===
+                            if (cell.type === CELL_TYPES.PREDATOR) {
+                                survives = count >= 2 && count <= 4;
+                                // Hunt consumers
+                                if (byType[CELL_TYPES.CONSUMER] > 0) {
+                                    newEnergy += byType[CELL_TYPES.CONSUMER] * 30;
+                                    // Apex predator promotion
+                                    if (cell.fitness > 20 && Math.random() < 0.05) {
+                                        newType = CELL_TYPES.APEX;
+                                    }
+                                }
+                                // Also eat standard
+                                if (byType[CELL_TYPES.STANDARD] > 0) {
+                                    newEnergy += byType[CELL_TYPES.STANDARD] * 10;
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.APEX) {
+                                survives = count >= 1 && count <= 3;
+                                // Apex eats everything
+                                if (byType[CELL_TYPES.PREDATOR] > 0) newEnergy += 40;
+                                if (byType[CELL_TYPES.CONSUMER] > 0) newEnergy += 30;
+                                if (byType[CELL_TYPES.STANDARD] > 0) newEnergy += 20;
+                                // High maintenance
+                                newEnergy -= 5;
+                            }
+                            
+                            if (cell.type === CELL_TYPES.PARASITE) {
+                                survives = count >= 1 && count <= 8;
+                                // Drain energy from neighbors
+                                if (count > 0) {
+                                    newEnergy += count * 8;
+                                    // Damage neighbors
+                                    damageNeighbors(x, y, z, 5);
+                                }
+                            }
+                            
+                            // === TIER 3: MUTATIONS ===
+                            if (cell.type === CELL_TYPES.MUTANT) {
+                                survives = Math.random() > (0.15 - cell.dna.adaptability * 0.1);
+                                if (survives) {
+                                    // Random mutation
+                                    if (Math.random() < CONFIG.mutationRate * 2) {
+                                        const mutations = [
+                                            CELL_TYPES.RADIOACTIVE, CELL_TYPES.CHIMERA, 
+                                            CELL_TYPES.CRYSTAL, CELL_TYPES.NANITE
+                                        ];
+                                        newType = mutations[Math.floor(Math.random() * mutations.length)];
+                                    }
+                                    // Mutate nearby cells
+                                    if (Math.random() < 0.1) {
+                                        mutateNeighbors(x, y, z);
+                                    }
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.RADIOACTIVE) {
+                                survives = count >= 1 && count <= 6;
+                                // Radiate and cause mutations nearby
+                                if (Math.random() < 0.2) {
+                                    irradiateNeighbors(x, y, z);
+                                }
+                                newEnergy -= 3; // Self-damage
+                            }
+                            
+                            if (cell.type === CELL_TYPES.CHIMERA) {
+                                survives = count >= 2 && count <= 5;
+                                // Hybrid abilities
+                                newEnergy += (byType[CELL_TYPES.PRODUCER] * 5 + byType[CELL_TYPES.CONSUMER] * 10);
+                            }
+                            
+                            // === TIER 4: DISEASE SYSTEM ===
+                            if (cell.type === CELL_TYPES.VIRUS) {
+                                survives = count >= 1 && count <= 8;
+                                // Infect neighbors
+                                if (Math.random() < 0.4) {
+                                    infectNeighbors(x, y, z);
+                                }
+                                // Spread to new areas
+                                if (count < 2 && Math.random() < 0.1) {
+                                    spreadVirus(x, y, z);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.BACTERIA) {
+                                survives = count >= 2 && count <= 6;
+                                // Rapid reproduction
+                                if (newEnergy > 40 && Math.random() < 0.3) {
+                                    reproduce = true;
+                                }
+                                // Decompose dead matter
+                                if (byType[CELL_TYPES.WASTE] > 0) newEnergy += 10;
+                            }
+                            
+                            if (cell.type === CELL_TYPES.ANTIBODY) {
+                                survives = count >= 1 && count <= 6;
+                                // Seek and destroy viruses/bacteria
+                                if (byType[CELL_TYPES.VIRUS] > 0) {
+                                    newEnergy += byType[CELL_TYPES.VIRUS] * 20;
+                                    purgeDisease(x, y, z, CELL_TYPES.VIRUS);
+                                }
+                                if (byType[CELL_TYPES.BACTERIA] > 0) {
+                                    newEnergy += byType[CELL_TYPES.BACTERIA] * 15;
+                                    purgeDisease(x, y, z, CELL_TYPES.BACTERIA);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.CANCER) {
+                                survives = true; // Hard to kill
+                                // Uncontrolled growth
+                                if (newEnergy > 30 && Math.random() < 0.5) {
+                                    reproduce = true;
+                                }
+                                // Convert neighbors
+                                if (Math.random() < 0.2) {
+                                    convertNeighbors(x, y, z, CELL_TYPES.CANCER);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.STEM) {
+                                survives = count >= 2 && count <= 6;
+                                // Heal damaged cells nearby
+                                healNeighbors(x, y, z);
+                                // Regenerate
+                                newEnergy += 5;
+                            }
+                            
+                            // === TIER 5: HIVE MIND ===
+                            if (cell.type === CELL_TYPES.QUEEN) {
+                                survives = count >= 2 && count <= 5;
+                                // Fed by workers
+                                if (byType[CELL_TYPES.WORKER] > 0) {
+                                    newEnergy += byType[CELL_TYPES.WORKER] * 8;
+                                }
+                                // Spawn more workers if enough energy
+                                if (newEnergy > 80 && Math.random() < 0.2) {
+                                    spawnNearby(x, y, z, CELL_TYPES.WORKER, cell.team);
+                                }
+                                // Death of queen is catastrophic
+                                if (newEnergy <= 0) {
+                                    createExplosion(x, y, z, cell.team);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.WORKER) {
+                                survives = count >= 3 && count <= 7;
+                                // Support queen
+                                if (byType[CELL_TYPES.QUEEN] > 0) {
+                                    newEnergy += 5;
+                                } else {
+                                    newEnergy -= 3; // Confused without queen
+                                }
+                                // Gather food
+                                if (byType[CELL_TYPES.FOOD] > 0) {
+                                    newEnergy += 10;
+                                }
+                                // Build walls
+                                if (newEnergy > 90 && Math.random() < 0.05) {
+                                    spawnNearby(x, y, z, CELL_TYPES.WALL, cell.team);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.WARRIOR) {
+                                survives = count >= 2 && count <= 5;
+                                // Fight enemies
+                                if (CONFIG.battleMode && enemies > 0) {
+                                    newEnergy += enemies * 15; // Reward for fighting
+                                    attackEnemies(x, y, z, cell.team);
+                                }
+                                // Protect queen
+                                if (byType[CELL_TYPES.QUEEN] > 0) {
+                                    newEnergy += 3;
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.SCOUT) {
+                                survives = count >= 1 && count <= 6;
+                                // Fast movement represented by low neighbor requirements
+                                newEnergy += 2;
+                                // Discover food
+                                if (Math.random() < 0.1) {
+                                    spawnResourceNearby(x, y, z, CELL_TYPES.FOOD);
+                                }
+                            }
+                            
+                            // === TIER 6: WEAPONS ===
+                            if (cell.type === CELL_TYPES.EXPLODER) {
+                                survives = count >= 3 && count <= 5;
+                                // Detonate conditions
+                                if (cell.age > 8 || newEnergy < 15 || enemies > 2) {
+                                    survives = false;
+                                    createExplosion(x, y, z, cell.team);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.SHELL) {
+                                survives = count >= 2 && count <= 8;
+                                // Armored - takes less damage
+                                newEnergy -= 1; // Slow metabolism
+                            }
+                            
+                            if (cell.type === CELL_TYPES.TRAP) {
+                                survives = true; // Passive
+                                // Capture prey
+                                if (byType[CELL_TYPES.CONSUMER] > 0 || byType[CELL_TYPES.STANDARD] > 0) {
+                                    trapNeighbors(x, y, z);
+                                    newEnergy += 20;
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.MINEFIELD) {
+                                survives = true;
+                                // Explode when enemies approach
+                                if (enemies > 0) {
+                                    survives = false;
+                                    createExplosion(x, y, z, cell.team);
+                                }
+                            }
+                            
+                            // === TIER 7: RESOURCES ===
+                            if ([CELL_TYPES.FOOD, CELL_TYPES.WATER, CELL_TYPES.OXYGEN].includes(cell.type)) {
+                                survives = true;
+                                newEnergy -= 0.5; // Slowly decay
+                                // Regenerate if conditions right
+                                if (cell.type === CELL_TYPES.FOOD && byType[CELL_TYPES.DECOMPOSER] > 0) {
+                                    newEnergy += 2;
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.TOXIN) {
+                                survives = count >= 1 && count <= 8;
+                                // Poison neighbors
+                                poisonNeighbors(x, y, z);
+                                newEnergy -= 1;
+                            }
+                            
+                            if (cell.type === CELL_TYPES.WASTE) {
+                                survives = true;
+                                // Accumulate or decompose
+                                if (byType[CELL_TYPES.DECOMPOSER] > 0) {
+                                    newEnergy -= 5; // Being eaten
+                                    if (newEnergy <= 0) survives = false; // Fully decomposed
+                                }
+                            }
+                            
+                            // === TIER 8: STRUCTURES ===
+                            if (cell.type === CELL_TYPES.WALL) {
+                                survives = true; // Permanent unless destroyed
+                                newEnergy = 100; // Always full
+                            }
+                            
+                            if (cell.type === CELL_TYPES.PORTAL) {
+                                survives = true;
+                                // Teleport cells
+                                if (count > 0 && Math.random() < 0.1) {
+                                    teleportRandomCell(x, y, z);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.NEST) {
+                                survives = count >= 1 && count <= 5;
+                                // Spawn hive units
+                                if (newEnergy > 50 && Math.random() < 0.15) {
+                                    const spawnType = Math.random() < 0.7 ? CELL_TYPES.WORKER : CELL_TYPES.WARRIOR;
+                                    spawnNearby(x, y, z, spawnType, cell.team);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.FACTORY) {
+                                survives = count >= 2 && count <= 5;
+                                // Produce items
+                                if (newEnergy > 60 && Math.random() < 0.1) {
+                                    const products = [CELL_TYPES.FOOD, CELL_TYPES.CRYSTAL, CELL_TYPES.SHELL];
+                                    spawnResourceNearby(x, y, z, products[Math.floor(Math.random() * products.length)]);
+                                }
+                            }
+                            
+                            // === TIER 9: ADVANCED ===
+                            if (cell.type === CELL_TYPES.PHOTON) {
+                                survives = true;
+                                // Move randomly (simulated by decaying and respawning)
+                                newEnergy -= 3;
+                                // Power producers
+                                if (byType[CELL_TYPES.PRODUCER] > 0) {
+                                    boostNeighbors(x, y, z, CELL_TYPES.PRODUCER);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.CRYSTAL) {
+                                survives = count >= 1 && count <= 6;
+                                // Store and release energy
+                                if (newEnergy < 100) newEnergy += 2; // Self-charge
+                                // Share energy with allies
+                                if (newEnergy > 80) {
+                                    shareEnergy(x, y, z, cell.team);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.NANITE) {
+                                survives = count >= 2 && count <= 5;
+                                // Self-repair
+                                newEnergy += 3;
+                                // Repair damaged structures
+                                repairStructures(x, y, z);
+                            }
+                            
+                            if (cell.type === CELL_TYPES.QUANTUM) {
+                                survives = Math.random() > 0.1; // Phase instability
+                                // Quantum effects
+                                if (Math.random() < 0.05) {
+                                    quantumJump(x, y, z);
+                                }
+                            }
+                            
+                            // === TIER 10: CIVILIZATION ===
+                            if (cell.type === CELL_TYPES.HOUSE) {
+                                survives = count >= 2 && count <= 4;
+                                // Shelter for standard cells
+                                if (byType[CELL_TYPES.STANDARD] > 0) {
+                                    newEnergy += byType[CELL_TYPES.STANDARD] * 2;
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.FARM) {
+                                survives = count >= 1 && count <= 4;
+                                // Produce food
+                                if (newEnergy > 40 && Math.random() < 0.2) {
+                                    spawnResourceNearby(x, y, z, CELL_TYPES.FOOD);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.LAB) {
+                                survives = count >= 2 && count <= 4;
+                                // Research - create advanced cells
+                                if (newEnergy > 70 && Math.random() < 0.1) {
+                                    const discoveries = [CELL_TYPES.NANITE, CELL_TYPES.QUANTUM, CELL_TYPES.STEM];
+                                    spawnNearby(x, y, z, discoveries[Math.floor(Math.random() * discoveries.length)], cell.team);
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.TEMPLE) {
+                                survives = count >= 3 && count <= 5;
+                                // Religious power - boosts nearby allies
+                                if (friends > 0) {
+                                    blessNeighbors(x, y, z, cell.team);
+                                }
+                            }
+                            
+                            // === TIER 11: ELEMENTS ===
+                            if (cell.type === CELL_TYPES.FIRE) {
+                                survives = count >= 1 && count <= 4;
+                                // Spread to neighbors
+                                if (Math.random() < 0.3) {
+                                    igniteNeighbors(x, y, z);
+                                }
+                                // Burn fuel
+                                if (byType[CELL_TYPES.FOOD] > 0 || byType[CELL_TYPES.OXYGEN] > 0) {
+                                    newEnergy += 10;
+                                } else {
+                                    newEnergy -= 5; // Starve without fuel
+                                }
+                            }
+                            
+                            if (cell.type === CELL_TYPES.ICE) {
+                                survives = count >= 1 && count <= 6;
+                                // Freeze neighbors
+                                freezeNeighbors(x, y, z);
+                                // Melt in heat
+                                if (CONFIG.temperature > 30) newEnergy -= 5;
+                                if (CONFIG.temperature > 50) survives = false;
+                            }
+                            
+                            if (cell.type === CELL_TYPES.ELECTRIC) {
+                                survives = count >= 1 && count <= 3;
+                                // Zap neighbors
+                                zapNeighbors(x, y, z);
+                                newEnergy -= 2;
+                            }
+                            
+                            if (cell.type === CELL_TYPES.ACID) {
+                                survives = count >= 1 && count <= 5;
+                                // Dissolve neighbors
+                                dissolveNeighbors(x, y, z);
+                                // Neutralized by base (water)
+                                if (byType[CELL_TYPES.WATER] > 2) survives = false;
+                            }
+                            
+                            if (cell.type === CELL_TYPES.VOID) {
+                                survives = count >= 1 && count <= 8;
+                                // Destroy everything nearby
+                                annihilateNeighbors(x, y, z);
+                                newEnergy -= 3; // Self-consumption
+                            }
+                            
+                            // === UNIVERSAL RULES ===
+                            
+                            // Environmental death
+                            if (newEnergy <= 0) survives = false;
+                            if (count > 15) survives = false; // Extreme overcrowding
+                            
+                            // Temperature effects
+                            if (CONFIG.temperature < -30 || CONFIG.temperature > 90) {
+                                survives = false; // Extreme death
+                            } else if (CONFIG.temperature < -10 || CONFIG.temperature > 60) {
+                                newEnergy -= 5; // Stress damage
+                            }
+                            
+                            // Radiation mutations
+                            if (CONFIG.radiation > 50 && Math.random() < 0.1) {
+                                newType = CELL_TYPES.MUTANT;
+                            }
+                            
+                            // Reproduction
+                            if (reproduce && newEnergy > 50) {
+                                spawnNearby(x, y, z, cell.type, cell.team);
+                                newEnergy -= 30;
+                            }
+                            
+                            // Virus infection
+                            if (![CELL_TYPES.VIRUS, CELL_TYPES.ANTIBODY, CELL_TYPES.VOID].includes(cell.type)) {
+                                if (byType[CELL_TYPES.VIRUS] > 2 && Math.random() < 0.15) {
+                                    newType = CELL_TYPES.VIRUS;
+                                }
+                            }
+                            
+                            // Toxin damage
+                            if (byType[CELL_TYPES.TOXIN] > 0 && ![CELL_TYPES.TOXIN, CELL_TYPES.VOID].includes(cell.type)) {
+                                newEnergy -= byType[CELL_TYPES.TOXIN] * 3;
+                            }
+                            
+                            if (survives) {
+                                nextGrid[x][y][z] = {
+                                    ...cell,
+                                    type: newType,
+                                    age: cell.age + 1,
+                                    energy: Math.min(100, newEnergy),
+                                    fitness: cell.fitness + 1
+                                };
+                                stats.byType[newType] = (stats.byType[newType] || 0) + 1;
+                            } else {
+                                nextGrid[x][y][z] = null;
+                                stats.died++;
+                                stats.totalDied++;
+                                
+                                // Leave waste when dying
+                                if (Math.random() < 0.3) {
+                                    nextGrid[x][y][z] = createCell(CELL_TYPES.WASTE);
+                                }
+                                
+                                if (CONFIG.showTrails) {
+                                    addTrailParticle(x, y, z, THEMES[CONFIG.currentTheme][cell.type]);
+                                }
+                                
+                                if (CONFIG.soundEnabled && stats.died % 10 === 0) playDeathSound();
+                            }
+                        } else {
+                            // Cell is dead - check birth
+                            let born = false;
+                            let newType = CELL_TYPES.STANDARD;
+                            let newTeam = Math.floor(Math.random() * 4);
+                            
+                            // Standard birth rules
+                            if (count >= 3 && count <= 5) {
+                                born = true;
+                                
+                                // Complex inheritance system
+                                if (byType[CELL_TYPES.PRODUCER] >= 2 && byType[CELL_TYPES.WATER] > 0) {
+                                    newType = CELL_TYPES.PRODUCER;
+                                } else if (byType[CELL_TYPES.CONSUMER] >= 2 && byType[CELL_TYPES.FOOD] > 0) {
+                                    newType = CELL_TYPES.CONSUMER;
+                                } else if (byType[CELL_TYPES.PREDATOR] >= 1 && byType[CELL_TYPES.CONSUMER] > 0) {
+                                    newType = CELL_TYPES.PREDATOR;
+                                } else if (byType[CELL_TYPES.DECOMPOSER] >= 2 && byType[CELL_TYPES.WASTE] > 0) {
+                                    newType = CELL_TYPES.DECOMPOSER;
+                                } else if (byType[CELL_TYPES.QUEEN] > 0 && byType[CELL_TYPES.WORKER] > 0) {
+                                    newType = Math.random() < 0.6 ? CELL_TYPES.WORKER : (Math.random() < 0.7 ? CELL_TYPES.WARRIOR : CELL_TYPES.SCOUT);
+                                    newTeam = findTeamOfType(x, y, z, CELL_TYPES.QUEEN);
+                                } else if (byType[CELL_TYPES.NEST] > 0) {
+                                    newType = CELL_TYPES.WORKER;
+                                    newTeam = findTeamOfType(x, y, z, CELL_TYPES.NEST);
+                                } else if (byType[CELL_TYPES.VIRUS] >= 2) {
+                                    newType = CELL_TYPES.VIRUS;
+                                    born = Math.random() > 0.4;
+                                } else if (byType[CELL_TYPES.BACTERIA] >= 1 && byType[CELL_TYPES.WASTE] > 0) {
+                                    newType = CELL_TYPES.BACTERIA;
+                                } else if (byType[CELL_TYPES.MUTANT] >= 1 && Math.random() < 0.4) {
+                                    newType = CELL_TYPES.MUTANT;
+                                } else if (byType[CELL_TYPES.CRYSTAL] >= 1 && Math.random() < 0.2) {
+                                    newType = CELL_TYPES.CRYSTAL;
+                                } else if (Math.random() < CONFIG.mutationRate) {
+                                    const mutations = [CELL_TYPES.MUTANT, CELL_TYPES.EXPLODER, CELL_TYPES.STEM, CELL_TYPES.RADIOACTIVE];
+                                    newType = mutations[Math.floor(Math.random() * mutations.length)];
+                                }
+                                
+                                // Environmental mutations
+                                if (CONFIG.radiation > 30 && Math.random() < 0.3) {
+                                    newType = CELL_TYPES.RADIOACTIVE;
+                                }
+                                if (Math.abs(CONFIG.temperature) > 40 && Math.random() < 0.2) {
+                                    newType = CELL_TYPES.FIRE;
+                                }
+                                if (CONFIG.temperature < -20 && Math.random() < 0.2) {
+                                    newType = CELL_TYPES.ICE;
+                                }
+                            }
+                            
+                            // Resource spawning
+                            if (byType[CELL_TYPES.FACTORY] > 0 && Math.random() < 0.15) {
+                                born = true;
+                                newType = CELL_TYPES.FOOD;
+                            }
+                            if (byType[CELL_TYPES.FARM] > 0 && byType[CELL_TYPES.WATER] > 0 && Math.random() < 0.3) {
+                                born = true;
+                                newType = CELL_TYPES.FOOD;
+                            }
+                            if (byType[CELL_TYPES.PRODUCER] > 2 && Math.random() < 0.1) {
+                                born = true;
+                                newType = CELL_TYPES.OXYGEN;
+                            }
+                            
+                            // Spontaneous element formation
+                            if (count === 0 && Math.random() < 0.001) {
+                                born = true;
+                                const elements = [CELL_TYPES.FIRE, CELL_TYPES.ICE, CELL_TYPES.ELECTRIC];
+                                newType = elements[Math.floor(Math.random() * elements.length)];
+                            }
+                            
+                            if (born) {
+                                nextGrid[x][y][z] = createCell(newType);
+                                nextGrid[x][y][z].team = newTeam;
+                                stats.born++;
+                                stats.totalBorn++;
+                                
+                                if (CONFIG.soundEnabled && stats.born % 10 === 0) playBirthSound();
+                            } else {
+                                nextGrid[x][y][z] = null;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Swap grids
+            [grid, nextGrid] = [nextGrid, grid];
+            generation++;
+            
+            updateCellMeshes();
+            updateConnections();
+            updateStats();
+            updateCellDistribution();
+            
+            // Random events
+            if (Math.random() < 0.03) triggerRandomEvent();
+            
+            // Season announcements
+            if (generation % 100 === 0) {
+                const seasons = ['🌸 Spring', '☀️ Summer', '🍂 Fall', '❄️ Winter'];
+                logEvent(`${seasons[season]} begins!`, 'major');
+            }
+        }
+        
+        function createExplosion(x, y, z, team) {
+            // Kill neighbors
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dy = -2; dy <= 2; dy++) {
+                    for (let dz = -2; dz <= 2; dz++) {
+                        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) <= 2) {
+                            const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                            const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                            const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                            
+                            if (grid[nx][ny][nz] && grid[nx][ny][nz].team !== team) {
+                                grid[nx][ny][nz] = null;
+                                addTrailParticle(nx, ny, nz, 0xff0000);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            logEvent(`💥 Explosion at (${x},${y},${z})!`, 'catastrophe');
+            if (CONFIG.soundEnabled) playExplosionSound();
+        }
+        
+        function updateConnections() {
+            connectionLines.forEach(line => connectionGroup.remove(line));
+            connectionLines = [];
+            
+            if (!CONFIG.showConnections) return;
+            
+            const material = new THREE.LineBasicMaterial({
+                color: 0x00f5ff,
+                transparent: true,
+                opacity: 0.05
+            });
+            
+            for (let i = 0; i < cellMeshes.length; i += 3) {
+                const mesh = cellMeshes[i];
+                
+                for (let j = i + 1; j < cellMeshes.length && j < i + 8; j++) {
+                    const other = cellMeshes[j];
+                    const dist = mesh.position.distanceTo(other.position);
+                    
+                    if (dist < 2.5) {
+                        const geometry = new THREE.BufferGeometry().setFromPoints([
+                            mesh.position,
+                            other.position
+                        ]);
+                        const line = new THREE.Line(geometry, material);
+                        connectionGroup.add(line);
+                        connectionLines.push(line);
+                    }
+                }
+            }
+        }
+        
+        function addTrailParticle(x, y, z, color) {
+            const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            const material = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                x * CONFIG.spacing,
+                y * CONFIG.spacing,
+                z * CONFIG.spacing
+            );
+            particle.userData = { life: 40, velocity: new THREE.Vector3(
+                (Math.random() - 0.5) * 0.05,
+                (Math.random() - 0.5) * 0.05,
+                (Math.random() - 0.5) * 0.05
+            )};
+            trailGroup.add(particle);
+            trailParticles.push(particle);
+        }
+        
+        function updateTrails() {
+            for (let i = trailParticles.length - 1; i >= 0; i--) {
+                const p = trailParticles[i];
+                p.userData.life--;
+                p.material.opacity = p.userData.life / 40 * 0.6;
+                p.position.add(p.userData.velocity);
+                p.scale.multiplyScalar(0.97);
+                p.rotation.x += 0.05;
+                p.rotation.y += 0.05;
+                
+                if (p.userData.life <= 0) {
+                    trailGroup.remove(p);
+                    trailParticles.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateStats() {
+            stats.alive = cellMeshes.length;
+            if (stats.alive > stats.maxPopulation) stats.maxPopulation = stats.alive;
+            
+            document.getElementById('gen-count').textContent = generation;
+            document.getElementById('alive-count').textContent = stats.alive;
+            document.getElementById('born-count').textContent = stats.born;
+            document.getElementById('died-count').textContent = stats.died;
+            document.getElementById('total-pop').textContent = CONFIG.gridSize ** 3;
+            
+            const totalCells = CONFIG.gridSize ** 3;
+            const stability = Math.floor((stats.alive / totalCells) * 100);
+            document.getElementById('stability').textContent = stability + '%';
+            stats.stabilityScore = stability;
+            
+            populationHistory.push(stats.alive);
+            if (populationHistory.length > 150) populationHistory.shift();
+            drawPopulationChart();
+        }
+        
+        function updateCellDistribution() {
+            const container = document.getElementById('cell-distribution');
+            const theme = THEMES[CONFIG.currentTheme];
+            
+            const typeNames = {
+                [CELL_TYPES.STANDARD]: 'Standard',
+                [CELL_TYPES.PRODUCER]: 'Producer',
+                [CELL_TYPES.CONSUMER]: 'Consumer',
+                [CELL_TYPES.DECOMPOSER]: 'Decomposer',
+                [CELL_TYPES.PREDATOR]: 'Predator',
+                [CELL_TYPES.APEX]: 'Apex',
+                [CELL_TYPES.PARASITE]: 'Parasite',
+                [CELL_TYPES.MUTANT]: 'Mutant',
+                [CELL_TYPES.RADIOACTIVE]: 'Radioactive',
+                [CELL_TYPES.CHIMERA]: 'Chimera',
+                [CELL_TYPES.VIRUS]: 'Virus',
+                [CELL_TYPES.BACTERIA]: 'Bacteria',
+                [CELL_TYPES.ANTIBODY]: 'Antibody',
+                [CELL_TYPES.CANCER]: 'Cancer',
+                [CELL_TYPES.STEM]: 'Stem',
+                [CELL_TYPES.QUEEN]: 'Queen',
+                [CELL_TYPES.WORKER]: 'Worker',
+                [CELL_TYPES.WARRIOR]: 'Warrior',
+                [CELL_TYPES.SCOUT]: 'Scout',
+                [CELL_TYPES.EXPLODER]: 'Exploder',
+                [CELL_TYPES.SHELL]: 'Shell',
+                [CELL_TYPES.TRAP]: 'Trap',
+                [CELL_TYPES.MINEFIELD]: 'Minefield',
+                [CELL_TYPES.FOOD]: 'Food',
+                [CELL_TYPES.WATER]: 'Water',
+                [CELL_TYPES.OXYGEN]: 'Oxygen',
+                [CELL_TYPES.TOXIN]: 'Toxin',
+                [CELL_TYPES.WASTE]: 'Waste',
+                [CELL_TYPES.WALL]: 'Wall',
+                [CELL_TYPES.PORTAL]: 'Portal',
+                [CELL_TYPES.NEST]: 'Nest',
+                [CELL_TYPES.FACTORY]: 'Factory',
+                [CELL_TYPES.PHOTON]: 'Photon',
+                [CELL_TYPES.CRYSTAL]: 'Crystal',
+                [CELL_TYPES.NANITE]: 'Nanite',
+                [CELL_TYPES.QUANTUM]: 'Quantum',
+                [CELL_TYPES.HOUSE]: 'House',
+                [CELL_TYPES.FARM]: 'Farm',
+                [CELL_TYPES.LAB]: 'Lab',
+                [CELL_TYPES.TEMPLE]: 'Temple',
+                [CELL_TYPES.FIRE]: 'Fire',
+                [CELL_TYPES.ICE]: 'Ice',
+                [CELL_TYPES.ELECTRIC]: 'Electric',
+                [CELL_TYPES.ACID]: 'Acid',
+                [CELL_TYPES.VOID]: 'Void'
+            };
+            
+            let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">';
+            
+            // Show top used cell types
+            const displayTypes = [1,2,3,4,5,6,7,8,11,12,13,16,17,18,20,24,25,29,41,42,43];
+            let count = 0;
+            
+            for (const type of displayTypes) {
+                if (theme[type] && count < 12) {
+                    const cellCount = stats.byType[type] || 0;
+                    if (cellCount > 0 || count < 8) {
+                        const hexColor = '#' + theme[type].toString(16).padStart(6, '0');
+                        
+                        html += `
+                            <div class="legend-item" style="padding:2px 4px;font-size:9px;">
+                                <div class="legend-color" style="background: ${hexColor};width:10px;height:10px;"></div>
+                                <span>${typeNames[type] || 'Type '+type}</span>
+                                <span class="legend-count" style="font-size:10px;">${cellCount}</span>
+                            </div>
+                        `;
+                        count++;
+                    }
+                }
+            }
+            
+            html += '</div>';
+            
+            if (count === 0) {
+                html = '<div class="legend-item"><span>No cells yet - click a preset!</span></div>';
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function drawPopulationChart() {
+            const canvas = document.getElementById('population-chart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (populationHistory.length < 2) return;
+            
+            const max = Math.max(...populationHistory, 100);
+            const min = Math.min(...populationHistory, 0);
+            const range = max - min || 1;
+            
+            // Draw multiple data lines
+            const colors = ['#00f5ff', '#ff00ff', '#00ff88'];
+            
+            // Main population line
+            ctx.beginPath();
+            ctx.strokeStyle = colors[0];
+            ctx.lineWidth = 2;
+            
+            populationHistory.forEach((val, i) => {
+                const x = (i / (populationHistory.length - 1)) * canvas.width;
+                const y = canvas.height - ((val - min) / range) * canvas.height;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            
+            ctx.stroke();
+            
+            // Fill area
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, 'rgba(0, 245, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 245, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+        }
+        
+        // Controls
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('play-pause-btn');
+            btn.innerHTML = isPlaying ? '⏸ PAUSE' : '▶ PLAY';
+            btn.classList.toggle('active', isPlaying);
+        }
+        
+        function step() {
+            computeNextGeneration();
+        }
+        
+        function clearGrid() {
+            // Actually clear the grid, not just recreate
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        grid[x][y][z] = null;
+                        nextGrid[x][y][z] = null;
+                    }
+                }
+            }
+            
+            // Clear visual meshes
+            cellMeshes.forEach(mesh => {
+                cellGroup.remove(mesh);
+                mesh.geometry.dispose();
+                mesh.material.dispose();
+            });
+            cellMeshes = [];
+            
+            // Clear trails
+            trailParticles.forEach(p => trailGroup.remove(p));
+            trailParticles = [];
+            
+            // Clear connections
+            connectionLines.forEach(line => connectionGroup.remove(line));
+            connectionLines = [];
+            
+            generation = 0;
+            populationHistory = [];
+            eventHistory = [];
+            stats = { alive: 0, born: 0, died: 0, byType: {}, maxPopulation: 0, totalBorn: 0, totalDied: 0, stabilityScore: 0 };
+            
+            updateStats();
+            updateCellDistribution();
+            logEvent('🗑️ Grid cleared completely', 'normal');
+        }
+        
+        function updateSpeed(value) {
+            CONFIG.simulationSpeed = parseInt(value);
+            frameInterval = 1000 / CONFIG.simulationSpeed;
+            document.getElementById('speed-display').textContent = value + ' FPS';
+        }
+        
+        function updateZoom(value) {
+            CONFIG.zoomScale = parseFloat(value);
+            document.getElementById('zoom-display').textContent = value + 'x';
+            updateCellMeshes();
+        }
+        
+        function updateGridSize(value) {
+            CONFIG.gridSize = parseInt(value);
+            document.getElementById('size-display').textContent = value + '³';
+            createGrid();
+        }
+        
+        function updateDensity(value) {
+            CONFIG.initialDensity = value / 100;
+            document.getElementById('density-display').textContent = value + '%';
+        }
+        
+        function updateTemperature(value) {
+            CONFIG.temperature = parseInt(value);
+            document.getElementById('temp-display').textContent = value + '°C';
+        }
+        
+        function updateRadiation(value) {
+            CONFIG.radiation = parseInt(value);
+            document.getElementById('radiation-display').textContent = value + '%';
+        }
+        
+        function updateHumidity(value) {
+            CONFIG.humidity = parseInt(value);
+            document.getElementById('humidity-display').textContent = value + '%';
+        }
+        
+        function updateMutationRate(value) {
+            CONFIG.mutationRate = parseInt(value) / 100;
+            document.getElementById('mutation-display').textContent = value + '%';
+        }
+        
+        function changeTheme(theme) {
+            CONFIG.currentTheme = theme;
+            updateCellMeshes();
+        }
+        
+        function toggleConnections() {
+            CONFIG.showConnections = document.getElementById('show-connections').checked;
+            updateConnections();
+        }
+        
+        function toggleTrails() {
+            CONFIG.showTrails = document.getElementById('show-trails').checked;
+        }
+        
+        function toggleEnergy() {
+            CONFIG.showEnergy = document.getElementById('show-energy').checked;
+            updateCellMeshes();
+        }
+        
+        function toggleAutoRotate() {
+            CONFIG.autoRotate = document.getElementById('auto-rotate').checked;
+            controls.autoRotate = CONFIG.autoRotate;
+        }
+        
+        function toggleBloom() {
+            CONFIG.bloomEffect = document.getElementById('bloom-effect').checked;
+            // Bloom disabled - post-processing removed for compatibility
+        }
+        
+        function toggleSound() {
+            CONFIG.soundEnabled = document.getElementById('sound-enabled').checked;
+            if (CONFIG.soundEnabled && !audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        function togglePaintMode() {
+            CONFIG.paintMode = !CONFIG.paintMode;
+            document.body.style.cursor = CONFIG.paintMode ? 'crosshair' : 'default';
+            showNotification(CONFIG.paintMode ? 'Paint mode ON - Click to toggle cells' : 'Paint mode OFF', 'info');
+        }
+        
+        function toggleDimension() {
+            CONFIG.dimension = CONFIG.dimension === 3 ? 4 : 3;
+            document.getElementById('dimension-badge').textContent = CONFIG.dimension + 'D HYPER';
+            showNotification(`Switched to ${CONFIG.dimension}D mode`, 'info');
+        }
+        
+        function toggleBattleMode() {
+            CONFIG.battleMode = !CONFIG.battleMode;
+            showNotification(CONFIG.battleMode ? '⚔️ Battle Mode activated!' : 'Battle Mode deactivated', 'info');
+        }
+        
+        // Pattern spawners
+        function spawnPattern(pattern) {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            const cy = Math.floor(CONFIG.gridSize / 2);
+            const cz = Math.floor(CONFIG.gridSize / 2);
+            
+            const patterns = {
+                glider: [[0,1,0],[0,0,1],[1,1,1]],
+                pulsar: [
+                    [0,0,1,1,1,0,0,0,1,1,1,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [1,0,0,0,0,1,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,1,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,1,0,1,0,0,0,0,1],
+                    [0,0,1,1,1,0,0,0,1,1,1,0,0]
+                ],
+                gosper: [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1]
+                ],
+                spaceship: [[1,0,0,1,0],[0,0,0,0,1],[1,0,0,0,1],[0,1,1,1,1]],
+                diehard: [[0,0,0,0,0,0,1,0],[1,1,0,0,0,0,0,0],[0,1,0,0,0,1,1,1]],
+                acorn: [[0,1,0,0,0,0,0],[0,0,0,1,0,0,0],[1,1,0,0,1,1,1]],
+                rpentomino: [[0,1,1],[1,1,0],[0,1,0]],
+                hammerhead: [
+                    [0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0],
+                    [0,0,0,1,1,1,0,0,0,0,0,0,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,0,0,0,0,1,1,1,1,1,0,0]
+                ],
+                koksgalaxy: [
+                    [0,0,0,0,0,0,1,1,0,0,0,0],
+                    [0,0,0,0,0,0,1,1,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0],
+                    [1,1,0,0,0,0,0,0,0,0,1,1],
+                    [1,1,0,0,0,0,0,0,0,0,1,1]
+                ],
+                simkinglidergun: [
+                    [1,1,0,0,0,1,1],[1,1,0,0,0,1,1],[0,0,0,0,0,0,0],[0,0,0,1,0,0,0],[0,0,0,0,0,0,0]
+                ],
+                puffertrain: [
+                    [1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1]
+                ],
+                puffer: [
+                    [1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1]
+                ]
+            };
+            
+            const p = patterns[pattern];
+            if (!p) return;
+            
+            // Place pattern
+            for (let y = 0; y < p.length; y++) {
+                for (let x = 0; x < p[y].length; x++) {
+                    if (p[y][x]) {
+                        const px = cx + x - Math.floor(p[y].length / 2);
+                        const py = cy + y - Math.floor(p.length / 2);
+                        if (px >= 0 && px < CONFIG.gridSize && py >= 0 && py < CONFIG.gridSize) {
+                            grid[px][py][cz] = createCell(CELL_TYPES.STANDARD);
+                        }
+                    }
+                }
+            }
+            
+            updateCellMeshes();
+            updateStats();
+            logEvent(`Spawned ${pattern} pattern`, 'normal');
+        }
+        
+        function loadPreset(preset) {
+            clearGrid();
+            
+            const presets = {
+                bigbang: createBigBang,
+                galaxy: createSpiralGalaxy,
+                neural: createNeuralNetwork,
+                crystal: createCrystal,
+                dna: createDNA,
+                coral: createCoral,
+                warzone: createWarZone,
+                forest: createForest,
+                virus: createPandemic,
+                city: createMetropolis,
+                mandala: createMandala,
+                chaos: createChaos,
+                ecosystem: createEcosystem,
+                volcano: createVolcano,
+                quantumlab: createQuantumLab,
+                acidrain: createAcidRain,
+                hivemind: createHiveMind,
+                terminator: createTerminator
+            };
+            
+            if (presets[preset]) {
+                presets[preset]();
+                logEvent(`Loaded ${preset} preset`, 'major');
+            }
+            
+            updateCellMeshes();
+            updateStats();
+        }
+        
+        // Preset creation functions
+        function createBigBang() {
+            const cx = CONFIG.gridSize / 2;
+            for (let i = 0; i < 8000; i++) {
+                const r = Math.random() * 4;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const x = Math.floor(cx + r * Math.sin(phi) * Math.cos(theta));
+                const y = Math.floor(cx + r * Math.sin(phi) * Math.sin(theta));
+                const z = Math.floor(cx + r * Math.cos(phi));
+                
+                if (isValid(x, y, z)) {
+                    const rand = Math.random();
+                    let type = CELL_TYPES.STANDARD;
+                    if (rand > 0.9) type = CELL_TYPES.PRODUCER;
+                    else if (rand > 0.8) type = CELL_TYPES.CONSUMER;
+                    else if (rand > 0.75) type = CELL_TYPES.PREDATOR;
+                    
+                    grid[x][y][z] = createCell(type);
+                }
+            }
+        }
+        
+        function createSpiralGalaxy() {
+            const cx = CONFIG.gridSize / 2;
+            for (let i = 0; i < 2000; i++) {
+                const angle = i * 0.15;
+                const radius = i * 0.05;
+                const x = Math.floor(cx + Math.cos(angle) * radius);
+                const y = Math.floor(cx + Math.sin(angle) * radius);
+                const z = Math.floor(cx + (Math.random() - 0.5) * 3);
+                
+                if (isValid(x, y, z)) {
+                    grid[x][y][z] = createCell(Math.random() > 0.7 ? CELL_TYPES.PRODUCER : CELL_TYPES.STANDARD);
+                }
+            }
+        }
+        
+        function createNeuralNetwork() {
+            const layers = 6;
+            const nodesPerLayer = 25;
+            
+            for (let l = 0; l < layers; l++) {
+                const z = Math.floor((l / (layers - 1)) * (CONFIG.gridSize - 10)) + 5;
+                
+                for (let n = 0; n < nodesPerLayer; n++) {
+                    const angle = (n / nodesPerLayer) * Math.PI * 2;
+                    const radius = 10;
+                    const x = Math.floor(CONFIG.gridSize / 2 + Math.cos(angle) * radius);
+                    const y = Math.floor(CONFIG.gridSize / 2 + Math.sin(angle) * radius);
+                    
+                    if (isValid(x, y, z)) {
+                        grid[x][y][z] = createCell(CELL_TYPES.MUTANT);
+                    }
+                }
+            }
+        }
+        
+        function createCrystal() {
+            const cx = CONFIG.gridSize / 2;
+            for (let x = 0; x < CONFIG.gridSize; x++) {
+                for (let y = 0; y < CONFIG.gridSize; y++) {
+                    for (let z = 0; z < CONFIG.gridSize; z++) {
+                        const dx = x - cx;
+                        const dy = y - cx;
+                        const dz = z - cx;
+                        const dist = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+                        
+                        if (dist < 10 && dist % 2 === 0) {
+                            grid[x][y][z] = createCell(CELL_TYPES.CONSUMER);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function createDNA() {
+            const cx = CONFIG.gridSize / 2;
+            const cy = CONFIG.gridSize / 2;
+            
+            for (let z = 0; z < CONFIG.gridSize; z++) {
+                const t = z * 0.3;
+                const x1 = Math.floor(cx + Math.cos(t) * 5);
+                const y1 = Math.floor(cy + Math.sin(t) * 5);
+                const x2 = Math.floor(cx + Math.cos(t + Math.PI) * 5);
+                const y2 = Math.floor(cy + Math.sin(t + Math.PI) * 5);
+                
+                if (isValid(x1, y1, z)) grid[x1][y1][z] = createCell(CELL_TYPES.STEM);
+                if (isValid(x2, y2, z)) grid[x2][y2][z] = createCell(CELL_TYPES.STEM);
+            }
+        }
+        
+        function createCoral() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            const cy = 5;
+            const cz = Math.floor(CONFIG.gridSize / 2);
+            
+            for (let i = 0; i < 800; i++) {
+                let x = cx, y = cy, z = cz;
+                
+                for (let j = 0; j < 25; j++) {
+                    if (isValid(x, y, z)) {
+                        grid[x][y][z] = createCell(Math.random() > 0.8 ? CELL_TYPES.PREDATOR : CELL_TYPES.STANDARD);
+                    }
+                    x += Math.floor(Math.random() * 3) - 1;
+                    y += Math.floor(Math.random() * 2);
+                    z += Math.floor(Math.random() * 3) - 1;
+                }
+            }
+        }
+        
+        function createWarZone() {
+            const teams = 4;
+            const section = CONFIG.gridSize / teams;
+            
+            for (let t = 0; t < teams; t++) {
+                const baseX = Math.floor(t * section + section / 2);
+                const baseY = Math.floor(CONFIG.gridSize / 2);
+                const baseZ = Math.floor(CONFIG.gridSize / 2);
+                
+                // Create army
+                for (let i = 0; i < 200; i++) {
+                    const x = baseX + Math.floor((Math.random() - 0.5) * 8);
+                    const y = baseY + Math.floor((Math.random() - 0.5) * 8);
+                    const z = baseZ + Math.floor((Math.random() - 0.5) * 8);
+                    
+                    if (isValid(x, y, z)) {
+                        const cell = createCell(Math.random() > 0.7 ? CELL_TYPES.WARRIOR : CELL_TYPES.WORKER);
+                        cell.team = t;
+                        grid[x][y][z] = cell;
+                    }
+                }
+                
+                // Place queen
+                const queen = createCell(CELL_TYPES.QUEEN);
+                queen.team = t;
+                grid[baseX][baseY][baseZ] = queen;
+            }
+        }
+        
+        function createForest() {
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                
+                // Grow tree
+                let y = 0;
+                while (y < CONFIG.gridSize && Math.random() > 0.3) {
+                    if (isValid(x, y, z)) {
+                        grid[x][y][z] = createCell(CELL_TYPES.PRODUCER);
+                    }
+                    y++;
+                    
+                    // Branches
+                    if (y > 5 && Math.random() > 0.7) {
+                        const bx = x + Math.floor((Math.random() - 0.5) * 3);
+                        const bz = z + Math.floor((Math.random() - 0.5) * 3);
+                        if (isValid(bx, y, bz)) {
+                            grid[bx][y][bz] = createCell(CELL_TYPES.PRODUCER);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function createPandemic() {
+            // Start with healthy population
+            for (let i = 0; i < 3000; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                
+                if (isValid(x, y, z)) {
+                    grid[x][y][z] = createCell(CELL_TYPES.STANDARD);
+                }
+            }
+            
+            // Patient zero
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            grid[cx][cx][cx] = createCell(CELL_TYPES.VIRUS);
+            
+            // Some antibodies
+            for (let i = 0; i < 50; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.ANTIBODY);
+                }
+            }
+        }
+        
+        function createMetropolis() {
+            // Buildings
+            for (let i = 0; i < 50; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                const height = 5 + Math.floor(Math.random() * 20);
+                
+                for (let y = 0; y < height; y++) {
+                    if (isValid(x, y, z)) {
+                        grid[x][y][z] = createCell(CELL_TYPES.WALL);
+                    }
+                }
+            }
+            
+            // Roads with traffic
+            for (let i = 0; i < CONFIG.gridSize; i += 4) {
+                for (let j = 0; j < CONFIG.gridSize; j++) {
+                    if (isValid(i, 0, j)) grid[i][0][j] = createCell(CELL_TYPES.STANDARD);
+                    if (isValid(j, 0, i)) grid[j][0][i] = createCell(CELL_TYPES.STANDARD);
+                }
+            }
+        }
+        
+        function createMandala() {
+            const cx = CONFIG.gridSize / 2;
+            const layers = 8;
+            
+            for (let l = 0; l < layers; l++) {
+                const radius = 3 + l * 2;
+                const points = 6 + l * 2;
+                
+                for (let p = 0; p < points; p++) {
+                    const angle = (p / points) * Math.PI * 2;
+                    const x = Math.floor(cx + Math.cos(angle) * radius);
+                    const y = Math.floor(cx + Math.sin(angle) * radius);
+                    
+                    for (let z = 0; z < CONFIG.gridSize; z += 2) {
+                        if (isValid(x, y, z)) {
+                            const types = [CELL_TYPES.STANDARD, CELL_TYPES.PRODUCER, CELL_TYPES.CONSUMER];
+                            grid[x][y][z] = createCell(types[l % 3]);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function createChaos() {
+            for (let i = 0; i < 5000; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                
+                if (isValid(x, y, z)) {
+                    const type = Math.floor(Math.random() * 35) + 1;
+                    grid[x][y][z] = createCell(type);
+                }
+            }
+        }
+        
+        // === NEW COMPLEX PRESETS ===
+        
+        function createEcosystem() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            
+            // Create producers (grass/trees)
+            for (let i = 0; i < 800; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 5);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.PRODUCER);
+            }
+            
+            // Create water sources
+            for (let i = 0; i < 200; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 3);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.WATER);
+            }
+            
+            // Create consumers (herbivores)
+            for (let i = 0; i < 400; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 8);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.CONSUMER);
+            }
+            
+            // Create predators
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.PREDATOR);
+            }
+            
+            // Create decomposers
+            for (let i = 0; i < 150; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 3);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.DECOMPOSER);
+            }
+            
+            // Add oxygen
+            for (let i = 0; i < 300; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = 10 + Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.OXYGEN);
+            }
+        }
+        
+        function createVolcano() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            const cy = 5;
+            const cz = Math.floor(CONFIG.gridSize / 2);
+            
+            // Volcano cone
+            for (let r = 0; r < 10; r++) {
+                for (let y = 0; y < 15 - r; y++) {
+                    const circumference = Math.floor(2 * Math.PI * r);
+                    for (let i = 0; i < circumference; i++) {
+                        const angle = (i / circumference) * Math.PI * 2;
+                        const x = Math.floor(cx + Math.cos(angle) * r);
+                        const z = Math.floor(cz + Math.sin(angle) * r);
+                        if (isValid(x, y, z)) {
+                            grid[x][y][z] = createCell(CELL_TYPES.WALL);
+                        }
+                    }
+                }
+            }
+            
+            // Magma core (fire)
+            for (let i = 0; i < 100; i++) {
+                const x = cx + Math.floor((Math.random() - 0.5) * 6);
+                const y = 2 + Math.floor(Math.random() * 4);
+                const z = cz + Math.floor((Math.random() - 0.5) * 6);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.FIRE);
+            }
+            
+            // Lava flows
+            for (let i = 0; i < 200; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 8 + Math.random() * 8;
+                const x = Math.floor(cx + Math.cos(angle) * dist);
+                const z = Math.floor(cz + Math.sin(angle) * dist);
+                if (isValid(x, 0, z)) grid[x][0][z] = createCell(CELL_TYPES.FIRE);
+            }
+            
+            // Ash and toxins
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = 15 + Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) {
+                    grid[x][y][z] = Math.random() > 0.5 ? createCell(CELL_TYPES.TOXIN) : createCell(CELL_TYPES.WASTE);
+                }
+            }
+        }
+        
+        function createQuantumLab() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            
+            // Lab structure
+            for (let x = cx - 8; x <= cx + 8; x++) {
+                for (let y = 0; y <= 12; y++) {
+                    for (let z = cx - 8; z <= cx + 8; z++) {
+                        if (isValid(x, y, z)) {
+                            // Walls
+                            if (x === cx - 8 || x === cx + 8 || z === cx - 8 || z === cx + 8 || y === 0 || y === 12) {
+                                grid[x][y][z] = createCell(CELL_TYPES.WALL);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Quantum computers
+            for (let i = 0; i < 5; i++) {
+                const qx = cx + (i - 2) * 4;
+                const qz = cx;
+                for (let dy = 1; dy <= 4; dy++) {
+                    if (isValid(qx, dy, qz)) grid[qx][dy][qz] = createCell(CELL_TYPES.QUANTUM);
+                }
+            }
+            
+            // Nanites
+            for (let i = 0; i < 100; i++) {
+                const x = cx + Math.floor((Math.random() - 0.5) * 14);
+                const y = 1 + Math.floor(Math.random() * 10);
+                const z = cx + Math.floor((Math.random() - 0.5) * 14);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.NANITE);
+                }
+            }
+            
+            // Crystal storage
+            for (let i = 0; i < 30; i++) {
+                const x = cx + Math.floor((Math.random() - 0.5) * 12);
+                const y = 1 + Math.floor(Math.random() * 8);
+                const z = cx + Math.floor((Math.random() - 0.5) * 12);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.CRYSTAL);
+                }
+            }
+            
+            // Scientists (standard cells)
+            for (let i = 0; i < 20; i++) {
+                const x = cx + Math.floor((Math.random() - 0.5) * 12);
+                const y = 1 + Math.floor(Math.random() * 10);
+                const z = cx + Math.floor((Math.random() - 0.5) * 12);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.STANDARD);
+                }
+            }
+        }
+        
+        function createAcidRain() {
+            // Toxic clouds
+            for (let i = 0; i < 500; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = 20 + Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.ACID);
+            }
+            
+            // Toxic rain falling
+            for (let i = 0; i < 300; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = 10 + Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.TOXIN);
+            }
+            
+            // Survivors trying to hide
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 3);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) {
+                    const types = [CELL_TYPES.SHELL, CELL_TYPES.WALL, CELL_TYPES.CRYSTAL];
+                    grid[x][y][z] = createCell(types[Math.floor(Math.random() * types.length)]);
+                }
+            }
+            
+            // Some acid pools on ground
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, 0, z)) grid[x][0][z] = createCell(CELL_TYPES.ACID);
+            }
+        }
+        
+        function createHiveMind() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            
+            // Central mega-nest
+            for (let x = cx - 3; x <= cx + 3; x++) {
+                for (let y = 0; y <= 6; y++) {
+                    for (let z = cx - 3; z <= cx + 3; z++) {
+                        if (isValid(x, y, z)) {
+                            grid[x][y][z] = createCell(CELL_TYPES.NEST);
+                            grid[x][y][z].team = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Queen chamber
+            grid[cx][7][cz] = createCell(CELL_TYPES.QUEEN);
+            grid[cx][7][cz].team = 0;
+            
+            // Radiating hive structures
+            for (let r = 5; r < 15; r += 2) {
+                const numNests = Math.floor(r / 2);
+                for (let i = 0; i < numNests; i++) {
+                    const angle = (i / numNests) * Math.PI * 2 + r;
+                    const x = Math.floor(cx + Math.cos(angle) * r);
+                    const z = Math.floor(cz + Math.sin(angle) * r);
+                    if (isValid(x, 0, z)) {
+                        grid[x][0][z] = createCell(CELL_TYPES.NEST);
+                        grid[x][0][z].team = 0;
+                    }
+                }
+            }
+            
+            // Workers everywhere
+            for (let i = 0; i < 800; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 12;
+                const x = Math.floor(cx + Math.cos(angle) * dist);
+                const y = Math.floor(Math.random() * 8);
+                const z = Math.floor(cz + Math.sin(angle) * dist);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.WORKER);
+                    grid[x][y][z].team = 0;
+                }
+            }
+            
+            // Warriors on perimeter
+            for (let i = 0; i < 200; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 12 + Math.random() * 4;
+                const x = Math.floor(cx + Math.cos(angle) * dist);
+                const y = Math.floor(Math.random() * 5);
+                const z = Math.floor(cz + Math.sin(angle) * dist);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.WARRIOR);
+                    grid[x][y][z].team = 0;
+                }
+            }
+            
+            // Scouts
+            for (let i = 0; i < 50; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 15);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.SCOUT);
+                    grid[x][y][z].team = 0;
+                }
+            }
+        }
+        
+        function createTerminator() {
+            const cx = Math.floor(CONFIG.gridSize / 2);
+            
+            // Void nodes (destroyers)
+            for (let i = 0; i < 20; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z)) grid[x][y][z] = createCell(CELL_TYPES.VOID);
+            }
+            
+            // Minefields
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.MINEFIELD);
+                }
+            }
+            
+            // Traps
+            for (let i = 0; i < 150; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, 0, z) && !grid[x][0][z]) {
+                    grid[x][0][z] = createCell(CELL_TYPES.TRAP);
+                }
+            }
+            
+            // Shells (heavily armored)
+            for (let i = 0; i < 50; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 10);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.SHELL);
+                }
+            }
+            
+            // Exploders (suicide units)
+            for (let i = 0; i < 100; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 15);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.EXPLODER);
+                }
+            }
+            
+            // Some life trying to survive
+            for (let i = 0; i < 50; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * 20);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                if (isValid(x, y, z) && !grid[x][y][z]) {
+                    grid[x][y][z] = createCell(CELL_TYPES.STEM);
+                }
+            }
+        }
+        
+        function isValid(x, y, z) {
+            return x >= 0 && x < CONFIG.gridSize &&
+                   y >= 0 && y < CONFIG.gridSize &&
+                   z >= 0 && z < CONFIG.gridSize;
+        }
+        
+        function spawnRandomMutation() {
+            const x = Math.floor(Math.random() * CONFIG.gridSize);
+            const y = Math.floor(Math.random() * CONFIG.gridSize);
+            const z = Math.floor(Math.random() * CONFIG.gridSize);
+            
+            if (isValid(x, y, z)) {
+                const mutations = [CELL_TYPES.MUTANT, CELL_TYPES.EXPLODER, CELL_TYPES.VIRUS, CELL_TYPES.CANCER, CELL_TYPES.STEM];
+                const type = mutations[Math.floor(Math.random() * mutations.length)];
+                grid[x][y][z] = createCell(type);
+                updateCellMeshes();
+                updateStats();
+                logEvent(`🧬 Mutation spawned: ${type}`, 'major');
+            }
+        }
+        
+        function spawnFoodSource() {
+            for (let i = 0; i < 20; i++) {
+                const x = Math.floor(Math.random() * CONFIG.gridSize);
+                const y = Math.floor(Math.random() * CONFIG.gridSize);
+                const z = Math.floor(Math.random() * CONFIG.gridSize);
+                
+                if (isValid(x, y, z)) {
+                    grid[x][y][z] = createCell(CELL_TYPES.FOOD);
+                }
+            }
+            updateCellMeshes();
+            updateStats();
+            logEvent('🍖 Food sources spawned', 'normal');
+        }
+        
+        function spawnAsteroid() {
+            const cx = Math.floor(Math.random() * CONFIG.gridSize);
+            const cy = Math.floor(Math.random() * CONFIG.gridSize);
+            const cz = Math.floor(Math.random() * CONFIG.gridSize);
+            
+            // Clear area
+            for (let dx = -3; dx <= 3; dx++) {
+                for (let dy = -3; dy <= 3; dy++) {
+                    for (let dz = -3; dz <= 3; dz++) {
+                        const x = (cx + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const y = (cy + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const z = (cz + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        grid[x][y][z] = null;
+                    }
+                }
+            }
+            
+            updateCellMeshes();
+            logEvent(`☄️ Asteroid impact at (${cx},${cy},${cz})!`, 'catastrophe');
+        }
+        
+        function triggerEvent() {
+            const events = [
+                { name: 'Solar Flare', effect: () => { CONFIG.radiation = Math.min(100, CONFIG.radiation + 30); setTimeout(() => CONFIG.radiation = Math.max(0, CONFIG.radiation - 30), 5000); } },
+                { name: 'Ice Age', effect: () => { CONFIG.temperature = -40; setTimeout(() => CONFIG.temperature = 20, 8000); } },
+                { name: 'Heat Wave', effect: () => { CONFIG.temperature = 90; setTimeout(() => CONFIG.temperature = 20, 8000); } },
+                { name: 'Mutation Surge', effect: () => { CONFIG.mutationRate = 0.5; setTimeout(() => CONFIG.mutationRate = 0.05, 10000); } }
+            ];
+            
+            const event = events[Math.floor(Math.random() * events.length)];
+            event.effect();
+            logEvent(`🌋 ${event.name} triggered!`, 'catastrophe');
+        }
+        
+        // === COMPLEX INTERACTION HELPERS ===
+        
+        function consumeResource(x, y, z, resourceType) {
+            // Find and consume a nearby resource
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].type === resourceType) {
+                            grid[nx][ny][nz] = null;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function spawnResourceNearby(x, y, z, resourceType) {
+            const dx = Math.floor(Math.random() * 3) - 1;
+            const dy = Math.floor(Math.random() * 3) - 1;
+            const dz = Math.floor(Math.random() * 3) - 1;
+            
+            const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+            const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+            const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+            
+            if (!grid[nx][ny][nz]) {
+                grid[nx][ny][nz] = createCell(resourceType);
+            }
+        }
+        
+        function spawnNearby(x, y, z, cellType, team) {
+            for (let attempts = 0; attempts < 10; attempts++) {
+                const dx = Math.floor(Math.random() * 5) - 2;
+                const dy = Math.floor(Math.random() * 5) - 2;
+                const dz = Math.floor(Math.random() * 5) - 2;
+                
+                const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                
+                if (!grid[nx][ny][nz]) {
+                    grid[nx][ny][nz] = createCell(cellType);
+                    grid[nx][ny][nz].team = team;
+                    return;
+                }
+            }
+        }
+        
+        function damageNeighbors(x, y, z, damage) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz]) {
+                            grid[nx][ny][nz].energy -= damage;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function mutateNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && Math.random() < 0.3) {
+                            grid[nx][ny][nz] = createCell(CELL_TYPES.MUTANT);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function irradiateNeighbors(x, y, z) {
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dy = -2; dy <= 2; dy++) {
+                    for (let dz = -2; dz <= 2; dz++) {
+                        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) > 2) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && Math.random() < 0.2) {
+                            grid[nx][ny][nz].energy -= 10;
+                            if (Math.random() < 0.1) {
+                                grid[nx][ny][nz] = createCell(CELL_TYPES.MUTANT);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function infectNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && 
+                            ![CELL_TYPES.VIRUS, CELL_TYPES.ANTIBODY, CELL_TYPES.VOID].includes(grid[nx][ny][nz].type)) {
+                            if (Math.random() < 0.3) {
+                                grid[nx][ny][nz] = createCell(CELL_TYPES.VIRUS);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function spreadVirus(x, y, z) {
+            const dx = Math.floor(Math.random() * 5) - 2;
+            const dy = Math.floor(Math.random() * 5) - 2;
+            const dz = Math.floor(Math.random() * 5) - 2;
+            
+            const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+            const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+            const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+            
+            if (!grid[nx][ny][nz]) {
+                grid[nx][ny][nz] = createCell(CELL_TYPES.VIRUS);
+            }
+        }
+        
+        function purgeDisease(x, y, z, diseaseType) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].type === diseaseType) {
+                            grid[nx][ny][nz] = null;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function convertNeighbors(x, y, z, toType) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && Math.random() < 0.2) {
+                            grid[nx][ny][nz] = createCell(toType);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function healNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz]) {
+                            grid[nx][ny][nz].energy = Math.min(100, grid[nx][ny][nz].energy + 10);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function attackEnemies(x, y, z, team) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].team !== team) {
+                            grid[nx][ny][nz].energy -= 20;
+                            if (grid[nx][ny][nz].energy <= 0) {
+                                grid[nx][ny][nz] = null;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function trapNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && 
+                            [CELL_TYPES.STANDARD, CELL_TYPES.CONSUMER].includes(grid[nx][ny][nz].type)) {
+                            grid[nx][ny][nz].energy -= 30;
+                            grid[nx][ny][nz].type = CELL_TYPES.WASTE;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function teleportRandomCell(x, y, z) {
+            // Find a random cell and teleport it
+            let attempts = 0;
+            while (attempts < 20) {
+                const tx = Math.floor(Math.random() * CONFIG.gridSize);
+                const ty = Math.floor(Math.random() * CONFIG.gridSize);
+                const tz = Math.floor(Math.random() * CONFIG.gridSize);
+                
+                if (grid[tx][ty][tz] && (tx !== x || ty !== y || tz !== z)) {
+                    // Find destination
+                    const dx = Math.floor(Math.random() * CONFIG.gridSize);
+                    const dy = Math.floor(Math.random() * CONFIG.gridSize);
+                    const dz = Math.floor(Math.random() * CONFIG.gridSize);
+                    
+                    if (!grid[dx][dy][dz]) {
+                        grid[dx][dy][dz] = grid[tx][ty][tz];
+                        grid[tx][ty][tz] = null;
+                        return;
+                    }
+                }
+                attempts++;
+            }
+        }
+        
+        function boostNeighbors(x, y, z, targetType) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].type === targetType) {
+                            grid[nx][ny][nz].energy = Math.min(100, grid[nx][ny][nz].energy + 15);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function shareEnergy(x, y, z, team) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].team === team) {
+                            grid[nx][ny][nz].energy = Math.min(100, grid[nx][ny][nz].energy + 10);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function repairStructures(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && 
+                            [CELL_TYPES.WALL, CELL_TYPES.HOUSE, CELL_TYPES.FACTORY].includes(grid[nx][ny][nz].type)) {
+                            grid[nx][ny][nz].energy = Math.min(100, grid[nx][ny][nz].energy + 20);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function quantumJump(x, y, z) {
+            // Random teleportation
+            const nx = Math.floor(Math.random() * CONFIG.gridSize);
+            const ny = Math.floor(Math.random() * CONFIG.gridSize);
+            const nz = Math.floor(Math.random() * CONFIG.gridSize);
+            
+            if (!grid[nx][ny][nz]) {
+                grid[nx][ny][nz] = grid[x][y][z];
+                grid[x][y][z] = null;
+            }
+        }
+        
+        function blessNeighbors(x, y, z, team) {
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dy = -2; dy <= 2; dy++) {
+                    for (let dz = -2; dz <= 2; dz++) {
+                        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) > 2) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].team === team) {
+                            grid[nx][ny][nz].energy = Math.min(100, grid[nx][ny][nz].energy + 5);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function igniteNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && 
+                            [CELL_TYPES.PRODUCER, CELL_TYPES.FOOD, CELL_TYPES.OXYGEN].includes(grid[nx][ny][nz].type)) {
+                            if (Math.random() < 0.4) {
+                                grid[nx][ny][nz] = createCell(CELL_TYPES.FIRE);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function freezeNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz]) {
+                            grid[nx][ny][nz].energy -= 5;
+                            if (grid[nx][ny][nz].type === CELL_TYPES.WATER && Math.random() < 0.5) {
+                                grid[nx][ny][nz] = createCell(CELL_TYPES.ICE);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function zapNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && Math.random() < 0.3) {
+                            grid[nx][ny][nz].energy -= 25;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function dissolveNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && 
+                            ![CELL_TYPES.ACID, CELL_TYPES.VOID].includes(grid[nx][ny][nz].type)) {
+                            grid[nx][ny][nz].energy -= 15;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function annihilateNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].type !== CELL_TYPES.VOID) {
+                            grid[nx][ny][nz] = null;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function poisonNeighbors(x, y, z) {
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        if (dx === 0 && dy === 0 && dz === 0) continue;
+                        
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].type !== CELL_TYPES.TOXIN) {
+                            grid[nx][ny][nz].energy -= 8;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function findTeamOfType(x, y, z, type) {
+            for (let dx = -3; dx <= 3; dx++) {
+                for (let dy = -3; dy <= 3; dy++) {
+                    for (let dz = -3; dz <= 3; dz++) {
+                        const nx = (x + dx + CONFIG.gridSize) % CONFIG.gridSize;
+                        const ny = (y + dy + CONFIG.gridSize) % CONFIG.gridSize;
+                        const nz = (z + dz + CONFIG.gridSize) % CONFIG.gridSize;
+                        
+                        if (grid[nx][ny][nz] && grid[nx][ny][nz].type === type) {
+                            return grid[nx][ny][nz].team;
+                        }
+                    }
+                }
+            }
+            return Math.floor(Math.random() * 4);
+        }
+        
+        function triggerRandomEvent() {
+            if (Math.random() > 0.3) return;
+            
+            const events = [
+                { msg: '🌟 Evolutionary leap detected!', type: 'major' },
+                { msg: '💀 Mass extinction event!', type: 'catastrophe' },
+                { msg: '🦠 Viral outbreak spreading!', type: 'catastrophe' },
+                { msg: '🌱 Ecosystem stabilized', type: 'normal' },
+                { msg: '⚔️ Territory war began', type: 'major' },
+                { msg: '👑 New queen crowned', type: 'normal' },
+                { msg: '🔥 Wildfire spreading!', type: 'catastrophe' },
+                { msg: '❄️ Ice age beginning', type: 'major' },
+                { msg: '⚡ Electrical storm!', type: 'major' },
+                { msg: '🧬 Mutation wave detected', type: 'major' },
+                { msg: '🏛️ New civilization founded', type: 'normal' },
+                { msg: '☢️ Radiation leak!', type: 'catastrophe' },
+                { msg: '🌊 Flood incoming', type: 'major' },
+                { msg: '🌋 Volcanic eruption!', type: 'catastrophe' },
+                { msg: '✨ Quantum fluctuation', type: 'normal' }
+            ];
+            
+            const event = events[Math.floor(Math.random() * events.length)];
+            logEvent(event.msg, event.type);
+        }
+        
+        function logEvent(msg, type = 'normal') {
+            const log = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = `event ${type}`;
+            entry.textContent = `[Gen ${generation}] ${msg}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+        }
+        
+        function showNotification(msg, type = 'info') {
+            // Simple notification - could be expanded
+            console.log(`[${type}] ${msg}`);
+        }
+        
+        // Audio functions
+        function playBirthSound() {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.frequency.value = 800 + Math.random() * 400;
+            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioContext.currentTime + 0.1);
+        }
+        
+        function playDeathSound() {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.frequency.value = 200 - Math.random() * 100;
+            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            osc.start();
+            osc.stop(audioContext.currentTime + 0.15);
+        }
+        
+        function playExplosionSound() {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioContext.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioContext.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioContext.currentTime + 0.3);
+        }
+        
+        // Save/Load
+        function savePattern() {
+            const data = JSON.stringify({
+                grid: grid,
+                generation: generation,
+                config: CONFIG,
+                stats: stats
+            });
+            localStorage.setItem('gol4d-save', data);
+            logEvent('💾 Pattern saved to local storage', 'normal');
+        }
+        
+        function loadPattern() {
+            const data = localStorage.getItem('gol4d-save');
+            if (data) {
+                const parsed = JSON.parse(data);
+                grid = parsed.grid;
+                generation = parsed.generation || 0;
+                Object.assign(CONFIG, parsed.config || {});
+                stats = parsed.stats || stats;
+                updateCellMeshes();
+                updateStats();
+                logEvent('📂 Pattern loaded', 'normal');
+            } else {
+                logEvent('No saved pattern found', 'normal');
+            }
+        }
+        
+        // Event handlers
+        function setupEventListeners() {
+            renderer.domElement.addEventListener('click', onMouseClick);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+        }
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(cellMeshes);
+            
+            if (intersects.length > 0) {
+                hoveredCell = intersects[0].object;
+                document.body.style.cursor = CONFIG.paintMode ? 'crosshair' : 'pointer';
+            } else {
+                hoveredCell = null;
+                document.body.style.cursor = CONFIG.paintMode ? 'crosshair' : 'default';
+            }
+        }
+        
+        function onMouseClick(event) {
+            if (!CONFIG.paintMode || !hoveredCell) return;
+            
+            const { x, y, z } = hoveredCell.userData;
+            
+            if (grid[x][y][z]) {
+                grid[x][y][z] = null;
+            } else {
+                grid[x][y][z] = createCell(CELL_TYPES.STANDARD);
+            }
+            
+            updateCellMeshes();
+            updateStats();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (composer) {
+                composer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+        
+        // Main render loop
+        function render(currentTime = 0) {
+            requestAnimationFrame(render);
+            
+            controls.update();
+            
+            // Simulation update
+            if (isPlaying && currentTime - lastFrameTime >= frameInterval) {
+                computeNextGeneration();
+                lastFrameTime = currentTime;
+            }
+            
+            // Update trails
+            if (CONFIG.showTrails) {
+                updateTrails();
+            }
+            
+            // Animate cells
+            const time = currentTime * 0.001;
+            cellMeshes.forEach((mesh, i) => {
+                const offset = i * 0.05;
+                const pulse = 1 + Math.sin(time * 2 + offset) * 0.05;
+                const baseScale = CONFIG.zoomScale * (0.5 + (mesh.userData.cell.energy / 200));
+                mesh.scale.setScalar(baseScale * pulse);
+                mesh.rotation.x = Math.sin(time + offset) * 0.1;
+                mesh.rotation.y = Math.cos(time + offset) * 0.1;
+            });
+            
+            // Render with or without bloom
+            if (composer) {
+                composer.render();
+            } else {
+                renderer.render(scene, camera);
+            }
+        }
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

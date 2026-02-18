@@ -1,0 +1,2287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Colony Simulator - Mars Base</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a12;
+            --bg-panel: #12121a;
+            --bg-card: #1a1a25;
+            --bg-hover: #252535;
+            --border: #2a2a3a;
+            --text-primary: #e0e0f0;
+            --text-secondary: #9090a0;
+            --accent-blue: #4a9eff;
+            --accent-green: #4aff9e;
+            --accent-orange: #ff9e4a;
+            --accent-red: #ff4a4a;
+            --accent-purple: #9e4aff;
+            --accent-yellow: #ffea4a;
+            --glow-blue: rgba(74, 158, 255, 0.3);
+            --glow-green: rgba(74, 255, 158, 0.3);
+            --glow-red: rgba(255, 74, 74, 0.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px var(--glow-blue); }
+            50% { box-shadow: 0 0 20px var(--glow-blue), 0 0 30px var(--glow-blue); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes stars {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 100px; }
+        }
+
+        @keyframes alert {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(255, 74, 74, 0.2); }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(74, 158, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(158, 74, 255, 0.1) 0%, transparent 50%);
+        }
+
+        .stars-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+                radial-gradient(1px 1px at 50px 100px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 80px 50px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 130px 80px, #fff, transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.7), transparent);
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: stars 100s linear infinite;
+            opacity: 0.5;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px var(--glow-blue);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--accent-red), #ff6b6b);
+            border: none;
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent-green), #2ecc71);
+            border: none;
+            color: #000;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--accent-orange), #f39c12);
+            border: none;
+            color: #000;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .resources-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .resource-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .resource-icon {
+            font-size: 1.5rem;
+        }
+
+        .resource-name {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .resource-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .resource-change {
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .positive { color: var(--accent-green); }
+        .negative { color: var(--accent-red); }
+        .neutral { color: var(--text-secondary); }
+
+        .resource-oxygen { border-left: 3px solid var(--accent-blue); }
+        .resource-water { border-left: 3px solid var(--accent-blue); }
+        .resource-food { border-left: 3px solid var(--accent-green); }
+        .resource-power { border-left: 3px solid var(--accent-yellow); }
+        .resource-materials { border-left: 3px solid var(--accent-orange); }
+        .resource-credits { border-left: 3px solid var(--accent-purple); }
+
+        .colony-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            min-height: 300px;
+        }
+
+        .colony-tile {
+            aspect-ratio: 1;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .colony-tile:hover {
+            border-color: var(--accent-blue);
+            transform: scale(1.05);
+        }
+
+        .colony-tile.empty {
+            border-style: dashed;
+            opacity: 0.6;
+        }
+
+        .colony-tile.empty:hover {
+            opacity: 1;
+            border-color: var(--accent-green);
+        }
+
+        .colony-tile .tile-icon {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .colony-tile .tile-name {
+            font-size: 0.7rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .colony-tile .tile-workers {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 0.7rem;
+            background: var(--bg-dark);
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        .colony-tile .tile-power {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 0.6rem;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .power-low { background: var(--accent-red); }
+        .power-ok { background: var(--accent-green); }
+
+        .build-menu {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .build-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+        }
+
+        .build-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-green);
+            transform: translateY(-2px);
+        }
+
+        .build-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .build-item.disabled:hover {
+            border-color: var(--border);
+            transform: none;
+        }
+
+        .build-icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .build-name {
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .build-cost {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        .colonists-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .colonist-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .colonist-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .colonist-info {
+            flex: 1;
+        }
+
+        .colonist-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .colonist-role {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .colonist-stats {
+            display: flex;
+            gap: 8px;
+            font-size: 0.7rem;
+        }
+
+        .stat-bar {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .stat-bar span {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+        }
+
+        .stat-good span { background: var(--accent-green); }
+        .stat-med span { background: var(--accent-orange); }
+        .stat-bad span { background: var(--accent-red); }
+
+        .events-log {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+
+        .event-item {
+            padding: 8px;
+            border-left: 3px solid var(--accent-blue);
+            background: var(--bg-card);
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+            animation: pulse 0.5s ease;
+        }
+
+        .event-item.alert { border-left-color: var(--accent-red); }
+        .event-item.success { border-left-color: var(--accent-green); }
+        .event-item.warning { border-left-color: var(--accent-orange); }
+
+        .event-time {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .research-tree {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .research-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 70px;
+        }
+
+        .research-item:hover:not(.researched):not(.locked) {
+            border-color: var(--accent-purple);
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+        }
+
+        .research-item.researched {
+            border-color: var(--accent-green);
+            background: rgba(74, 255, 158, 0.1);
+        }
+
+        .research-item.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .research-icon {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+
+        .research-name {
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .research-cost {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        .trade-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .trade-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .trade-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .trade-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .trade-amount {
+            width: 50px;
+            text-align: center;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+        }
+
+        .tab:hover {
+            background: var(--bg-hover);
+        }
+
+        .tab.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--accent-blue);
+        }
+
+        .modal-content {
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .game-speed {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        .speed-btn {
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            min-width: 44px;
+        }
+
+        .speed-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-blue);
+        }
+
+        .speed-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+        }
+
+        .day-counter {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--accent-blue);
+        }
+
+        .weather-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .weather-normal { color: var(--accent-green); }
+        .weather-storm { color: var(--accent-red); animation: pulse 1s infinite; }
+
+        .tooltip {
+            position: fixed;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            max-width: 200px;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-dark);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+            transition: width 0.3s ease;
+        }
+
+        .specialization-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .spec-engineer { background: var(--accent-orange); color: #000; }
+        .spec-scientist { background: var(--accent-purple); color: #fff; }
+        .spec-farmer { background: var(--accent-green); color: #000; }
+        .spec-medic { background: var(--accent-red); color: #fff; }
+        .spec-worker { background: var(--accent-blue); color: #000; }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .colony-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .colony-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .resources-grid {
+                grid-template-columns: 1fr;
+            }
+            .research-tree {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="stars-bg"></div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1>🚀 Space Colony Simulator</h1>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">Mars Base Alpha</div>
+            </div>
+            <div class="header-controls">
+                <div class="game-speed">
+                    <span>Speed:</span>
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="5">5x</button>
+                </div>
+                <button class="btn" id="music-toggle-btn" onclick="toggleMusic()">🎵 Music</button>
+                <input type="range" id="music-volume" min="0" max="100" value="15" style="width: 80px; cursor: pointer;" oninput="updateVolume(this.value)" title="Music Volume">
+                <button class="btn" onclick="saveGame()">💾 Save</button>
+                <button class="btn" onclick="loadGame()">📂 Load</button>
+                <button class="btn btn-primary" onclick="location.href='/games'">🎮 Games</button>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left Panel: Resources & Stats -->
+            <div class="left-column">
+                <div class="panel">
+                    <div class="panel-title">📊 Resources</div>
+                    <div class="resources-grid">
+                        <div class="resource-item resource-oxygen">
+                            <span class="resource-icon">💨</span>
+                            <span class="resource-name">Oxygen</span>
+                            <span class="resource-value" id="oxygen-val">100</span>
+                            <span class="resource-change" id="oxygen-change"><span class="neutral">±0</span></span>
+                        </div>
+                        <div class="resource-item resource-water">
+                            <span class="resource-icon">💧</span>
+                            <span class="resource-name">Water</span>
+                            <span class="resource-value" id="water-val">100</span>
+                            <span class="resource-change" id="water-change"><span class="neutral">±0</span></span>
+                        </div>
+                        <div class="resource-item resource-food">
+                            <span class="resource-icon">🍲</span>
+                            <span class="resource-name">Food</span>
+                            <span class="resource-value" id="food-val">100</span>
+                            <span class="resource-change" id="food-change"><span class="neutral">±0</span></span>
+                        </div>
+                        <div class="resource-item resource-power">
+                            <span class="resource-icon">⚡</span>
+                            <span class="resource-name">Power</span>
+                            <span class="resource-value" id="power-val">50/50</span>
+                            <span class="resource-change" id="power-change"><span class="neutral">±0</span></span>
+                        </div>
+                        <div class="resource-item resource-materials">
+                            <span class="resource-icon">🏗️</span>
+                            <span class="resource-name">Materials</span>
+                            <span class="resource-value" id="materials-val">50</span>
+                            <span class="resource-change" id="materials-change"><span class="neutral">±0</span></span>
+                        </div>
+                        <div class="resource-item resource-credits">
+                            <span class="resource-icon">💰</span>
+                            <span class="resource-name">Credits</span>
+                            <span class="resource-value" id="credits-val">1000</span>
+                            <span class="resource-change" id="credits-change"><span class="neutral">±0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <div class="panel-title">👥 Colonists</div>
+                    <div class="colonists-list" id="colonists-list">
+                        <!-- Colonists populated by JS -->
+                    </div>
+                    <div class="status-bar">
+                        <span>Total: <strong id="colonist-count">0</strong></span>
+                        <span>Jobs: <strong id="job-count">0/0</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel: Colony Grid -->
+            <div class="center-column">
+                <div class="panel">
+                    <div class="tabs">
+                        <div class="tab active" data-tab="colony">🏗️ Colony</div>
+                        <div class="tab" data-tab="research">🔬 Research</div>
+                        <div class="tab" data-tab="trade">🌍 Trade</div>
+                    </div>
+
+                    <div class="tab-content active" id="tab-colony">
+                        <div class="colony-grid" id="colony-grid">
+                            <!-- Grid populated by JS -->
+                        </div>
+                        <div class="panel-title" style="margin-top: 20px;">➕ Build</div>
+                        <div class="build-menu" id="build-menu">
+                            <!-- Build options populated by JS -->
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-research">
+                        <div class="panel-title">Research Tree</div>
+                        <div class="research-tree" id="research-tree">
+                            <!-- Research items populated by JS -->
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-trade">
+                        <div class="panel-title">Trade with Earth</div>
+                        <div class="trade-panel" id="trade-panel">
+                            <!-- Trade options populated by JS -->
+                        </div>
+                        <div class="status-bar" style="margin-top: 15px;">
+                            <span>Next shipment: <strong id="shipment-timer">30</strong> days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <div class="status-bar">
+                        <div>
+                            <span>Day: </span>
+                            <span class="day-counter" id="day-counter">1</span>
+                        </div>
+                        <div class="weather-status" id="weather-status">
+                            <span>🌤️ Clear</span>
+                        </div>
+                        <div>
+                            <span>Population Capacity: </span>
+                            <strong id="capacity-display">4/10</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Events & Info -->
+            <div class="right-column">
+                <div class="panel">
+                    <div class="panel-title">📜 Event Log</div>
+                    <div class="events-log" id="events-log">
+                        <!-- Events populated by JS -->
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <div class="panel-title">📈 Statistics</div>
+                    <div style="font-size: 0.85rem; line-height: 1.8;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Buildings:</span>
+                            <strong id="stat-buildings">0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Oxygen Production:</span>
+                            <strong id="stat-oxygen-prod">0</strong>/day
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Water Production:</span>
+                            <strong id="stat-water-prod">0</strong>/day
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Food Production:</span>
+                            <strong id="stat-food-prod">0</strong>/day
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Power Production:</span>
+                            <strong id="stat-power-prod">0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Research Points:</span>
+                            <strong id="stat-research">0</strong>/day
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+                            <span>Average Morale:</span>
+                            <strong id="stat-morale">100%</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Average Health:</span>
+                            <strong id="stat-health">100%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-title" id="modal-title">Title</div>
+            <div class="modal-content" id="modal-content">Content</div>
+            <div class="modal-actions" id="modal-actions">
+                <button class="btn" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== GAME STATE ====================
+        const gameState = {
+            day: 1,
+            resources: {
+                oxygen: 100,
+                water: 100,
+                food: 100,
+                power: 50,
+                powerMax: 50,
+                materials: 50,
+                credits: 1000,
+                research: 0
+            },
+            colonists: [],
+            buildings: [],
+            research: {},
+            gridSize: 24,
+            selectedBuilding: null,
+            gameSpeed: 1,
+            paused: false,
+            weather: 'clear', // clear, storm
+            stormDays: 0,
+            shipmentDays: 30,
+            musicEnabled: false,
+            eventLog: []
+        };
+
+        // ==================== BUILDING DEFINITIONS ====================
+        const buildingTypes = {
+            habitat: {
+                id: 'habitat',
+                name: 'Habitat',
+                icon: '🏠',
+                cost: { materials: 20, credits: 100 },
+                power: -2,
+                capacity: 4,
+                description: 'Houses 4 colonists',
+                workers: 0,
+                produces: {}
+            },
+            solar: {
+                id: 'solar',
+                name: 'Solar Panel',
+                icon: '☀️',
+                cost: { materials: 10, credits: 50 },
+                power: 15,
+                capacity: 0,
+                description: 'Generates 15 power',
+                workers: 0,
+                produces: {}
+            },
+            greenhouse: {
+                id: 'greenhouse',
+                name: 'Greenhouse',
+                icon: '🌱',
+                cost: { materials: 15, credits: 80 },
+                power: -5,
+                capacity: 0,
+                description: 'Produces food and oxygen',
+                workers: 2,
+                produces: { food: 5, oxygen: 3 }
+            },
+            waterExtractor: {
+                id: 'waterExtractor',
+                name: 'Water Extractor',
+                icon: '💧',
+                cost: { materials: 15, credits: 75 },
+                power: -8,
+                capacity: 0,
+                description: 'Extracts water from ice',
+                workers: 1,
+                produces: { water: 8 }
+            },
+            oxygenPlant: {
+                id: 'oxygenPlant',
+                name: 'O2 Generator',
+                icon: '💨',
+                cost: { materials: 20, credits: 100 },
+                power: -10,
+                capacity: 0,
+                description: 'Generates oxygen from water',
+                workers: 1,
+                produces: { oxygen: 10 },
+                consumes: { water: 2 }
+            },
+            lab: {
+                id: 'lab',
+                name: 'Research Lab',
+                icon: '🔬',
+                cost: { materials: 30, credits: 200 },
+                power: -10,
+                capacity: 0,
+                description: 'Generates research points',
+                workers: 3,
+                produces: { research: 5 }
+            },
+            medbay: {
+                id: 'medbay',
+                name: 'Medbay',
+                icon: '🏥',
+                cost: { materials: 25, credits: 150 },
+                power: -8,
+                capacity: 0,
+                description: 'Improves colonist health',
+                workers: 2,
+                produces: {},
+                heals: true
+            },
+            factory: {
+                id: 'factory',
+                name: 'Factory',
+                icon: '🏭',
+                cost: { materials: 30, credits: 180 },
+                power: -15,
+                capacity: 0,
+                description: 'Produces materials',
+                workers: 3,
+                produces: { materials: 3 }
+            },
+            recCenter: {
+                id: 'recCenter',
+                name: 'Rec Center',
+                icon: '🎭',
+                cost: { materials: 25, credits: 120 },
+                power: -5,
+                capacity: 0,
+                description: 'Improves colonist morale',
+                workers: 1,
+                produces: {},
+                entertainment: true
+            }
+        };
+
+        // ==================== RESEARCH TREE ====================
+        const researchTree = {
+            advancedSolar: {
+                id: 'advancedSolar',
+                name: 'Advanced Solar',
+                icon: '🔆',
+                cost: 100,
+                description: 'Solar panels produce 50% more power',
+                unlocks: ['solar2']
+            },
+            hydroponics: {
+                id: 'hydroponics',
+                name: 'Hydroponics',
+                icon: '🥬',
+                cost: 150,
+                description: 'Greenhouses produce 50% more food',
+                unlocks: []
+            },
+            mining: {
+                id: 'mining',
+                name: 'Mining Drill',
+                icon: '⛏️',
+                cost: 200,
+                description: 'Unlocks Mining Drill building',
+                unlocks: ['miningDrill']
+            },
+            recycling: {
+                id: 'recycling',
+                name: 'Recycling',
+                icon: '♻️',
+                cost: 120,
+                description: 'Buildings use 20% less power',
+                unlocks: []
+            },
+            medicine: {
+                id: 'medicine',
+                name: 'Advanced Medicine',
+                icon: '💊',
+                cost: 180,
+                description: 'Medbay heals 2x faster',
+                unlocks: []
+            },
+            communications: {
+                id: 'communications',
+                name: 'Deep Space Comm',
+                icon: '📡',
+                cost: 250,
+                description: 'Trade shipments arrive 50% faster',
+                unlocks: []
+            },
+            lifeSupport: {
+                id: 'lifeSupport',
+                name: 'Life Support+',
+                icon: '🔧',
+                cost: 300,
+                description: 'O2 and Water consumption reduced',
+                unlocks: []
+            },
+            habitatExp: {
+                id: 'habitatExp',
+                name: 'Expanded Habitats',
+                icon: '🏘️',
+                cost: 200,
+                description: 'Habitats house 2 more colonists',
+                unlocks: []
+            },
+            batteryTech: {
+                id: 'batteryTech',
+                name: 'Battery Storage',
+                icon: '🔋',
+                cost: 150,
+                description: 'Power capacity increased by 50%',
+                unlocks: []
+            }
+        };
+
+        // ==================== TRADE GOODS ====================
+        const tradeGoods = {
+            food: { name: 'Food', price: 5, icon: '🍲' },
+            water: { name: 'Water', price: 3, icon: '💧' },
+            oxygen: { name: 'Oxygen', price: 4, icon: '💨' },
+            materials: { name: 'Materials', price: 10, icon: '🏗️' },
+            research: { name: 'Research Data', price: 25, icon: '📊' }
+        };
+
+        // ==================== COLONIST NAMES ====================
+        const firstNames = ['Alex', 'Jordan', 'Casey', 'Morgan', 'Taylor', 'Riley', 'Avery', 'Quinn', 'Skyler', 'Dakota', 'Reese', 'Rowan', 'Emerson', 'Finley', 'Harper', 'Hayden', 'Kai', 'Sage', 'Parker', 'Kennedy'];
+        const lastNames = ['Chen', 'Patel', 'Singh', 'Kim', 'Ivanov', 'Müller', 'Silva', 'Suzuki', 'Kowalski', 'Andersen', 'Nielsen', 'Jensen', 'Hansen', 'Pedersen', 'Madsen', 'Vestergaard', 'Nørgaard', 'Christensen', 'Larsen', 'Rasmussen'];
+        const roles = ['Engineer', 'Scientist', 'Farmer', 'Medic', 'Worker'];
+
+        // ==================== AUDIO - Lofi Hip-Hop System ====================
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Lofi music state
+        const lofiMusic = {
+            enabled: false,
+            volume: 0.15, // Default 15%
+            chordInterval: null,
+            beatInterval: null,
+            vinylNode: null,
+            masterGain: null,
+            compressor: null,
+            chordIndex: 0
+        };
+
+        // Jazz chord progressions (Cmaj7, Am7, Fmaj7, G7)
+        const chordProgression = [
+            { name: 'Cmaj7', notes: [261.63, 329.63, 392.00, 493.88] }, // C4, E4, G4, B4
+            { name: 'Am7', notes: [220.00, 261.63, 329.63, 392.00] },   // A3, C4, E4, G4
+            { name: 'Fmaj7', notes: [174.61, 220.00, 261.63, 329.63] }, // F3, A3, C4, E4
+            { name: 'G7', notes: [196.00, 246.94, 293.66, 392.00] }     // G3, B3, D4, G4
+        ];
+
+        // Initialize master chain with compressor
+        function initMasterChain() {
+            if (lofiMusic.compressor) return;
+            
+            // Master compressor: threshold -24dB, ratio 4:1
+            lofiMusic.compressor = audioContext.createDynamicsCompressor();
+            lofiMusic.compressor.threshold.value = -24;
+            lofiMusic.compressor.knee.value = 30;
+            lofiMusic.compressor.ratio.value = 4;
+            lofiMusic.compressor.attack.value = 0.003;
+            lofiMusic.compressor.release.value = 0.25;
+            
+            // Master gain for volume control
+            lofiMusic.masterGain = audioContext.createGain();
+            lofiMusic.masterGain.gain.value = lofiMusic.volume;
+            
+            // Connect compressor to master gain to destination
+            lofiMusic.compressor.connect(lofiMusic.masterGain);
+            lofiMusic.masterGain.connect(audioContext.destination);
+        }
+
+        // Create vinyl crackle noise
+        function createVinylCrackle() {
+            const bufferSize = audioContext.sampleRate * 2; // 2 seconds buffer
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferSize; i++) {
+                // Gentle crackle - occasional pops with low amplitude
+                if (Math.random() < 0.001) {
+                    data[i] = (Math.random() - 0.5) * 0.03;
+                } else {
+                    data[i] = (Math.random() - 0.5) * 0.005; // Very subtle noise floor
+                }
+            }
+            
+            const noise = audioContext.createBufferSource();
+            noise.buffer = buffer;
+            noise.loop = true;
+            
+            const gain = audioContext.createGain();
+            gain.gain.value = 0.02; // Very quiet vinyl texture
+            
+            noise.connect(gain);
+            gain.connect(lofiMusic.compressor);
+            
+            return { noise, gain };
+        }
+
+        // Play a single chord with slow attack/release
+        function playLofiChord(chordNotes, duration) {
+            const oscillators = [];
+            const gainNode = audioContext.createGain();
+            
+            gainNode.connect(lofiMusic.compressor);
+            
+            // Slow attack/release envelope (1.5s attack, 1s release)
+            const attackTime = 1.5;
+            const releaseTime = 1.0;
+            const sustainLevel = 0.025; // Very low volume per note (0.02-0.03 range)
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(sustainLevel, audioContext.currentTime + attackTime);
+            gainNode.gain.setValueAtTime(sustainLevel, audioContext.currentTime + duration - releaseTime);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+            
+            chordNotes.forEach(freq => {
+                const osc = audioContext.createOscillator();
+                osc.type = 'sine'; // Soft sine wave
+                osc.frequency.value = freq;
+                osc.connect(gainNode);
+                osc.start(audioContext.currentTime);
+                osc.stop(audioContext.currentTime + duration);
+                oscillators.push(osc);
+            });
+        }
+
+        // Play beat (soft kick and snare at 75 BPM)
+        function playLofiBeat(isKick) {
+            if (isKick) {
+                // Soft kick drum
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(lofiMusic.compressor);
+                
+                // Kick frequency sweep
+                osc.frequency.setValueAtTime(60, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                gain.gain.setValueAtTime(0.04, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
+                
+                osc.start(audioContext.currentTime);
+                osc.stop(audioContext.currentTime + 0.15);
+            } else {
+                // Soft snare - filtered noise
+                const bufferSize = audioContext.sampleRate * 0.1;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = audioContext.createBufferSource();
+                noise.buffer = buffer;
+                
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 800;
+                
+                const gain = audioContext.createGain();
+                gain.gain.setValueAtTime(0.02, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(lofiMusic.compressor);
+                
+                noise.start(audioContext.currentTime);
+            }
+        }
+
+        // Schedule chord progression
+        function scheduleChords() {
+            const chordDuration = 3.2; // ~4 bars at 75 BPM (each chord gets time to breathe)
+            
+            function playNextChord() {
+                if (!lofiMusic.enabled) return;
+                
+                const chord = chordProgression[lofiMusic.chordIndex];
+                playLofiChord(chord.notes, chordDuration);
+                
+                lofiMusic.chordIndex = (lofiMusic.chordIndex + 1) % chordProgression.length;
+            }
+            
+            playNextChord();
+            lofiMusic.chordInterval = setInterval(playNextChord, chordDuration * 1000);
+        }
+
+        // Schedule beat at 75 BPM
+        function scheduleBeat() {
+            const beatInterval = 60 / 75 * 1000; // 800ms between beats
+            let beatCount = 0;
+            
+            // Simple pattern: kick on 1 and 3, snare on 2 and 4 (with variation)
+            const pattern = [true, false, true, false]; // kick, snare, kick, snare
+            
+            function playNextBeat() {
+                if (!lofiMusic.enabled) return;
+                
+                const isKick = pattern[beatCount % 4];
+                
+                // Add some humanization - slight timing variation
+                const humanization = (Math.random() - 0.5) * 30; // ±15ms
+                
+                setTimeout(() => {
+                    playLofiBeat(isKick);
+                }, humanization);
+                
+                beatCount++;
+            }
+            
+            playNextBeat();
+            lofiMusic.beatInterval = setInterval(playNextBeat, beatInterval);
+        }
+
+        // Start vinyl crackle
+        function startVinylCrackle() {
+            if (!lofiMusic.vinylNode) {
+                lofiMusic.vinylNode = createVinylCrackle();
+            }
+            lofiMusic.vinylNode.noise.start();
+        }
+
+        // Stop vinyl crackle
+        function stopVinylCrackle() {
+            if (lofiMusic.vinylNode) {
+                try {
+                    lofiMusic.vinylNode.noise.stop();
+                } catch (e) {
+                    // Already stopped
+                }
+            }
+        }
+
+        // Toggle music on/off
+        function toggleMusic() {
+            lofiMusic.enabled = !lofiMusic.enabled;
+            gameState.musicEnabled = lofiMusic.enabled;
+            
+            // Update button visual state
+            const btn = document.getElementById('music-toggle-btn');
+            if (btn) {
+                btn.style.opacity = lofiMusic.enabled ? '1' : '0.5';
+            }
+            
+            if (lofiMusic.enabled) {
+                // Resume audio context if suspended (browser policy)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                
+                initMasterChain();
+                startVinylCrackle();
+                scheduleChords();
+                scheduleBeat();
+            } else {
+                stopVinylCrackle();
+                clearInterval(lofiMusic.chordInterval);
+                clearInterval(lofiMusic.beatInterval);
+            }
+        }
+
+        // Update volume from slider (0-100)
+        function updateVolume(value) {
+            lofiMusic.volume = value / 100;
+            if (lofiMusic.masterGain) {
+                lofiMusic.masterGain.gain.value = lofiMusic.volume;
+            }
+        }
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function randomChoice(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function generateName() {
+            return `${randomChoice(firstNames)} ${randomChoice(lastNames)}`;
+        }
+
+        function showTooltip(e, text) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.textContent = text;
+            tooltip.style.left = e.clientX + 10 + 'px';
+            tooltip.style.top = e.clientY + 10 + 'px';
+            tooltip.classList.add('show');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('show');
+        }
+
+        // ==================== INITIALIZATION ====================
+        function initGame() {
+            // Initialize grid
+            gameState.buildings = new Array(gameState.gridSize).fill(null);
+            
+            // Add starting buildings
+            placeBuilding(0, 'habitat');
+            placeBuilding(1, 'solar');
+            placeBuilding(2, 'solar');
+            placeBuilding(3, 'greenhouse');
+            placeBuilding(4, 'waterExtractor');
+            
+            // Add starting colonists
+            for (let i = 0; i < 4; i++) {
+                addColonist();
+            }
+            
+            // Initialize research
+            Object.keys(researchTree).forEach(key => {
+                gameState.research[key] = { unlocked: false, researched: false };
+            });
+            
+            renderAll();
+            logEvent('🚀 Colony established on Mars! Welcome, Commander.', 'success');
+            
+            // Start game loop
+            setInterval(gameLoop, 1000);
+        }
+
+        function addColonist() {
+            const role = randomChoice(roles);
+            const colonist = {
+                id: Date.now() + Math.random(),
+                name: generateName(),
+                role: role,
+                health: 100,
+                morale: 80,
+                age: randomInt(20, 45),
+                assigned: false
+            };
+            gameState.colonists.push(colonist);
+            return colonist;
+        }
+
+        function placeBuilding(index, typeId) {
+            if (gameState.buildings[index]) return false;
+            gameState.buildings[index] = {
+                type: typeId,
+                workers: [],
+                power: true
+            };
+            return true;
+        }
+
+        // ==================== RENDERING ====================
+        function renderAll() {
+            renderResources();
+            renderGrid();
+            renderBuildMenu();
+            renderColonists();
+            renderResearch();
+            renderTrade();
+            renderStats();
+            renderEvents();
+        }
+
+        function renderResources() {
+            document.getElementById('oxygen-val').textContent = Math.floor(gameState.resources.oxygen);
+            document.getElementById('water-val').textContent = Math.floor(gameState.resources.water);
+            document.getElementById('food-val').textContent = Math.floor(gameState.resources.food);
+            document.getElementById('power-val').textContent = `${gameState.resources.power}/${gameState.resources.powerMax}`;
+            document.getElementById('materials-val').textContent = Math.floor(gameState.resources.materials);
+            document.getElementById('credits-val').textContent = Math.floor(gameState.resources.credits);
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('colony-grid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < gameState.gridSize; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'colony-tile';
+                
+                const building = gameState.buildings[i];
+                if (building) {
+                    const type = buildingTypes[building.type];
+                    tile.innerHTML = `
+                        <div class="tile-icon">${type.icon}</div>
+                        <div class="tile-name">${type.name}</div>
+                        ${type.workers > 0 ? `<div class="tile-workers">${building.workers.length}/${type.workers}</div>` : ''}
+                        <div class="tile-power ${building.power ? 'power-ok' : 'power-low'}">⚡</div>
+                    `;
+                    tile.onclick = () => showBuildingInfo(i);
+                } else {
+                    tile.classList.add('empty');
+                    tile.innerHTML = '<div class="tile-icon">➕</div>';
+                    tile.onclick = () => selectBuildSlot(i);
+                }
+                
+                grid.appendChild(tile);
+            }
+        }
+
+        function renderBuildMenu() {
+            const menu = document.getElementById('build-menu');
+            menu.innerHTML = '';
+            
+            Object.values(buildingTypes).forEach(type => {
+                const item = document.createElement('div');
+                item.className = 'build-item';
+                
+                const canAfford = canAffordBuilding(type);
+                if (!canAfford) item.classList.add('disabled');
+                
+                item.innerHTML = `
+                    <div class="build-icon">${type.icon}</div>
+                    <div class="build-name">${type.name}</div>
+                    <div class="build-cost">
+                        ${type.cost.materials ? `🏗️${type.cost.materials} ` : ''}
+                        ${type.cost.credits ? `💰${type.cost.credits}` : ''}
+                    </div>
+                `;
+                
+                item.onmouseenter = (e) => showTooltip(e, type.description);
+                item.onmouseleave = hideTooltip;
+                item.onclick = () => {
+                    if (canAfford) {
+                        gameState.selectedBuilding = type.id;
+                        showModal('Select Location', `Click an empty tile to build ${type.name}`);
+                    }
+                };
+                
+                menu.appendChild(item);
+            });
+        }
+
+        function renderColonists() {
+            const list = document.getElementById('colonists-list');
+            list.innerHTML = '';
+            
+            gameState.colonists.forEach(colonist => {
+                const card = document.createElement('div');
+                card.className = 'colonist-card';
+                
+                const healthClass = colonist.health > 70 ? 'stat-good' : colonist.health > 40 ? 'stat-med' : 'stat-bad';
+                const moraleClass = colonist.morale > 70 ? 'stat-good' : colonist.morale > 40 ? 'stat-med' : 'stat-bad';
+                
+                const roleClass = 'spec-' + colonist.role.toLowerCase();
+                
+                card.innerHTML = `
+                    <div class="colonist-avatar">👤</div>
+                    <div class="colonist-info">
+                        <div class="colonist-name">${colonist.name}</div>
+                        <div class="colonist-role">
+                            <span class="specialization-badge ${roleClass}">${colonist.role}</span>
+                            ${colonist.assigned ? '✓ Working' : '○ Idle'}
+                        </div>
+                    </div>
+                    <div class="colonist-stats">
+                        <div class="stat-bar ${healthClass}" title="Health">
+                            ❤️${colonist.health}
+                        </div>
+                        <div class="stat-bar ${moraleClass}" title="Morale">
+                            😊${colonist.morale}
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(card);
+            });
+            
+            document.getElementById('colonist-count').textContent = gameState.colonists.length;
+            document.getElementById('capacity-display').textContent = `${gameState.colonists.length}/${getTotalCapacity()}`;
+        }
+
+        function renderResearch() {
+            const tree = document.getElementById('research-tree');
+            tree.innerHTML = '';
+            
+            Object.values(researchTree).forEach(research => {
+                const item = document.createElement('div');
+                item.className = 'research-item';
+                
+                const researchData = gameState.research[research.id];
+                if (researchData.researched) item.classList.add('researched');
+                else if (!canAffordResearch(research)) item.classList.add('locked');
+                
+                item.innerHTML = `
+                    <div class="research-icon">${research.icon}</div>
+                    <div class="research-name">${research.name}</div>
+                    <div class="research-cost">🔬 ${research.cost} RP</div>
+                `;
+                
+                item.onmouseenter = (e) => showTooltip(e, research.description);
+                item.onmouseleave = hideTooltip;
+                item.onclick = () => buyResearch(research.id);
+                
+                tree.appendChild(item);
+            });
+        }
+
+        function renderTrade() {
+            const panel = document.getElementById('trade-panel');
+            panel.innerHTML = '';
+            
+            Object.entries(tradeGoods).forEach(([key, good]) => {
+                const item = document.createElement('div');
+                item.className = 'trade-item';
+                
+                const currentAmount = gameState.resources[key] || 0;
+                
+                item.innerHTML = `
+                    <div class="trade-info">
+                        <span style="font-size: 1.5rem;">${good.icon}</span>
+                        <div>
+                            <div style="font-weight: bold;">${good.name}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                Have: ${Math.floor(currentAmount)} | Price: 💰${good.price}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="trade-controls">
+                        <button class="btn" onclick="trade('${key}', -10)">Sell 10</button>
+                        <button class="btn" onclick="trade('${key}', 10)">Buy 10</button>
+                    </div>
+                `;
+                
+                panel.appendChild(item);
+            });
+            
+            document.getElementById('shipment-timer').textContent = gameState.shipmentDays;
+        }
+
+        function renderStats() {
+            document.getElementById('day-counter').textContent = gameState.day;
+            document.getElementById('stat-buildings').textContent = gameState.buildings.filter(b => b).length;
+            document.getElementById('stat-oxygen-prod').textContent = calculateProduction('oxygen');
+            document.getElementById('stat-water-prod').textContent = calculateProduction('water');
+            document.getElementById('stat-food-prod').textContent = calculateProduction('food');
+            document.getElementById('stat-power-prod').textContent = calculatePowerProduction();
+            document.getElementById('stat-research').textContent = calculateProduction('research');
+            
+            const avgMorale = gameState.colonists.length > 0 
+                ? Math.round(gameState.colonists.reduce((a, c) => a + c.morale, 0) / gameState.colonists.length)
+                : 100;
+            const avgHealth = gameState.colonists.length > 0 
+                ? Math.round(gameState.colonists.reduce((a, c) => a + c.health, 0) / gameState.colonists.length)
+                : 100;
+                
+            document.getElementById('stat-morale').textContent = avgMorale + '%';
+            document.getElementById('stat-health').textContent = avgHealth + '%';
+            
+            // Weather status
+            const weatherEl = document.getElementById('weather-status');
+            if (gameState.weather === 'storm') {
+                weatherEl.innerHTML = '<span class="weather-storm">🌪️ DUST STORM!</span>';
+            } else {
+                weatherEl.innerHTML = '<span class="weather-normal">🌤️ Clear</span>';
+            }
+        }
+
+        function renderEvents() {
+            const log = document.getElementById('events-log');
+            log.innerHTML = '';
+            
+            gameState.eventLog.slice(-10).reverse().forEach(event => {
+                const item = document.createElement('div');
+                item.className = `event-item ${event.type || ''}`;
+                item.innerHTML = `
+                    <div>${event.text}</div>
+                    <div class="event-time">Day ${event.day}</div>
+                `;
+                log.appendChild(item);
+            });
+        }
+
+        // ==================== GAME LOGIC ====================
+        function gameLoop() {
+            if (gameState.paused) return;
+            
+            // Process multiple ticks based on speed
+            for (let i = 0; i < gameState.gameSpeed; i++) {
+                processTick();
+            }
+            
+            renderAll();
+        }
+
+        function processTick() {
+            gameState.day++;
+            
+            // Weather
+            updateWeather();
+            
+            // Resource production/consumption
+            updateResources();
+            
+            // Colonist needs
+            updateColonists();
+            
+            // Random events
+            if (Math.random() < 0.05) triggerRandomEvent();
+            
+            // Shipment timer
+            gameState.shipmentDays--;
+            if (gameState.shipmentDays <= 0) {
+                gameState.shipmentDays = hasResearch('communications') ? 15 : 30;
+                receiveShipment();
+            }
+            
+            // Check for game over
+            checkGameOver();
+        }
+
+        function updateWeather() {
+            if (gameState.weather === 'storm') {
+                gameState.stormDays--;
+                if (gameState.stormDays <= 0) {
+                    gameState.weather = 'clear';
+                    logEvent('The dust storm has passed.', 'success');
+                }
+            } else if (Math.random() < 0.02) {
+                gameState.weather = 'storm';
+                gameState.stormDays = randomInt(3, 7);
+                logEvent('⚠️ DUST STORM WARNING! Solar production reduced.', 'alert');
+            }
+        }
+
+        function updateResources() {
+            let powerProduced = 0;
+            let powerConsumed = 0;
+            let production = { oxygen: 0, water: 0, food: 0, materials: 0, research: 0 };
+            let consumption = { oxygen: 0, water: 0, food: 0 };
+            
+            // Calculate building production
+            gameState.buildings.forEach((building, idx) => {
+                if (!building) return;
+                const type = buildingTypes[building.type];
+                
+                // Power
+                if (type.power > 0) {
+                    let production = type.power;
+                    if (gameState.weather === 'storm' && building.type === 'solar') {
+                        production = Math.floor(production * 0.3);
+                    }
+                    if (hasResearch('advancedSolar') && building.type === 'solar') {
+                        production = Math.floor(production * 1.5);
+                    }
+                    powerProduced += production;
+                } else {
+                    let consume = Math.abs(type.power);
+                    if (hasResearch('recycling')) consume = Math.floor(consume * 0.8);
+                    powerConsumed += consume;
+                }
+                
+                // Resource production
+                if (type.produces) {
+                    Object.entries(type.produces).forEach(([res, amount]) => {
+                        if (res === 'food' && hasResearch('hydroponics')) {
+                            amount = Math.floor(amount * 1.5);
+                        }
+                        production[res] += amount;
+                    });
+                }
+                
+                if (type.consumes) {
+                    Object.entries(type.consumes).forEach(([res, amount]) => {
+                        consumption[res] += amount;
+                    });
+                }
+            });
+            
+            // Colonist consumption
+            gameState.colonists.forEach(colonist => {
+                let o2Need = 1;
+                let waterNeed = 1;
+                let foodNeed = 1;
+                
+                if (hasResearch('lifeSupport')) {
+                    o2Need = 0.7;
+                    waterNeed = 0.7;
+                }
+                
+                consumption.oxygen += o2Need;
+                consumption.water += waterNeed;
+                consumption.food += foodNeed;
+            });
+            
+            // Apply power limits
+            gameState.resources.powerMax = 50 + (hasResearch('batteryTech') ? 25 : 0);
+            gameState.resources.power = Math.min(powerProduced, gameState.resources.powerMax);
+            
+            // Check power sufficiency
+            const powerSufficient = gameState.resources.power >= powerConsumed;
+            
+            // Apply production/consumption
+            Object.keys(production).forEach(res => {
+                if (powerSufficient) {
+                    gameState.resources[res] += production[res];
+                }
+            });
+            
+            Object.keys(consumption).forEach(res => {
+                gameState.resources[res] -= consumption[res];
+                if (gameState.resources[res] < 0) gameState.resources[res] = 0;
+            });
+            
+            // Update display
+            document.getElementById('oxygen-change').innerHTML = 
+                `<span class="${production.oxygen > consumption.oxygen ? 'positive' : 'negative'}">
+                    ${production.oxygen > consumption.oxygen ? '+' : ''}${(production.oxygen - consumption.oxygen).toFixed(1)}
+                </span>`;
+            document.getElementById('water-change').innerHTML = 
+                `<span class="${production.water > consumption.water ? 'positive' : 'negative'}">
+                    ${production.water > consumption.water ? '+' : ''}${(production.water - consumption.water).toFixed(1)}
+                </span>`;
+            document.getElementById('food-change').innerHTML = 
+                `<span class="${production.food > consumption.food ? 'positive' : 'negative'}">
+                    ${production.food > consumption.food ? '+' : ''}${(production.food - consumption.food).toFixed(1)}
+                </span>`;
+        }
+
+        function updateColonists() {
+            // Assign workers to buildings
+            assignWorkers();
+            
+            gameState.colonists.forEach(colonist => {
+                // Health
+                if (gameState.resources.oxygen < gameState.colonists.length * 0.5) {
+                    colonist.health -= 2;
+                } else if (hasBuilding('medbay')) {
+                    const healRate = hasResearch('medicine') ? 4 : 2;
+                    colonist.health = Math.min(100, colonist.health + healRate);
+                }
+                
+                // Morale
+                if (gameState.resources.food < gameState.colonists.length) {
+                    colonist.morale -= 3;
+                } else if (hasBuilding('recCenter')) {
+                    colonist.morale = Math.min(100, colonist.morale + 2);
+                } else {
+                    colonist.morale = Math.min(100, colonist.morale + 0.5);
+                }
+                
+                if (colonist.assigned) colonist.morale += 1;
+                
+                // Clamp values
+                colonist.health = Math.max(0, Math.min(100, colonist.health));
+                colonist.morale = Math.max(0, Math.min(100, colonist.morale));
+                
+                // Death
+                if (colonist.health <= 0) {
+                    logEvent(`💔 ${colonist.name} has died.`, 'alert');
+                    gameState.colonists = gameState.colonists.filter(c => c.id !== colonist.id);
+                }
+            });
+            
+            // Births
+            const adults = gameState.colonists.filter(c => c.age >= 18);
+            const capacity = getTotalCapacity();
+            if (adults.length >= 2 && gameState.colonists.length < capacity && 
+                gameState.resources.food > gameState.colonists.length * 2 &&
+                Math.random() < 0.01) {
+                const newColonist = addColonist();
+                newColonist.age = 0;
+                logEvent(`👶 A new colonist was born: ${newColonist.name}!`, 'success');
+            }
+            
+            // Aging
+            if (gameState.day % 365 === 0) {
+                gameState.colonists.forEach(c => c.age++);
+            }
+        }
+
+        function assignWorkers() {
+            // Reset assignments
+            gameState.colonists.forEach(c => c.assigned = false);
+            gameState.buildings.forEach(b => {
+                if (b) b.workers = [];
+            });
+            
+            // Assign to buildings
+            gameState.buildings.forEach((building, idx) => {
+                if (!building) return;
+                const type = buildingTypes[building.type];
+                if (type.workers === 0) return;
+                
+                const available = gameState.colonists.filter(c => !c.assigned);
+                for (let i = 0; i < Math.min(type.workers, available.length); i++) {
+                    const worker = available[i];
+                    worker.assigned = true;
+                    building.workers.push(worker.id);
+                }
+            });
+            
+            const assigned = gameState.colonists.filter(c => c.assigned).length;
+            const jobs = gameState.buildings.reduce((sum, b) => {
+                if (!b) return sum;
+                return sum + buildingTypes[b.type].workers;
+            }, 0);
+            document.getElementById('job-count').textContent = `${assigned}/${jobs}`;
+        }
+
+        function triggerRandomEvent() {
+            const events = [
+                { text: 'A rich mineral vein was discovered! +20 Materials', effect: () => gameState.resources.materials += 20, type: 'success' },
+                { text: 'Solar flare detected! Power systems temporarily offline.', effect: () => gameState.resources.power = 0, type: 'alert' },
+                { text: 'Colony discovered ancient Martian artifacts! Research +50', effect: () => gameState.resources.research += 50, type: 'success' },
+                { text: 'Equipment malfunction in the greenhouse.', effect: () => {}, type: 'warning' },
+                { text: 'A supply cache from Earth was found!', effect: () => { gameState.resources.food += 30; gameState.resources.water += 30; }, type: 'success' },
+                { text: 'Micro-meteorite strike! Minor damage to infrastructure.', effect: () => gameState.resources.materials -= 10, type: 'alert' },
+                { text: 'Colony morale boosted by entertainment broadcast from Earth.', effect: () => gameState.colonists.forEach(c => c.morale += 10), type: 'success' }
+            ];
+            
+            const event = randomChoice(events);
+            event.effect();
+            logEvent(event.text, event.type);
+        }
+
+        function receiveShipment() {
+            gameState.resources.credits += 200;
+            gameState.resources.materials += 20;
+            logEvent('🚀 Supply ship from Earth has arrived! +200 Credits, +20 Materials', 'success');
+        }
+
+        function checkGameOver() {
+            if (gameState.colonists.length === 0 && gameState.day > 10) {
+                showModal('Game Over', 'All colonists have perished. The Mars colony has failed.');
+                gameState.paused = true;
+            }
+        }
+
+        // ==================== CALCULATIONS ====================
+        function calculateProduction(resource) {
+            let total = 0;
+            gameState.buildings.forEach(building => {
+                if (!building) return;
+                const type = buildingTypes[building.type];
+                if (type.produces && type.produces[resource]) {
+                    let amount = type.produces[resource];
+                    if (resource === 'food' && hasResearch('hydroponics')) {
+                        amount = Math.floor(amount * 1.5);
+                    }
+                    total += amount;
+                }
+            });
+            return total;
+        }
+
+        function calculatePowerProduction() {
+            let total = 0;
+            gameState.buildings.forEach(building => {
+                if (!building) return;
+                const type = buildingTypes[building.type];
+                if (type.power > 0) {
+                    let amount = type.power;
+                    if (gameState.weather === 'storm' && building.type === 'solar') {
+                        amount = Math.floor(amount * 0.3);
+                    }
+                    if (hasResearch('advancedSolar') && building.type === 'solar') {
+                        amount = Math.floor(amount * 1.5);
+                    }
+                    total += amount;
+                }
+            });
+            return total;
+        }
+
+        function getTotalCapacity() {
+            return gameState.buildings.reduce((sum, b) => {
+                if (!b) return sum;
+                let cap = buildingTypes[b.type].capacity;
+                if (hasResearch('habitatExp') && b.type === 'habitat') cap += 2;
+                return sum + cap;
+            }, 0);
+        }
+
+        function hasBuilding(type) {
+            return gameState.buildings.some(b => b && b.type === type);
+        }
+
+        function hasResearch(id) {
+            return gameState.research[id] && gameState.research[id].researched;
+        }
+
+        function canAffordBuilding(type) {
+            return (!type.cost.materials || gameState.resources.materials >= type.cost.materials) &&
+                   (!type.cost.credits || gameState.resources.credits >= type.cost.credits);
+        }
+
+        function canAffordResearch(research) {
+            return gameState.resources.research >= research.cost;
+        }
+
+        // ==================== ACTIONS ====================
+        function selectBuildSlot(index) {
+            if (!gameState.selectedBuilding) return;
+            
+            const type = buildingTypes[gameState.selectedBuilding];
+            if (!canAffordBuilding(type)) {
+                showModal('Insufficient Resources', 'You cannot afford this building.');
+                return;
+            }
+            
+            // Deduct costs
+            if (type.cost.materials) gameState.resources.materials -= type.cost.materials;
+            if (type.cost.credits) gameState.resources.credits -= type.cost.credits;
+            
+            // Place building
+            placeBuilding(index, gameState.selectedBuilding);
+            logEvent(`Built ${type.name}`, 'success');
+            
+            gameState.selectedBuilding = null;
+            closeModal();
+            renderAll();
+        }
+
+        function showBuildingInfo(index) {
+            const building = gameState.buildings[index];
+            if (!building) return;
+            
+            const type = buildingTypes[building.type];
+            const content = `
+                <p><strong>${type.name}</strong></p>
+                <p>${type.description}</p>
+                <p>Power: ${type.power > 0 ? '+' : ''}${type.power}</p>
+                ${type.workers > 0 ? `<p>Workers: ${building.workers.length}/${type.workers}</p>` : ''}
+                ${type.capacity > 0 ? `<p>Capacity: ${type.capacity} colonists</p>` : ''}
+            `;
+            
+            showModal('Building Info', content, [
+                { text: 'Demolish', class: 'btn-danger', action: () => demolishBuilding(index) },
+                { text: 'Close', class: 'btn', action: closeModal }
+            ]);
+        }
+
+        function demolishBuilding(index) {
+            const building = gameState.buildings[index];
+            if (!building) return;
+            
+            const type = buildingTypes[building.type];
+            gameState.buildings[index] = null;
+            
+            // Refund 50%
+            if (type.cost.materials) gameState.resources.materials += Math.floor(type.cost.materials * 0.5);
+            if (type.cost.credits) gameState.resources.credits += Math.floor(type.cost.credits * 0.5);
+            
+            logEvent(`Demolished ${type.name}`, 'warning');
+            closeModal();
+            renderAll();
+        }
+
+        function buyResearch(id) {
+            const research = researchTree[id];
+            if (!research || !canAffordResearch(research)) return;
+            if (gameState.research[id].researched) return;
+            
+            gameState.resources.research -= research.cost;
+            gameState.research[id].researched = true;
+            
+            logEvent(`Research complete: ${research.name}!`, 'success');
+            renderAll();
+        }
+
+        function trade(resource, amount) {
+            const good = tradeGoods[resource];
+            if (!good) return;
+            
+            if (amount > 0) {
+                // Buying
+                const cost = amount * good.price;
+                if (gameState.resources.credits < cost) {
+                    showModal('Insufficient Credits', 'You cannot afford this purchase.');
+                    return;
+                }
+                gameState.resources.credits -= cost;
+                gameState.resources[resource] += amount;
+                logEvent(`Bought ${amount} ${good.name} for ${cost} credits`, 'success');
+            } else {
+                // Selling
+                const absAmount = Math.abs(amount);
+                if (gameState.resources[resource] < absAmount) {
+                    showModal('Insufficient Resources', 'You do not have enough to sell.');
+                    return;
+                }
+                const revenue = absAmount * good.price * 0.8; // Sell at 80%
+                gameState.resources[resource] -= absAmount;
+                gameState.resources.credits += revenue;
+                logEvent(`Sold ${absAmount} ${good.name} for ${Math.floor(revenue)} credits`, 'success');
+            }
+            
+            renderAll();
+        }
+
+        // ==================== MODAL ====================
+        function showModal(title, content, actions = null) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = content;
+            
+            const actionsEl = document.getElementById('modal-actions');
+            if (actions) {
+                actionsEl.innerHTML = '';
+                actions.forEach(action => {
+                    const btn = document.createElement('button');
+                    btn.className = action.class;
+                    btn.textContent = action.text;
+                    btn.onclick = action.action;
+                    actionsEl.appendChild(btn);
+                });
+            } else {
+                actionsEl.innerHTML = '<button class="btn" onclick="closeModal()">Close</button>';
+            }
+            
+            document.getElementById('modal-overlay').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+            gameState.selectedBuilding = null;
+        }
+
+        // ==================== SAVE/LOAD ====================
+        function saveGame() {
+            const saveData = {
+                day: gameState.day,
+                resources: gameState.resources,
+                colonists: gameState.colonists,
+                buildings: gameState.buildings,
+                research: gameState.research,
+                weather: gameState.weather,
+                stormDays: gameState.stormDays,
+                shipmentDays: gameState.shipmentDays
+            };
+            
+            localStorage.setItem('spaceColonySave', JSON.stringify(saveData));
+            logEvent('💾 Game saved!', 'success');
+            showModal('Save Game', 'Game saved successfully to browser storage.');
+        }
+
+        function loadGame() {
+            const saveData = localStorage.getItem('spaceColonySave');
+            if (!saveData) {
+                showModal('Load Game', 'No save file found.');
+                return;
+            }
+            
+            const data = JSON.parse(saveData);
+            gameState.day = data.day || 1;
+            gameState.resources = data.resources || gameState.resources;
+            gameState.colonists = data.colonists || [];
+            gameState.buildings = data.buildings || new Array(gameState.gridSize).fill(null);
+            gameState.research = data.research || {};
+            gameState.weather = data.weather || 'clear';
+            gameState.stormDays = data.stormDays || 0;
+            gameState.shipmentDays = data.shipmentDays || 30;
+            
+            logEvent('📂 Game loaded!', 'success');
+            renderAll();
+            showModal('Load Game', 'Game loaded successfully!');
+        }
+
+        // ==================== EVENT LOG ====================
+        function logEvent(text, type = '') {
+            gameState.eventLog.push({
+                text,
+                type,
+                day: gameState.day,
+                time: Date.now()
+            });
+            
+            // Keep only last 50 events
+            if (gameState.eventLog.length > 50) {
+                gameState.eventLog.shift();
+            }
+            
+            renderEvents();
+        }
+
+        // ==================== UI EVENTS ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+            
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
+            
+            // Speed controls
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    gameState.gameSpeed = parseInt(btn.dataset.speed);
+                });
+            });
+            
+            // Tooltip positioning
+            document.addEventListener('mousemove', (e) => {
+                const tooltip = document.getElementById('tooltip');
+                if (tooltip.classList.contains('show')) {
+                    tooltip.style.left = e.clientX + 15 + 'px';
+                    tooltip.style.top = e.clientY + 15 + 'px';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
