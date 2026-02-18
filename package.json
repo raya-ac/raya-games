@@ -33,7 +33,7 @@
     "cellular": ["life2d", "gol3d", "gol4d"],
     "simulation": ["ecosystem", "fluid-sim", "boids", "particles", "ant-sim"],
     "tycoon": ["prison-tycoon", "stock-tycoon", "city-builder", "space-colony"],
-    "strategy": ["medieval-wars", "battleroyale", "disease-sim"],
+    "strategy": ["medieval-wars", "battleroyale", "disease-sim", "zombie-sim"],
     "ai": ["neural-net", "ai-office"],
     "utility": ["traffic"]
   }

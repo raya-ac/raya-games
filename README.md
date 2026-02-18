@@ -3,7 +3,7 @@
 A collection of browser-based games and simulations. No downloads required - play instantly in your browser!
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Games](https://img.shields.io/badge/games-20-green.svg)
+![Games](https://img.shields.io/badge/games-21-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-yellow.svg)
 
 ## 🚀 Quick Start
@@ -47,6 +47,7 @@ Visit [https://raya.li/games](https://raya.li/games) to play instantly, or open 
 | **Medieval Kingdom Wars** | Hex-based strategy with diplomacy |
 | **Battle Royale** | 100 AI agents fight to survive |
 | **Disease Simulator** | Plague Inc-style outbreak evolution |
+| **Zombie Outbreak** | Zombie apocalypse with quarantine and survivors |
 
 ### 🧠 AI/ML
 | Game | Description |
@@ -80,6 +81,7 @@ raya-games/
 ├── medieval-wars.html     # Medieval strategy
 ├── battleroyale.html      # Battle royale
 ├── disease-sim.html       # Disease outbreak
+├── zombie-sim.html        # Zombie outbreak
 ├── neural-net.html        # Neural network viz
 ├── ai-office.html         # AI office sim
 ├── traffic.html           # Traffic simulation

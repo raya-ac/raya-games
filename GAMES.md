@@ -4,7 +4,7 @@ Complete index of all games in the Raya Games collection.
 
 ## Statistics
 
-- **Total Games**: 20
+- **Total Games**: 21
 - **Categories**: 7
 - **Featured**: 1
 - **Last Updated**: 2026-02-18
@@ -40,12 +40,13 @@ Complete index of all games in the Raya Games collection.
 | City Builder | `city-builder.html` | 77KB | Zoning, traffic, power, water management |
 | Space Colony | `space-colony.html` | 85KB | Mars/base colony with life support systems |
 
-### ⚔️ Strategy (3)
+### ⚔️ Strategy (4)
 | Game | File | Size | Description |
 |------|------|------|-------------|
 | Medieval Kingdom Wars | `medieval-wars.html` | 35KB | Hex-based strategy with diplomacy |
 | Battle Royale | `battleroyale.html` | 71KB | 100 AI agents fight to survive |
 | Disease Simulator | `disease-sim.html` | 80KB | Plague Inc-style outbreak evolution |
+| Zombie Outbreak | `zombie-sim.html` | 0KB | Zombie apocalypse with quarantine and survivors |
 
 ### 🧠 AI/ML (2)
 | Game | File | Size | Description |
