@@ -1,3 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medieval Kingdom Wars - Enhanced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cinzel', 'Georgia', serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #d4af37;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+        #gameContainer {
+            display: flex;
+            height: 100vh;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border-right: 3px solid #d4af37;
+            padding: 12px;
+            overflow-y: auto;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.5);
+        }
+
+        #rightSidebar {
+            width: 320px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border-left: 3px solid #d4af37;
+            padding: 12px;
+            overflow-y: auto;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+        }
+
+        #mainArea {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        #topBar {
+            height: 70px;
+            background: linear-gradient(90deg, #1a1a2e 0%, #2a2a4e 50%, #1a1a2e 100%);
+            border-bottom: 2px solid #d4af37;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        #canvasContainer {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #0a0a0a;
+        }
+
+        #gameCanvas {
+            cursor: crosshair;
+        }
+
+        .panel {
+            background: rgba(26, 26, 46, 0.9);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .panel h3 {
+            color: #d4af37;
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #d4af37;
+            padding-bottom: 6px;
+        }
+
+        .resource-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .resource-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            padding: 5px 8px;
+            background: rgba(212, 175, 55, 0.1);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .resource-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .resource-value {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .btn {
+            background: linear-gradient(180deg, #4a3728 0%, #2a1f18 100%);
+            border: 2px solid #d4af37;
+            color: #d4af37;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-family: 'Cinzel', serif;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            margin: 3px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(180deg, #5a4738 0%, #3a2f28 100%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-full {
+            width: calc(100% - 6px);
+            margin: 3px;
+        }
+
+        .btn-war {
+            background: linear-gradient(180deg, #5a2828 0%, #3a1f18 100%);
+            border-color: #ff6b6b;
+        }
+
+        .btn-war:hover {
+            background: linear-gradient(180deg, #6a3838 0%, #4a2f28 100%);
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-ally {
+            background: linear-gradient(180deg, #285a28 0%, #183a18 100%);
+            border-color: #6bff6b;
+        }
+
+        .btn-ally:hover {
+            background: linear-gradient(180deg, #386a38 0%, #284a28 100%);
+            box-shadow: 0 0 15px rgba(107, 255, 107, 0.4);
+        }
+
+        .btn-spy {
+            background: linear-gradient(180deg, #3a285a 0%, #1f183a 100%);
+            border-color: #9b6bff;
+        }
+
+        .btn-spy:hover {
+            background: linear-gradient(180deg, #4a386a 0%, #2f284a 100%);
+            box-shadow: 0 0 15px rgba(155, 107, 255, 0.4);
+        }
+
+        .btn-hero {
+            background: linear-gradient(180deg, #5a4a28 0%, #3a2f18 100%);
+            border-color: #ffd700;
+        }
+
+        .btn-hero:hover {
+            background: linear-gradient(180deg, #6a5a38 0%, #4a3f28 100%);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .unit-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #d4af37;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .unit-info {
+            flex: 1;
+        }
+
+        .unit-name {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .unit-stats {
+            font-size: 10px;
+            color: #aaa;
+        }
+
+        .tech-tree {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+
+        .tech-node {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #555;
+            border-radius: 6px;
+            padding: 5px 2px;
+            text-align: center;
+            font-size: 9px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 45px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tech-node:hover:not(.locked):not(.researched) {
+            border-color: #d4af37;
+            background: rgba(212, 175, 55, 0.2);
+        }
+
+        .tech-node.researched {
+            border-color: #6bff6b;
+            background: rgba(107, 255, 107, 0.2);
+        }
+
+        .tech-node.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .diplomacy-item {
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            border-left: 4px solid #555;
+        }
+
+        .diplomacy-item.allied {
+            border-left-color: #6bff6b;
+        }
+
+        .diplomacy-item.war {
+            border-left-color: #ff6b6b;
+        }
+
+        .diplomacy-item.trade {
+            border-left-color: #d4af37;
+        }
+
+        .diplomacy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .diplomacy-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }
+
+        .diplomacy-actions .btn {
+            padding: 4px 8px;
+            font-size: 9px;
+            margin: 2px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-icon {
+            font-size: 18px;
+        }
+
+        #eventLog {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+
+        .event-entry {
+            padding: 4px 8px;
+            margin: 3px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 3px;
+            border-left: 3px solid #d4af37;
+        }
+
+        .event-entry.negative {
+            border-left-color: #ff6b6b;
+        }
+
+        .event-entry.positive {
+            border-left-color: #6bff6b;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border: 3px solid #d4af37;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 50px rgba(212, 175, 55, 0.3);
+        }
+
+        .modal h2 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #d4af37;
+            font-size: 20px;
+        }
+
+        .hero-card {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+
+        .hero-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .hero-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .hero-level {
+            background: #4a3728;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            font-size: 11px;
+            margin: 8px 0;
+        }
+
+        .hero-abilities {
+            margin-top: 8px;
+        }
+
+        .hero-ability {
+            background: rgba(212, 175, 55, 0.2);
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin: 3px 0;
+            border-left: 3px solid #d4af37;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .castle-info {
+            text-align: center;
+        }
+
+        .castle-level {
+            font-size: 20px;
+            color: #ffd700;
+            margin: 5px 0;
+        }
+
+        .building-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .building-item {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 5px;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .building-item.built {
+            border-color: #6bff6b;
+            background: rgba(107, 255, 107, 0.1);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 18px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 9px;
+            overflow: hidden;
+            margin: 8px 0;
+            border: 1px solid #d4af37;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #d4af37 0%, #ffd700 100%);
+            transition: width 0.3s;
+        }
+
+        #minimap {
+            width: 100%;
+            height: 100px;
+            background: #0a0a0a;
+            border: 2px solid #d4af37;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px;
+            padding: 3px;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            border-radius: 17px;
+            font-family: 'Cinzel', serif;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #d4af37;
+            color: #1a1a2e;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(26, 26, 46, 0.95);
+            border: 2px solid #d4af37;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            max-width: 220px;
+            display: none;
+        }
+
+        .tooltip.show {
+            display: block;
+        }
+
+        #turnInfo {
+            text-align: center;
+        }
+
+        #turnNumber {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .back-btn {
+            background: linear-gradient(180deg, #4a3728 0%, #2a1f18 100%);
+            border: 2px solid #d4af37;
+            color: #d4af37;
+            padding: 8px 15px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-family: 'Cinzel', serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .back-btn:hover {
+            background: linear-gradient(180deg, #5a4738 0%, #3a2f28 100%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        }
+
+        .siege-panel {
+            background: rgba(90, 40, 40, 0.3);
+            border: 2px solid #ff6b6b;
+        }
+
+        .spy-panel {
+            background: rgba(60, 40, 90, 0.3);
+            border: 2px solid #9b6bff;
+        }
+
+        .fog-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .toggle-switch {
+            width: 45px;
+            height: 22px;
+            background: #333;
+            border-radius: 22px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #d4af37;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(23px);
+        }
+
+        .victory-tracker {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .victory-type {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .victory-type:last-child {
+            border-bottom: none;
+        }
+
+        .victory-progress {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .spy-mission {
+            background: rgba(155, 107, 255, 0.1);
+            border: 1px solid #9b6bff;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 8px 0;
+        }
+
+        .spy-mission h4 {
+            color: #9b6bff;
+            margin-bottom: 5px;
+        }
+
+        .mission-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .siege-weapon-card {
+            background: rgba(90, 40, 40, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 5px 0;
+        }
+
+        .trade-panel {
+            background: rgba(40, 90, 40, 0.2);
+            border: 1px solid #6bff6b;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 8px 0;
+        }
+
+        .resource-trade-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            font-size: 12px;
+        }
+
+        .intel-report {
+            background: rgba(155, 107, 255, 0.15);
+            border-left: 4px solid #9b6bff;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 11px;
+        }
+
+        .tab-container {
+            display: flex;
+            border-bottom: 2px solid #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: 'Cinzel', serif;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: #d4af37;
+            border-bottom: 2px solid #d4af37;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d4af37;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ffd700;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            #sidebar { width: 260px; }
+            #rightSidebar { width: 260px; }
+        }
+        
+        @media (max-width: 900px) {
+            #rightSidebar { display: none; }
+            #sidebar { width: 280px; }
+        }
+
+        .unit-buttons {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .event-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(180deg, #2a1a1a 0%, #1a0f0f 100%);
+            border: 3px solid #ff6b6b;
+            border-radius: 12px;
+            padding: 30px;
+            z-index: 2000;
+            text-align: center;
+            display: none;
+            box-shadow: 0 0 50px rgba(255, 107, 107, 0.5);
+        }
+
+        .event-popup.active {
+            display: block;
+            animation: popupPulse 0.5s ease;
+        }
+
+        @keyframes popupPulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border: 2px solid #d4af37;
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        .music-toggle {
+            background: linear-gradient(180deg, #4a3728 0%, #2a1f18 100%);
+            border: 2px solid #d4af37;
+            color: #d4af37;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .music-toggle:hover {
+            background: linear-gradient(180deg, #5a4738 0%, #3a2f28 100%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+            transform: scale(1.05);
+        }
+
+        .music-toggle.muted {
+            background: linear-gradient(180deg, #3a2828 0%, #1a0f0f 100%);
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .volume-control {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .volume-label {
+            font-size: 10px;
+            color: #d4af37;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .volume-slider {
+            width: 100px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(0,0,0,0.5);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(180deg, #d4af37 0%, #b8960f 100%);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #1a1a2e;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1999;
+            display: none;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        .xp-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 3px 0;
+        }
+
+        .xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9b6bff 0%, #c9a8ff 100%);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="sidebar">
+            <a href="/games" class="back-btn">🎮 Games</a>
+            
+            <div class="panel">
+                <h3>👑 Kingdom Resources</h3>
+                <div class="resource-grid">
+                    <div class="resource-row">
+                        <div class="resource-label">👑 Prestige</div>
+                        <div class="resource-value" id="prestige">100</div>
+                    </div>
+                    <div class="resource-row">
+                        <div class="resource-label">🪙 Gold</div>
+                        <div class="resource-value" id="gold">500</div>
+                    </div>
+                    <div class="resource-row">
+                        <div class="resource-label">🪵 Wood</div>
+                        <div class="resource-value" id="wood">200</div>
+                    </div>
+                    <div class="resource-row">
+                        <div class="resource-label">🪨 Stone</div>
+                        <div class="resource-value" id="stone">150</div>
+                    </div>
+                    <div class="resource-row">
+                        <div class="resource-label">🌾 Food</div>
+                        <div class="resource-value" id="food">200</div>
+                    </div>
+                    <div class="resource-row">
+                        <div class="resource-label">👥 Pop</div>
+                        <div class="resource-value" id="population">50/100</div>
+                    </div>
+                </div>
+                <div class="resource-row" style="margin-top: 8px;">
+                    <div class="resource-label">⚔️ Army</div>
+                    <div class="resource-value" id="armySize">0</div>
+                </div>
+                <div class="resource-row">
+                    <div class="resource-label">🕵️ Spies</div>
+                    <div class="resource-value" id="spyCount">0</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🏰 Castle & Buildings</h3>
+                <div class="castle-info">
+                    <div class="castle-level" id="castleLevel">Level 1</div>
+                    <div>Defense: <span id="castleDefense">10</span> | Garrison: <span id="garrisonSize">0</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="castleProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="building-list" id="buildingList">
+                    <!-- Buildings generated by JS -->
+                </div>
+                <button class="btn btn-full" id="upgradeCastle">Upgrade Castle</button>
+                <button class="btn btn-full" id="manageBuildings">Manage Buildings</button>
+            </div>
+
+            <div class="panel">
+                <h3>⚔️ Recruit Units</h3>
+                <div class="unit-buttons">
+                    <button class="btn" id="recruitKnight">🛡️ Knight<br><small>50🪙 20🌾</small></button>
+                    <button class="btn" id="recruitArcher">🏹 Archer<br><small>30🪙 10🌾</small></button>
+                    <button class="btn" id="recruitCavalry">🐴 Cavalry<br><small>80🪙 30🌾</small></button>
+                    <button class="btn" id="recruitSpy">🕵️ Spy<br><small>100🪙 50🪵</small></button>
+                </div>
+                <div style="margin-top: 8px;">
+                    <button class="btn btn-hero btn-full" id="viewHeroes">🦸 View Heroes</button>
+                </div>
+            </div>
+
+            <canvas id="minimap"></canvas>
+        </div>
+
+        <div id="mainArea">
+            <div id="topBar">
+                <div class="status-bar">
+                    <div class="status-item">
+                        <span class="status-icon">🏰</span>
+                        <span id="kingdomName">Your Kingdom</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">📅</span>
+                        <span id="gameDate">Year 1, Spring</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">🎯</span>
+                        <span id="victoryStatus">Conquest: 0/5</span>
+                    </div>
+                </div>
+                
+                <div id="turnInfo">
+                    <div id="turnNumber">Turn 1</div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn" id="saveBtn" style="width: auto; padding: 6px 12px;" title="Save">💾</button>
+                        <button class="btn" id="loadBtn" style="width: auto; padding: 6px 12px;" title="Load">📂</button>
+                        <button class="btn btn-war" id="resetBtn" style="width: auto; padding: 6px 12px;" title="New">🔄</button>
+                    </div>
+                    <div class="mode-toggle">
+                        <button class="mode-btn active" id="turnBasedBtn">Turn</button>
+                        <button class="mode-btn" id="realTimeBtn">Real Time</button>
+                    </div>
+                    <button class="btn" id="endTurnBtn" style="width: auto; padding: 10px 25px;">End Turn</button>
+                </div>
+            </div>
+
+            <div id="canvasContainer">
+                <canvas id="gameCanvas"></canvas>
+                <div class="tooltip" id="tooltip"></div>
+            </div>
+        </div>
+
+        <div id="rightSidebar">
+            <div class="panel">
+                <h3>📚 Technology Tree</h3>
+                <div class="tech-tree" id="techTree"></div>
+            </div>
+
+            <div class="panel">
+                <h3>🌍 Diplomacy</h3>
+                <div id="diplomacyList"></div>
+            </div>
+
+            <div class="panel">
+                <h3>🎯 Victory Progress</h3>
+                <div class="victory-tracker">
+                    <div class="victory-type">
+                        <span>⚔️ Domination</span>
+                        <span class="victory-progress" id="dominationProgress">0/5 kingdoms</span>
+                    </div>
+                    <div class="victory-type">
+                        <span>💰 Economic</span>
+                        <span class="victory-progress" id="economicProgress">500/5000 gold</span>
+                    </div>
+                    <div class="victory-type">
+                        <span>👑 Cultural</span>
+                        <span class="victory-progress" id="culturalProgress">100/1000 prestige</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel spy-panel">
+                <h3>🕵️ Spy Network</h3>
+                <div id="spyNetworkPanel">
+                    <div style="text-align: center; padding: 10px; color: #888; font-size: 11px;">
+                        No active spies. Recruit spies to infiltrate enemy kingdoms.
+                    </div>
+                </div>
+                <div id="intelReports"></div>
+            </div>
+
+            <div class="panel">
+                <h3>📜 Event Log</h3>
+                <div id="eventLog">
+                    <div class="event-entry">Welcome to Medieval Kingdom Wars!</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>⚙️ Settings</h3>
+                <div class="fog-toggle">
+                    <span>Auto-Save</span>
+                    <div class="toggle-switch" id="autoSaveToggle"></div>
+                </div>
+                <div class="fog-toggle">
+                    <span>Fog of War</span>
+                    <div class="toggle-switch active" id="fogToggle"></div>
+                </div>
+                <div id="saveStatus" style="text-align: center; font-size: 11px; color: #888; margin-top: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Modal -->
+    <div class="modal" id="heroModal">
+        <div class="modal-content">
+            <h2>🦸 Heroes of the Realm</h2>
+            <div id="heroList"></div>
+            <button class="btn btn-full" onclick="closeModal('heroModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Siege Modal -->
+    <div class="modal" id="siegeModal">
+        <div class="modal-content">
+            <h2>⚔️ Siege Warfare</h2>
+            <div id="siegeInfo"></div>
+            <div class="siege-weapon-card">
+                <h4>🏰 Available Siege Weapons</h4>
+                <div id="siegeWeaponsList"></div>
+            </div>
+            <div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 5px;">
+                <button class="btn btn-war" id="attackWalls">⚔️ Attack Walls</button>
+                <button class="btn btn-war" id="useCatapult">🎯 Catapult</button>
+                <button class="btn btn-war" id="useRam">🚪 Battering Ram</button>
+                <button class="btn btn-war" id="useTrebuchet">🏰 Trebuchet</button>
+                <button class="btn" id="starveOut">🍞 Starve Out</button>
+                <button class="btn btn-ally" id="offerSurrender">🏳️ Offer Terms</button>
+                <button class="btn" onclick="closeModal('siegeModal')">Retreat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trade Modal -->
+    <div class="modal" id="tradeModal">
+        <div class="modal-content">
+            <h2>💰 Trade Agreement</h2>
+            <div id="tradeInfo"></div>
+            <div class="trade-panel">
+                <h4>Offer Resources</h4>
+                <div id="tradeOfferPanel"></div>
+            </div>
+            <div class="trade-panel">
+                <h4>Request Resources</h4>
+                <div id="tradeRequestPanel"></div>
+            </div>
+            <div style="margin-top: 15px;">
+                <button class="btn btn-ally" id="acceptTrade">🤝 Propose Trade</button>
+                <button class="btn" onclick="closeModal('tradeModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spy Mission Modal -->
+    <div class="modal" id="spyModal">
+        <div class="modal-content">
+            <h2>🕵️ Spy Operations</h2>
+            <div id="spyTargetInfo"></div>
+            <div class="spy-mission">
+                <h4>Available Missions</h4>
+                <div class="mission-buttons">
+                    <button class="btn btn-spy" id="missionIntel">📊 Gather Intel</button>
+                    <button class="btn btn-spy" id="missionSabotage">🔥 Sabotage</button>
+                    <button class="btn btn-spy" id="missionAssassinate">🗡️ Assassinate</button>
+                    <button class="btn btn-spy" id="missionSteal">💰 Steal Gold</button>
+                </div>
+            </div>
+            <button class="btn btn-full" onclick="closeModal('spyModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Buildings Modal -->
+    <div class="modal" id="buildingsModal">
+        <div class="modal-content">
+            <h2>🏰 Castle Buildings</h2>
+            <div id="buildingsList"></div>
+            <button class="btn btn-full" onclick="closeModal('buildingsModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div class="modal" id="victoryModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 id="victoryTitle">👑 Victory!</h2>
+            <div id="victoryContent"></div>
+            <button class="btn btn-full" onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Event Overlay -->
+    <div class="overlay" id="eventOverlay"></div>
+    
+    <!-- Event Popup -->
+    <div class="event-popup" id="eventPopup">
+        <h2 id="eventTitle">Event Title</h2>
+        <p id="eventDescription">Event description goes here...</p>
+        <div id="eventButtons"></div>
+    </div>
+
+    <!-- Music Control Panel -->
+    <div class="music-control" id="musicControl">
+        <button class="music-toggle" id="musicToggle" title="Click to start music">
+            🎵
+        </button>
+        <div class="volume-control">
+            <span class="volume-label">Volume</span>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="15">
+        </div>
+        <div class="music-status" id="musicStatus">Click 🎵 to begin</div>
+    </div>
+
+    <script>
+
 
         // ==================== EPIC MEDIEVAL AUDIO SYSTEM ====================
         class MedievalAudioSystem {
@@ -1105,5 +2268,9 @@
             100% { opacity:0; }
         }
     </style>
+</body>
+</html>
+
+    </script>
 </body>
 </html>
