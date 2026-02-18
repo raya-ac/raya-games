@@ -2281,6 +2281,229 @@
                     tooltip.style.top = e.clientY + 15 + 'px';
                 }
             });
+
+            // ================================================
+            // SPACE STATION AUDIO SYSTEM (Enhanced)
+            // ================================================
+            const spaceAudio = (() => {
+                let ctx = null, masterGain = null, compressor = null;
+                let humNode = null, lifeNodes = [], alertNodes = [];
+                let heartbeatTimer = null, alertTimer = null;
+                let sfxCtx = null; // Separate context for SFX (always available)
+
+                function ensureCtx() {
+                    if (!ctx) {
+                        ctx = audioContext; // Use existing audioContext
+                        if (ctx) {
+                            compressor = ctx.createDynamicsCompressor();
+                            compressor.threshold.value = -20; compressor.ratio.value = 3;
+                            masterGain = lofiMusic.masterGain || ctx.createGain();
+                            if (!lofiMusic.masterGain) {
+                                masterGain.connect(compressor);
+                                compressor.connect(ctx.destination);
+                            }
+                        }
+                    }
+                    return !!ctx;
+                }
+
+                function playSfxTone(freq, duration, type = 'sine', vol = 0.06) {
+                    try {
+                        const c = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = c.createOscillator(); const g = c.createGain();
+                        osc.type = type; osc.frequency.value = freq;
+                        g.gain.setValueAtTime(vol, c.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+                        osc.connect(g); g.connect(c.destination);
+                        osc.start(); osc.stop(c.currentTime + duration);
+                    } catch(e) {}
+                }
+
+                function playHum() {
+                    if (!ensureCtx()) return;
+                    const g = ctx.createGain(); g.gain.value = 0.025;
+                    const osc1 = ctx.createOscillator(); osc1.frequency.value = 60; osc1.type = 'sine';
+                    const osc2 = ctx.createOscillator(); osc2.frequency.value = 120; osc2.type = 'sine';
+                    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 200;
+                    osc1.connect(filter); osc2.connect(filter); filter.connect(g);
+                    if (lofiMusic.compressor) g.connect(lofiMusic.compressor);
+                    else g.connect(ctx.destination);
+                    osc1.start(); osc2.start();
+                    humNode = { osc1, osc2, gain: g };
+                }
+
+                function playLifeSupportBeep() {
+                    if (!ensureCtx() || !lofiMusic.enabled) return;
+                    // Regular life support monitor beep
+                    const osc = ctx.createOscillator(); const g = ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.value = 1200;
+                    const t = ctx.currentTime;
+                    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.02, t+0.01);
+                    g.gain.setValueAtTime(0.02, t+0.06); g.gain.linearRampToValueAtTime(0, t+0.08);
+                    osc.connect(g);
+                    if (lofiMusic.compressor) g.connect(lofiMusic.compressor);
+                    else g.connect(ctx.destination);
+                    osc.start(t); osc.stop(t+0.1);
+                }
+
+                function playComputerChirp() {
+                    if (!ensureCtx() || !lofiMusic.enabled) return;
+                    const freqs = [800, 1000, 1200, 900];
+                    freqs.forEach((f, i) => {
+                        const osc = ctx.createOscillator(); const g = ctx.createGain();
+                        osc.type = 'square'; osc.frequency.value = f;
+                        const t = ctx.currentTime + i * 0.06;
+                        g.gain.setValueAtTime(0.015, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+                        osc.connect(g);
+                        if (lofiMusic.compressor) g.connect(lofiMusic.compressor);
+                        else g.connect(ctx.destination);
+                        osc.start(t); osc.stop(t+0.06);
+                    });
+                }
+
+                return {
+                    // Start full space ambient
+                    startAmbient() {
+                        if (!ensureCtx()) return;
+                        playHum();
+                        // Life support heartbeat
+                        heartbeatTimer = setInterval(() => {
+                            if (lofiMusic.enabled) playLifeSupportBeep();
+                        }, 3000);
+                        // Computer chirps
+                        alertTimer = setInterval(() => {
+                            if (lofiMusic.enabled && Math.random() < 0.3) playComputerChirp();
+                        }, 7000);
+                    },
+                    stopAmbient() {
+                        if (humNode) { try { humNode.osc1.stop(); humNode.osc2.stop(); } catch(e){} humNode = null; }
+                        clearInterval(heartbeatTimer); clearInterval(alertTimer);
+                    },
+                    // SFX (independent of music toggle)
+                    playBuildComplete() {
+                        playSfxTone(523, 0.1, 'sine', 0.07);
+                        setTimeout(() => playSfxTone(659, 0.1, 'sine', 0.07), 100);
+                        setTimeout(() => playSfxTone(784, 0.15, 'sine', 0.07), 200);
+                        setTimeout(() => playSfxTone(1047, 0.2, 'sine', 0.07), 300);
+                    },
+                    playAlert() {
+                        [440, 550, 440, 550].forEach((f, i) => {
+                            setTimeout(() => playSfxTone(f, 0.15, 'square', 0.06), i*150);
+                        });
+                    },
+                    playSuccess() {
+                        [659, 784, 1047].forEach((f, i) => {
+                            setTimeout(() => playSfxTone(f, 0.12, 'triangle', 0.06), i*100);
+                        });
+                    },
+                    playResearchComplete() {
+                        const melody = [523,659,784,659,784,1047,784,1047,1319];
+                        melody.forEach((f, i) => setTimeout(() => playSfxTone(f, 0.1, 'sine', 0.08), i*80));
+                    },
+                    playColonistDeath() {
+                        [440, 370, 330, 277].forEach((f, i) => {
+                            setTimeout(() => playSfxTone(f, 0.2, 'sawtooth', 0.05), i*120);
+                        });
+                    },
+                    playStormWarning() {
+                        [880, 660, 880, 660, 880].forEach((f, i) => {
+                            setTimeout(() => playSfxTone(f, 0.18, 'square', 0.07), i*200);
+                        });
+                    },
+                    playDemolish() {
+                        playSfxTone(220, 0.3, 'sawtooth', 0.07);
+                        setTimeout(() => playSfxTone(150, 0.3, 'sawtooth', 0.05), 100);
+                    },
+                    playTrade() {
+                        [880, 1100, 1320].forEach((f, i) => {
+                            setTimeout(() => playSfxTone(f, 0.1, 'sine', 0.06), i*70);
+                        });
+                    }
+                };
+            })();
+
+            // Override toggleMusic to also handle space ambient
+            const origToggleMusic = toggleMusic;
+            window.toggleMusicEnhanced = function() {
+                origToggleMusic();
+                if (lofiMusic.enabled) {
+                    spaceAudio.startAmbient();
+                    const btn = document.getElementById('music-toggle-btn');
+                    if (btn) { btn.style.opacity = '1'; btn.textContent = '🔊 Music ON'; }
+                } else {
+                    spaceAudio.stopAmbient();
+                    const btn = document.getElementById('music-toggle-btn');
+                    if (btn) { btn.style.opacity = '0.5'; btn.textContent = '🔇 Music OFF'; }
+                }
+            };
+            // Replace the global toggleMusic
+            window.toggleMusic = window.toggleMusicEnhanced;
+
+            // Wrap key functions to add SFX
+            const origPlaceBuilding = window.placeBuilding;
+            window.placeBuilding = function(index, typeId) {
+                const result = origPlaceBuilding(index, typeId);
+                if (result) spaceAudio.playBuildComplete();
+                return result;
+            };
+
+            const origDemolish = window.demolishBuilding;
+            window.demolishBuilding = function(index) {
+                origDemolish(index);
+                spaceAudio.playDemolish();
+            };
+
+            const origBuyResearch = window.buyResearch;
+            window.buyResearch = function(id) {
+                const before = Object.values(gameState.research).filter(r => r.researched).length;
+                origBuyResearch(id);
+                const after = Object.values(gameState.research).filter(r => r.researched).length;
+                if (after > before) spaceAudio.playResearchComplete();
+            };
+
+            const origTrade = window.trade;
+            window.trade = function(resource, amount) {
+                origTrade(resource, amount);
+                spaceAudio.playTrade();
+            };
+
+            // Monitor for events
+            const origLogEvent = window.logEvent;
+            window.logEvent = function(text, type) {
+                origLogEvent(text, type);
+                if (type === 'alert') spaceAudio.playAlert();
+                else if (type === 'success') spaceAudio.playSuccess();
+            };
+
+            // ================================================
+            // KEYBOARD SHORTCUTS
+            // ================================================
+            document.addEventListener('keydown', e => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                switch(e.key.toLowerCase()) {
+                    case 'm': document.getElementById('music-toggle-btn')?.click(); break;
+                    case 's': if (!e.ctrlKey) saveGame(); break;
+                    case 'l': loadGame(); break;
+                    case '1': document.querySelector('[data-speed="1"]')?.click(); break;
+                    case '2': document.querySelector('[data-speed="2"]')?.click(); break;
+                    case '5': document.querySelector('[data-speed="5"]')?.click(); break;
+                    case ' ': e.preventDefault(); gameState.paused = !gameState.paused; break;
+                    // Tab shortcuts
+                    case 'c': document.querySelector('[data-tab="colony"]')?.click(); break;
+                    case 'r': document.querySelector('[data-tab="research"]')?.click(); break;
+                    case 't': document.querySelector('[data-tab="trade"]')?.click(); break;
+                    case 'escape': closeModal(); break;
+                }
+            });
+
+            // Add visual keyboard hint to header
+            const headerCtrl = document.querySelector('.header-controls');
+            if (headerCtrl) {
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:10px;color:#6060a0;padding:4px 8px;background:rgba(0,0,0,0.3);border-radius:6px;line-height:1.6';
+                hint.innerHTML = '⌨️ <b>M</b>music <b>Space</b>pause<br><b>C/R/T</b> tabs <b>1/2/5</b> speed';
+                headerCtrl.appendChild(hint);
+            }
         });
     </script>
 </body>

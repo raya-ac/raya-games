@@ -20,7 +20,14 @@
             border-radius: 12px; cursor: pointer; font-family: 'Nunito', sans-serif;
             font-weight: 600; font-size: 10px; transition: all 0.2s;
         }
-        .control-btn:hover { transform: scale(1.05); }
+        .control-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        @keyframes music-pulse {
+            0%, 100% { box-shadow: 0 0 6px rgba(192,132,252,0.6); }
+            50% { box-shadow: 0 0 18px rgba(192,132,252,1), 0 0 30px rgba(168,85,247,0.4); }
+        }
+        .music-active {
+            animation: music-pulse 1.2s ease infinite;
+        }
         .main-container { display: flex; gap: 8px; max-width: 1800px; width: 100%; }
         .canvas-wrapper { position: relative; flex: 1; }
         #office-canvas { border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); cursor: grab; max-width: 100%; }
@@ -1276,14 +1283,15 @@
                 btn.innerHTML = '🎵 Lofi ON ♪';
                 btn.style.background = 'linear-gradient(135deg, #c084fc, #a855f7)';
                 btn.style.color = 'white';
-                btn.style.boxShadow = '0 0 12px rgba(192,132,252,0.6)';
-                logActivity('System', 'Lofi beats + office ambience playing', '🎵');
+                btn.classList.add('music-active');
+                logActivity('System', 'Lofi beats + office ambience playing [M to toggle]', '🎵');
             } else {
                 OfficeAudio.stop();
                 btn.innerHTML = '🎵 Lofi';
                 btn.style.background = 'rgba(255,255,255,0.9)';
                 btn.style.color = '#667eea';
                 btn.style.boxShadow = '';
+                btn.classList.remove('music-active');
             }
         }
         

@@ -4009,7 +4009,7 @@
                 const lfo = this.ctx.createOscillator();
                 const lfoG = this.ctx.createGain();
                 osc.type = 'triangle'; osc.frequency.value = freq;
-                lfo.frequency.value = 0.025; lfoG.gain.value = gainV = 0.04;
+                lfo.frequency.value = 0.025; lfoG.gain.value = 0.04;
                 lfo.connect(lfoG); lfoG.connect(g.gain);
                 g.gain.value = 0;
                 g.gain.linearRampToValueAtTime(0.06, this.ctx.currentTime + 6);

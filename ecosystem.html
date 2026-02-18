@@ -777,22 +777,33 @@
             }
 
             draw(ctx) {
-                const size = 3 + this.genome.size * 4;
-                const alpha = 0.6 + (this.energy / this.maxEnergy) * 0.4;
-                ctx.globalAlpha = alpha;
-                
-                // Plant body
-                ctx.fillStyle = `rgb(0, ${Math.floor(150 + this.genome.camouflage * 105)}, ${Math.floor(50 + this.genome.camouflage * 50)})`;
+                const size = 3 + this.genome.size * 5;
+                const energyRatio = Math.min(1, this.energy / this.maxEnergy);
+                const g = Math.floor(120 + this.genome.camouflage * 100 + energyRatio * 35);
+                const baseColor = `rgb(0, ${g}, ${Math.floor(30 + this.genome.camouflage * 60)})`;
+
+                // Glow pulse
+                ctx.save();
+                ctx.shadowBlur = 6 + energyRatio * 10;
+                ctx.shadowColor = '#00ff88';
+                ctx.globalAlpha = 0.5 + energyRatio * 0.5;
+
+                // Gradient fill
+                const grad = ctx.createRadialGradient(this.x - size * 0.3, this.y - size * 0.3, 0, this.x, this.y, size);
+                grad.addColorStop(0, `rgba(180, 255, 180, ${0.4 + energyRatio * 0.4})`);
+                grad.addColorStop(0.5, baseColor.replace('rgb', 'rgba').replace(')', `, ${0.7 + energyRatio * 0.3})`));
+                grad.addColorStop(1, 'rgba(0,80,20,0.3)');
+                ctx.fillStyle = grad;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Glow effect
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#00ff88';
+
+                // Small stem dot
+                ctx.fillStyle = '#00cc44';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y + size * 0.6, size * 0.25, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.globalAlpha = 1;
+                ctx.restore();
             }
         }
 
@@ -870,36 +881,61 @@
 
             draw(ctx, color) {
                 const size = 4 + this.genome.size * 6;
-                
-                // Body
-                ctx.fillStyle = color;
+                const energyRatio = Math.min(1, this.energy / 120);
+                const angle = Math.atan2(this.vy, this.vx);
+
+                ctx.save();
+                // Glow intensity based on energy & reproduction readiness
+                const glowBlur = this.canReproduce() ? 18 : (4 + energyRatio * 8);
+                ctx.shadowBlur = glowBlur;
+                ctx.shadowColor = color;
+
+                // Body gradient
+                const grad = ctx.createRadialGradient(this.x - size * 0.3, this.y - size * 0.3, 0, this.x, this.y, size * 1.2);
+                grad.addColorStop(0, 'rgba(255,255,255,0.45)');
+                grad.addColorStop(0.4, color);
+                grad.addColorStop(1, 'rgba(0,0,0,0.1)');
+                ctx.fillStyle = grad;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Direction indicator
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + this.vx * 5, this.y + this.vy * 5);
-                ctx.stroke();
-
-                // Energy indicator
-                if (this.energy < 30) {
-                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y - size - 5, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // Glow for high energy
-                if (this.canReproduce()) {
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = color;
-                    ctx.fill();
+                // Direction arrow (velocity indicator)
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > 0.1) {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = 0.6;
+                    ctx.lineWidth = 1.5;
                     ctx.shadowBlur = 0;
+                    const nx = this.vx / speed, ny = this.vy / speed;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x + nx * (size + 4), this.y + ny * (size + 4));
+                    ctx.stroke();
                 }
+                ctx.globalAlpha = 1;
+
+                // Low-energy warning (red pulse)
+                if (this.energy < 25) {
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ff2222';
+                    ctx.fillStyle = 'rgba(255,50,50,0.55)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y - size - 5, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Reproduction aura (pulsing outer ring)
+                if (this.canReproduce()) {
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.006) * 0.2;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size * 1.7, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
             }
         }
 
@@ -1408,37 +1444,65 @@
             }
 
             draw(ctx) {
-                // Clear
-                ctx.fillStyle = 'rgba(13, 27, 42, 0.3)';
+                // Season-aware background color
+                const seasonFades = [
+                    'rgba(10, 25, 15, 0.28)',   // Spring - dark green tint
+                    'rgba(12, 22, 10, 0.28)',   // Summer - darker green
+                    'rgba(25, 18, 8, 0.28)',    // Autumn - warm amber tint
+                    'rgba(10, 15, 30, 0.28)'    // Winter - cold blue tint
+                ];
+                ctx.fillStyle = seasonFades[this.season];
                 ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
 
-                // Draw rain
+                // Vignette gradient around edges for depth
+                if (!this._vigCtx) {
+                    const vgrad = ctx.createRadialGradient(
+                        CONFIG.width * 0.5, CONFIG.height * 0.5, CONFIG.height * 0.2,
+                        CONFIG.width * 0.5, CONFIG.height * 0.5, CONFIG.height * 0.85
+                    );
+                    vgrad.addColorStop(0, 'rgba(0,0,0,0)');
+                    vgrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+                    this._vigGrad = vgrad;
+                    this._vigCtx = true;
+                }
+                ctx.fillStyle = this._vigGrad;
+                ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+
+                // Draw rain with improved visuals
                 if (this.raining) {
-                    ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(140, 190, 255, 0.35)';
                     ctx.lineWidth = 1;
-                    for (let i = 0; i < 100; i++) {
+                    for (let i = 0; i < 120; i++) {
                         const x = Math.random() * CONFIG.width;
                         const y = Math.random() * CONFIG.height;
+                        const len = 8 + Math.random() * 8;
                         ctx.beginPath();
                         ctx.moveTo(x, y);
-                        ctx.lineTo(x - 2, y + 10);
+                        ctx.lineTo(x - 2, y + len);
                         ctx.stroke();
                     }
+                    ctx.restore();
                 }
 
-                // Draw organisms
+                // Draw organisms with depth order (plants first, apex last)
                 for (let plant of this.plants) plant.draw(ctx);
                 for (let herb of this.herbivores) herb.draw(ctx);
                 for (let carn of this.carnivores) carn.draw(ctx);
                 for (let apex of this.apex) apex.draw(ctx);
 
-                // Highlight selected organism
+                // Selection highlight with animated ring
                 if (this.selectedOrganism) {
-                    ctx.strokeStyle = '#00d4ff';
-                    ctx.lineWidth = 3;
+                    ctx.save();
+                    const pulse = 0.6 + Math.sin(Date.now() * 0.005) * 0.4;
+                    ctx.strokeStyle = `rgba(0, 212, 255, ${pulse})`;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#00d4ff';
+                    ctx.lineWidth = 2.5;
                     ctx.beginPath();
-                    ctx.arc(this.selectedOrganism.x, this.selectedOrganism.y, 20, 0, Math.PI * 2);
+                    ctx.arc(this.selectedOrganism.x, this.selectedOrganism.y, 22, 0, Math.PI * 2);
                     ctx.stroke();
+                    ctx.restore();
                 }
             }
 

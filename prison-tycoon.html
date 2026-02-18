@@ -1731,7 +1731,7 @@ const audioSystem = (() => {
     let ctx = null, masterGain = null, compressor = null;
     let enabled = false, volume = 0.2;
     let ambientNodes = [], beatInterval = null, ambientInterval = null;
-    let beepInterval = null;
+    let beepInterval = null, vizInterval = null;
 
     function init() {
         try {
@@ -1839,13 +1839,15 @@ const audioSystem = (() => {
                 btn.textContent = '🔊'; btn.classList.remove('muted'); btn.classList.add('playing');
                 const viz = document.getElementById('visualizer');
                 if (viz) viz.style.opacity = '1';
+                if (!vizInterval) vizInterval = setInterval(updateVisualizer, 150);
             } else {
                 masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
                 setTimeout(stopAmbient, 300);
                 btn.textContent = '🔇'; btn.classList.add('muted'); btn.classList.remove('playing');
+                clearInterval(vizInterval); vizInterval = null;
+                // Reset bars to flat
+                document.querySelectorAll('.visualizer-bar').forEach(b => b.style.height = '10%');
             }
-            // Animate visualizer
-            if (enabled) setInterval(updateVisualizer, 150);
         },
         setVolume(v) {
             volume = v / 100;
