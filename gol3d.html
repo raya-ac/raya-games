@@ -812,6 +812,22 @@
             scene.add(cellGroup);
             scene.add(connectionGroup);
             scene.add(trailGroup);
+
+            // Star field background
+            (function createStarField() {
+                const starGeo = new THREE.BufferGeometry();
+                const numStars = 3000;
+                const positions = new Float32Array(numStars * 3);
+                for (let i = 0; i < numStars * 3; i++) {
+                    positions[i] = (Math.random() - 0.5) * 1000;
+                }
+                starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.7, sizeAttenuation: true });
+                const stars = new THREE.Points(starGeo, starMat);
+                scene.add(stars);
+                // Slow star rotation
+                const _starAnimate = setInterval(() => { stars.rotation.y += 0.0001; stars.rotation.x += 0.00005; }, 16);
+            })();
             
             // Create boundary box
             createBoundaryBox();
@@ -893,12 +909,15 @@
                     for (let z = 0; z < CONFIG.gridSize; z++) {
                         const cell = grid[x][y][z];
                         if (cell) {
+                            const ageGlow = Math.min(0.6, 0.2 + cell.age * 0.01);
                             const material = new THREE.MeshPhongMaterial({
                                 color: CELL_COLORS[cell.type],
                                 emissive: CELL_COLORS[cell.type],
-                                emissiveIntensity: CONFIG.glowEffect ? 0.3 : 0,
+                                emissiveIntensity: CONFIG.glowEffect ? ageGlow : 0,
                                 transparent: true,
-                                opacity: 0.9
+                                opacity: 0.85 + (cell.energy / 1000),
+                                shininess: 80,
+                                specular: new THREE.Color(0xffffff)
                             });
                             
                             const mesh = new THREE.Mesh(geometry, material);

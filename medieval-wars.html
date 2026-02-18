@@ -266,6 +266,7 @@
             }
             
             playCastleUpgrade() {
+                this._ensureCtx();
                 const now = this.ctx.currentTime;
                 // Victory fanfare
                 [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
@@ -274,6 +275,7 @@
             }
             
             playRecruitSound(unitType) {
+                this._ensureCtx();
                 const now = this.ctx.currentTime;
                 const freqs = {
                     'knight': [196, 293.66], // G to D
@@ -561,14 +563,17 @@
         function toggleMusic() {
             gameState.musicEnabled = !gameState.musicEnabled;
             const btn = document.getElementById('musicToggle');
+            const statusEl = document.getElementById('musicStatus');
             
             if (gameState.musicEnabled) {
                 btn.textContent = '🔊';
                 btn.classList.remove('muted');
+                if (statusEl) statusEl.textContent = 'Epic Battle Music ♪';
                 gameState.audio.start();
             } else {
                 btn.textContent = '🎵';
                 btn.classList.add('muted');
+                if (statusEl) statusEl.textContent = 'Click 🎵 to begin';
                 gameState.audio.stop();
             }
         }

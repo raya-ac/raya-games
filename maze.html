@@ -549,6 +549,23 @@
         function drawCell(x, y, color) {
             ctx.fillStyle = color;
             ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            // Add glow for special cells
+            if (color === colors.solution) {
+                ctx.shadowColor = '#22c55e';
+                ctx.shadowBlur = Math.max(4, cellSize * 0.5);
+                ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                ctx.shadowBlur = 0;
+            } else if (color === colors.start || color === colors.end) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 12;
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                ctx.shadowBlur = 0;
+            } else if (color === colors.current) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10;
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                ctx.shadowBlur = 0;
+            }
         }
         
         function drawMaze() {

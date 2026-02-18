@@ -2004,6 +2004,185 @@
         let game;
         window.addEventListener('load', () => {
             game = new Game();
+
+            // ================================================
+            // CITY AMBIENT AUDIO ENHANCEMENTS
+            // ================================================
+            const cityAudio = (() => {
+                let ctx = game.audio.ctx;
+                let ambientRunning = false;
+                let ambientNodes = [];
+                let ambientTimer = null;
+                let lastPop = 0;
+
+                function ensureCtx() {
+                    if (!ctx) ctx = game.audio.ctx;
+                    if (!ctx) return false;
+                    if (ctx.state === 'suspended') ctx.resume();
+                    return true;
+                }
+
+                function playTrafficHum() {
+                    if (!ensureCtx()) return;
+                    // Low traffic rumble
+                    const buf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) {
+                        data[i] = (Math.random()*2-1) * 0.3 * (0.5 + 0.5*Math.sin(i/ctx.sampleRate * 60 * Math.PI * 2));
+                    }
+                    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+                    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 180;
+                    const g = ctx.createGain(); g.gain.value = 0.02;
+                    src.connect(filter); filter.connect(g); g.connect(game.audio.masterGain);
+                    src.start();
+                    return { src, gain: g };
+                }
+
+                function playWindNoise() {
+                    if (!ensureCtx()) return;
+                    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) data[i] = Math.random()*2-1;
+                    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+                    const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 500; filter.Q.value = 0.5;
+                    const g = ctx.createGain(); g.gain.value = 0.008;
+                    src.connect(filter); filter.connect(g); g.connect(game.audio.masterGain);
+                    src.start();
+                    return { src, gain: g };
+                }
+
+                function playBirdChirp() {
+                    if (!ensureCtx() || !game.audio.musicEnabled) return;
+                    const now = ctx.currentTime;
+                    [1200 + Math.random()*800, 1400 + Math.random()*600].forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(f, now + i*0.1);
+                        osc.frequency.exponentialRampToValueAtTime(f*1.2, now + i*0.1 + 0.05);
+                        osc.frequency.exponentialRampToValueAtTime(f*0.9, now + i*0.1 + 0.15);
+                        g.gain.setValueAtTime(0, now + i*0.1);
+                        g.gain.linearRampToValueAtTime(0.04, now + i*0.1 + 0.02);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + i*0.1 + 0.18);
+                        osc.connect(g); g.connect(game.audio.masterGain);
+                        osc.start(now + i*0.1); osc.stop(now + i*0.1 + 0.19);
+                    });
+                }
+
+                function playCrowdHum(population) {
+                    if (!ensureCtx() || !game.audio.musicEnabled || population < 50) return;
+                    const intensity = Math.min(0.03, population * 0.0003);
+                    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * 0.2;
+                    const src = ctx.createBufferSource(); src.buffer = buf;
+                    const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 2;
+                    const g = ctx.createGain();
+                    g.gain.setValueAtTime(0, ctx.currentTime);
+                    g.gain.linearRampToValueAtTime(intensity, ctx.currentTime + 0.3);
+                    g.gain.setValueAtTime(intensity, ctx.currentTime + 1.5);
+                    g.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
+                    src.connect(filter); filter.connect(g); g.connect(game.audio.masterGain);
+                    src.start();
+                }
+
+                function playPopulationMilestone(pop) {
+                    if (!ensureCtx()) return;
+                    // Fanfare for milestones
+                    const melody = [523, 659, 784, 1047, 784, 1047];
+                    melody.forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.type = 'triangle'; osc.frequency.value = f;
+                        const t = ctx.currentTime + i*0.12;
+                        g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.25);
+                        osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t+0.26);
+                    });
+                    game.showNotification(`🎉 Population milestone: ${pop} citizens!`, 'success');
+                }
+
+                function startCityAmbient() {
+                    if (ambientRunning) return;
+                    ambientRunning = true;
+                    const traffic = playTrafficHum();
+                    const wind = playWindNoise();
+                    if (traffic) ambientNodes.push(traffic);
+                    if (wind) ambientNodes.push(wind);
+                    // Occasional bird chirps
+                    ambientTimer = setInterval(() => {
+                        if (game.audio.musicEnabled && Math.random() < 0.4) playBirdChirp();
+                        const pop = game.city.population;
+                        if (game.audio.musicEnabled && Math.random() < 0.3) playCrowdHum(pop);
+                        // Population milestones
+                        const milestones = [100, 500, 1000, 5000, 10000, 50000];
+                        milestones.forEach(m => {
+                            if (pop >= m && lastPop < m) playPopulationMilestone(m);
+                        });
+                        lastPop = pop;
+                    }, 4000);
+                }
+
+                function stopCityAmbient() {
+                    ambientRunning = false;
+                    ambientNodes.forEach(n => { try { n.src.stop(); } catch(e){} });
+                    ambientNodes = [];
+                    clearInterval(ambientTimer);
+                }
+
+                return { startCityAmbient, stopCityAmbient, playBirdChirp };
+            })();
+
+            // ================================================
+            // KEYBOARD SHORTCUTS
+            // ================================================
+            const TOOLS = ['select','road','residential','commercial','industrial','power','water','bulldoze'];
+            document.addEventListener('keydown', e => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                switch(e.key.toLowerCase()) {
+                    case 'q': game.toggleMusic(); break;
+                    case 'e': game.toggleSound(); break;
+                    case 's': if(!e.ctrlKey) game.save(); break;
+                    case 'l': game.load(); break;
+                    case 'r': game.reset(); break;
+                    case 'h': document.getElementById('btn-help').click(); break;
+                    case '?': document.getElementById('btn-help').click(); break;
+                    case 'escape': document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active')); break;
+                    // Speed
+                    case '1': document.querySelector('[data-speed="1"]')?.click(); break;
+                    case '2': document.querySelector('[data-speed="2"]')?.click(); break;
+                    case '4': document.querySelector('[data-speed="4"]')?.click(); break;
+                    case '0': document.querySelector('[data-speed="0"]')?.click(); break;
+                    // Tools
+                    case 'v': document.querySelector('[data-tool="select"]')?.click(); break;
+                    case 'b': document.querySelector('[data-tool="road"]')?.click(); break;
+                    case 'z': document.querySelector('[data-tool="residential"]')?.click(); break;
+                    case 'x': document.querySelector('[data-tool="commercial"]')?.click(); break;
+                    case 'c': document.querySelector('[data-tool="industrial"]')?.click(); break;
+                    case 'p': document.querySelector('[data-tool="power"]')?.click(); break;
+                    case 'w': document.querySelector('[data-tool="water"]')?.click(); break;
+                    case 'd': document.querySelector('[data-tool="bulldoze"]')?.click(); break;
+                }
+            });
+
+            // Start city ambient when music is toggled
+            const originalToggle = game.toggleMusic.bind(game);
+            game.toggleMusic = function() {
+                originalToggle();
+                if (game.audio.musicEnabled) {
+                    cityAudio.startCityAmbient();
+                } else {
+                    cityAudio.stopCityAmbient();
+                }
+            };
+
+            // Show keyboard shortcut tooltip in top bar
+            const topControls = document.querySelector('.top-controls');
+            if (topControls) {
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:10px;color:#666;padding:4px 8px;background:rgba(0,0,0,0.3);border-radius:6px;';
+                hint.innerHTML = '⌨️ <b>V</b>sel <b>B</b>road <b>Z/X/C</b>zones <b>P</b>ower <b>W</b>ater <b>D</b>estroy | <b>1/2/4</b>speed | <b>Q</b>music';
+                topControls.appendChild(hint);
+            }
         });
     </script>
 </body>

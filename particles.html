@@ -603,7 +603,10 @@
         let isPlaying = false;
         let scene, camera, renderer, controls;
         let particleMeshes = [];
+        let trailLines = [];  // THREE.js trail line objects
         let history = [];
+        const TRAIL_LENGTH = 18;  // positions stored per particle
+        let showTrails = true;
         
         class Particle {
             constructor(type, x, y, z) {
@@ -622,7 +625,8 @@
                 this.age = 0;
                 this.bonds = [];
                 this.id = Math.random().toString(36).substr(2, 9);
-                
+                this.posHistory = [];  // for trails
+
                 // Special properties
                 if (type === 'photon') {
                     const speed = props.speed || 1;
@@ -757,7 +761,25 @@
             mesh.position.set(p.x, p.y, p.z);
             scene.add(mesh);
             particleMeshes.push({ mesh, particle: p });
-            
+
+            // Create trail line using BufferGeometry
+            const trailPositions = new Float32Array(TRAIL_LENGTH * 3);
+            for (let t = 0; t < TRAIL_LENGTH * 3; t++) trailPositions[t] = p.x;
+            const trailGeo = new THREE.BufferGeometry();
+            trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+            // Draw only first segment initially
+            trailGeo.setDrawRange(0, 1);
+            const trailColor = props.glow || props.color;
+            const trailMat = new THREE.LineBasicMaterial({
+                color: trailColor,
+                transparent: true,
+                opacity: 0.55,
+                linewidth: 1
+            });
+            const trailLine = new THREE.Line(trailGeo, trailMat);
+            scene.add(trailLine);
+            trailLines.push({ line: trailLine, geo: trailGeo, particle: p, positions: trailPositions });
+
             updateStats();
         }
         

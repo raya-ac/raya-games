@@ -884,3 +884,933 @@
     </div>
 
     <script>
+
+// ================================================
+// TRADING FLOOR AUDIO SYSTEM
+// ================================================
+let audioCtx = null;
+let masterGain = null;
+let musicEnabled = false;
+let musicVolume = 0.15;
+let ambientNodes = [];
+let tickerInterval = null;
+
+function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0;
+    const comp = audioCtx.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.ratio.value = 3;
+    masterGain.connect(comp); comp.connect(audioCtx.destination);
+}
+
+function playTradingFloorAmbient() {
+    if (!audioCtx || !musicEnabled) return;
+    // Background hum of trading floor
+    [60, 120, 180].forEach((f, i) => {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 300;
+        osc.type = 'sine'; osc.frequency.value = f;
+        g.gain.setValueAtTime(0, audioCtx.currentTime);
+        g.gain.linearRampToValueAtTime(0.02/(i+1), audioCtx.currentTime + 2);
+        osc.connect(filter); filter.connect(g); g.connect(masterGain);
+        osc.start();
+        ambientNodes.push({ osc, gain: g });
+    });
+    // Occasional keyboard clatter
+    tickerInterval = setInterval(() => {
+        if (!musicEnabled) return;
+        if (Math.random() < 0.3) playKeyClatter();
+        if (Math.random() < 0.15) playTickerBeep();
+    }, 2000);
+}
+
+function playKeyClatter() {
+    if (!audioCtx) return;
+    const count = Math.floor(Math.random() * 5) + 2;
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.03, audioCtx.sampleRate);
+            const d = buf.getChannelData(0);
+            for (let j = 0; j < d.length; j++) d[j] = (Math.random()*2-1)*0.3*Math.exp(-j/(audioCtx.sampleRate*0.01));
+            const src = audioCtx.createBufferSource(); src.buffer = buf;
+            const g = audioCtx.createGain(); g.gain.value = 0.015;
+            const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2000 + Math.random()*1000;
+            src.connect(f); f.connect(g); g.connect(masterGain); src.start();
+        }, i * (30 + Math.random() * 80));
+    }
+}
+
+function playTickerBeep() {
+    if (!audioCtx) return;
+    const f = 880 + Math.random() * 440;
+    const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+    osc.frequency.value = f; osc.type = 'sine';
+    g.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    osc.connect(g); g.connect(masterGain); osc.start(); osc.stop(audioCtx.currentTime + 0.16);
+}
+
+function stopAmbient() {
+    ambientNodes.forEach(n => { try { n.osc.stop(); } catch(e){} });
+    ambientNodes = [];
+    clearInterval(tickerInterval);
+}
+
+function toggleMusic() {
+    initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    musicEnabled = !musicEnabled;
+    const btn = document.getElementById('musicToggle');
+    if (musicEnabled) {
+        masterGain.gain.setTargetAtTime(musicVolume, audioCtx.currentTime, 0.5);
+        playTradingFloorAmbient();
+        btn.textContent = '🎵'; btn.classList.remove('muted');
+        // Update label
+        const lbl = btn.nextElementSibling?.querySelector('.music-label');
+        if (lbl) lbl.textContent = 'Trading Floor';
+    } else {
+        masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+        setTimeout(stopAmbient, 300);
+        btn.textContent = '🔇'; btn.classList.add('muted');
+    }
+}
+
+function setVolume(v) {
+    musicVolume = v / 100;
+    if (masterGain && musicEnabled) masterGain.gain.setTargetAtTime(musicVolume, audioCtx.currentTime, 0.1);
+}
+
+function playBuy() {
+    initAudio();
+    if (!audioCtx) return;
+    [523, 659, 784, 1047].forEach((f, i) => {
+        const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        osc.frequency.value = f; osc.type = 'triangle';
+        const t = audioCtx.currentTime + i * 0.08;
+        g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + 0.21);
+    });
+}
+
+function playSell() {
+    initAudio();
+    if (!audioCtx) return;
+    [784, 659, 523, 392].forEach((f, i) => {
+        const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        osc.frequency.value = f; osc.type = 'triangle';
+        const t = audioCtx.currentTime + i * 0.08;
+        g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + 0.21);
+    });
+}
+
+function playAlert(up = true) {
+    initAudio();
+    if (!audioCtx) return;
+    const freqs = up ? [440, 550] : [440, 330];
+    freqs.forEach((f, i) => {
+        const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        osc.frequency.value = f; osc.type = 'sine';
+        const t = audioCtx.currentTime + i * 0.15;
+        g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + 0.15);
+    });
+}
+
+function playNewsAlert() {
+    initAudio();
+    if (!audioCtx) return;
+    [880, 1100, 880].forEach((f, i) => {
+        const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        osc.frequency.value = f; osc.type = 'square';
+        const t = audioCtx.currentTime + i * 0.12;
+        g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+        osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + 0.12);
+    });
+}
+
+// ================================================
+// GAME STATE
+// ================================================
+let cash = 100000;
+let dayCount = 1;
+let portfolio = {}; // symbol -> { shares, avgCost }
+let shortPositions = {};
+let watchlist = new Set();
+let tradeHistory = [];
+let selectedStock = null;
+let autoSaveEnabled = true;
+let lastSaved = null;
+let marginUsed = 0;
+let dayTrades = 0;
+let totalDividends = 0;
+let profitableDays = 0;
+let totalWins = 0, totalLosses = 0;
+let activeTab = 'market';
+
+const ACHIEVEMENTS = [
+    { id: 'firstTrade', name: 'First Trade', icon: '🎯', desc: 'Make your first trade', unlocked: false },
+    { id: 'millionaire', name: 'Millionaire', icon: '💰', desc: 'Reach $1M total wealth', unlocked: false },
+    { id: 'dayTrader', name: 'Day Trader', icon: '⚡', desc: 'Make 3 day trades', unlocked: false },
+    { id: 'diversified', name: 'Diversified', icon: '🌈', desc: 'Own 5 different stocks', unlocked: false },
+    { id: 'winner', name: 'Consistent Winner', icon: '🏆', desc: 'Win 10 trades in a row', unlocked: false },
+    { id: 'longHold', name: 'Diamond Hands', icon: '💎', desc: 'Hold a stock for 30 days', unlocked: false },
+    { id: 'bigBuy', name: 'Big Spender', icon: '💸', desc: 'Buy $50K of a single stock', unlocked: false },
+    { id: 'recovered', name: 'Comeback Kid', icon: '🦋', desc: 'Recover from being down 50%', unlocked: false },
+    { id: 'watchlistPro', name: 'Watchlist Pro', icon: '👀', desc: 'Add 5 stocks to watchlist', unlocked: false },
+    { id: 'ipoChaser', name: 'IPO Chaser', icon: '🚀', desc: 'Buy an IPO on day one', unlocked: false },
+];
+
+// ================================================
+// STOCKS DATA
+// ================================================
+const STOCKS = [
+    { symbol:'AAPL', name:'Apple Inc.', price:175, sector:'tech', dividend:0.96, pe:28, earningsDay:14 },
+    { symbol:'GOOGL', name:'Alphabet Inc.', price:138, sector:'tech', dividend:0, pe:25, earningsDay:21 },
+    { symbol:'MSFT', name:'Microsoft Corp.', price:380, sector:'tech', dividend:2.72, pe:35, earningsDay:28 },
+    { symbol:'AMZN', name:'Amazon.com', price:182, sector:'tech', dividend:0, pe:42, earningsDay:7 },
+    { symbol:'TSLA', name:'Tesla Inc.', price:245, sector:'tech', dividend:0, pe:65, earningsDay:18 },
+    { symbol:'JPM', name:'JPMorgan Chase', price:196, sector:'finance', dividend:4.0, pe:12, earningsDay:5 },
+    { symbol:'BAC', name:'Bank of America', price:38, sector:'finance', dividend:0.92, pe:10, earningsDay:10 },
+    { symbol:'JNJ', name:'Johnson & Johnson', price:155, sector:'healthcare', dividend:4.76, pe:16, earningsDay:16 },
+    { symbol:'PFE', name:'Pfizer Inc.', price:28, sector:'healthcare', dividend:1.68, pe:8, earningsDay:22 },
+    { symbol:'XOM', name:'ExxonMobil', price:105, sector:'energy', dividend:3.72, pe:14, earningsDay:3 },
+    { symbol:'WMT', name:'Walmart Inc.', price:166, sector:'retail', dividend:2.28, pe:28, earningsDay:25 },
+    { symbol:'NFLX', name:'Netflix Inc.', price:490, sector:'tech', dividend:0, pe:38, earningsDay:12 },
+    { symbol:'BTC', name:'Bitcoin ETF', price:52000, sector:'crypto', dividend:0, pe:0, earningsDay:0 },
+    { symbol:'ETH', name:'Ethereum ETF', price:2800, sector:'crypto', dividend:0, pe:0, earningsDay:0 },
+    { symbol:'GLD', name:'Gold ETF', price:185, sector:'energy', dividend:0, pe:0, earningsDay:0 },
+];
+
+// Extended stock state
+STOCKS.forEach(s => {
+    s.history = [s.price];
+    s.change = 0;
+    s.changePct = 0;
+    s.volume = Math.floor(Math.random() * 10000000) + 1000000;
+    s.high52 = s.price * (1 + Math.random() * 0.4);
+    s.low52 = s.price * (1 - Math.random() * 0.3);
+    s.marketCap = (s.price * 1e9 * (Math.random() * 10 + 0.5)).toFixed(0);
+});
+
+let sortField = 'symbol';
+let sortAsc = true;
+let searchQuery = '';
+let sectorFilter = 'all';
+let marketSentiment = 50;
+let vix = 15.2;
+let fearGreed = 50;
+let interestRate = 5.25;
+let inflationRate = 3.2;
+let unemploymentRate = 3.8;
+let newsHistory = [];
+let pendingIPO = null;
+let marketOpen = true;
+let portfolioChart = null;
+let allocationChart = null;
+let stockCharts = {};
+
+const NEWS_TEMPLATES = [
+    ['AAPL', 'Apple reports record iPhone sales', 0.03, 'bullish'],
+    ['TSLA', 'Tesla Cybertruck deliveries exceed expectations', 0.05, 'bullish'],
+    ['GOOGL', 'Google AI breakthrough announced', 0.04, 'bullish'],
+    ['BTC', 'Bitcoin ETF sees record inflows', 0.08, 'bullish'],
+    ['XOM', 'Oil prices surge on OPEC cuts', 0.04, 'bullish'],
+    ['JPM', 'Fed signals rate pause, banks rally', 0.03, 'bullish'],
+    ['PFE', 'FDA approves new Pfizer drug', 0.06, 'bullish'],
+    ['NFLX', 'Netflix subscriber growth misses targets', -0.04, 'bearish'],
+    ['BTC', 'Crypto regulation fears rattle market', -0.08, 'bearish'],
+    ['TSLA', 'Tesla recalls 50,000 vehicles', -0.03, 'bearish'],
+    ['XOM', 'Oil prices drop on recession fears', -0.03, 'bearish'],
+    ['WMT', 'Consumer spending data disappoints', -0.02, 'bearish'],
+    ['JPM', 'Banking sector faces credit concerns', -0.03, 'bearish'],
+];
+
+const CALENDAR_EVENTS = [
+    { day: 7, name: 'Fed Interest Rate Decision', impact: 'HIGH', type: 'fed' },
+    { day: 14, name: 'AAPL Earnings Report', impact: 'HIGH', type: 'earnings' },
+    { day: 21, name: 'CPI Inflation Data', impact: 'MEDIUM', type: 'economic' },
+    { day: 28, name: 'Monthly Jobs Report', impact: 'HIGH', type: 'economic' },
+    { day: 35, name: 'MSFT Earnings Report', impact: 'HIGH', type: 'earnings' },
+    { day: 42, name: 'GDP Quarterly Data', impact: 'MEDIUM', type: 'economic' },
+];
+
+// ================================================
+// MARKET ENGINE
+// ================================================
+function getStockBySymbol(sym) { return STOCKS.find(s => s.symbol === sym); }
+
+function updateMarket() {
+    const prevCash = cash;
+    const prevPortfolioVal = getPortfolioValue();
+
+    STOCKS.forEach(s => {
+        const sentimentFactor = (marketSentiment - 50) / 500;
+        const vol = s.sector === 'crypto' ? 0.04 : s.sector === 'tech' ? 0.02 : 0.01;
+        const change = (Math.random() * 2 - 1) * vol + sentimentFactor;
+        const prevPrice = s.price;
+        s.price = Math.max(0.01, s.price * (1 + change));
+        s.change = s.price - prevPrice;
+        s.changePct = (change * 100);
+        s.history.push(s.price);
+        if (s.history.length > 60) s.history.shift();
+        s.high52 = Math.max(s.high52, s.price);
+        s.low52 = Math.min(s.low52, s.price);
+    });
+
+    // Market sentiment drifts
+    marketSentiment = Math.max(10, Math.min(90, marketSentiment + (Math.random() * 10 - 5)));
+    vix = Math.max(10, Math.min(50, vix + (Math.random() * 4 - 2)));
+    fearGreed = Math.max(0, Math.min(100, fearGreed + (Math.random() * 6 - 3)));
+
+    // News events (5% chance per tick)
+    if (Math.random() < 0.05) {
+        const template = NEWS_TEMPLATES[Math.floor(Math.random() * NEWS_TEMPLATES.length)];
+        const stock = getStockBySymbol(template[0]);
+        if (stock) {
+            stock.price *= (1 + template[2]);
+            newsHistory.unshift({ text: template[1], impact: template[2], type: template[3], day: dayCount });
+            if (newsHistory.length > 20) newsHistory.pop();
+            // Update news ticker
+            const ticker = document.getElementById('newsTicker');
+            if (ticker) ticker.innerHTML = newsHistory.slice(0,5).map(n =>
+                `<span style="color:${n.type==='bullish'?'#22c55e':'#ef4444'}">${n.text}</span>`).join(' &bull; ');
+            playNewsAlert();
+        }
+    }
+
+    // IPO (1% chance)
+    if (!pendingIPO && Math.random() < 0.01) {
+        const ipos = [
+            { symbol:'NOVA', name:'Nova AI Corp', price: 45 + Math.random()*30 },
+            { symbol:'QBIT', name:'Quantum Systems', price: 20 + Math.random()*40 },
+            { symbol:'MEDS', name:'MedTech Solutions', price: 30 + Math.random()*20 },
+        ];
+        pendingIPO = ipos[Math.floor(Math.random()*ipos.length)];
+        document.getElementById('ipoBanner').classList.remove('hidden');
+        document.getElementById('ipoSymbol').textContent = pendingIPO.symbol;
+        document.getElementById('ipoName').textContent = pendingIPO.name;
+        document.getElementById('ipoPrice').textContent = '$' + pendingIPO.price.toFixed(2);
+        playNewsAlert();
+    }
+
+    // Dividends (every 7 days)
+    if (dayCount % 7 === 0) {
+        STOCKS.forEach(s => {
+            if (s.dividend > 0 && portfolio[s.symbol] && portfolio[s.symbol].shares > 0) {
+                const divAmount = (s.dividend / 52) * portfolio[s.symbol].shares;
+                cash += divAmount; totalDividends += divAmount;
+            }
+        });
+        document.getElementById('dividendsEarned').textContent = '$' + totalDividends.toFixed(2);
+        document.getElementById('nextDividend').textContent = 'Next: Day ' + (dayCount + 7);
+    }
+
+    // Check achievements
+    checkAchievements();
+
+    // Track profitable days
+    const newPortVal = getPortfolioValue();
+    if (newPortVal + cash > prevPortfolioVal + prevCash) profitableDays++;
+
+    updateUI();
+    if (autoSaveEnabled && dayCount % 10 === 0) saveGameState();
+}
+
+function startMarketDay() {
+    dayCount++;
+    document.getElementById('dayCounter').textContent = dayCount;
+    dayTrades = 0; document.getElementById('dayTrades').textContent = '0/3';
+    marketOpen = true;
+    document.getElementById('marketStatus').className = 'badge badge-success';
+    document.getElementById('marketStatus').textContent = '🟢 Open';
+
+    // Process calendar events
+    const event = CALENDAR_EVENTS.find(e => e.day === dayCount);
+    if (event) {
+        showEventPopup(event.name, event.impact, event.type);
+        if (event.type === 'fed') { interestRate += (Math.random() - 0.5) * 0.5; }
+    }
+
+    updateCalendar();
+}
+
+function showEventPopup(title, impact, type) {
+    const el = document.createElement('div');
+    el.className = 'event-popup';
+    el.style.borderLeftColor = impact === 'HIGH' ? '#ef4444' : '#f59e0b';
+    el.innerHTML = `<h3 style="font-size:1rem;margin-bottom:6px">📅 Market Event</h3>
+        <p style="font-size:0.85rem;color:#94a3b8">${title}</p>
+        <span class="badge badge-${impact==='HIGH'?'danger':'warning'} mt-2">${impact} IMPACT</span>
+        <button onclick="this.parentElement.remove()" style="float:right;background:none;border:none;color:#94a3b8;cursor:pointer">✕</button>`;
+    document.getElementById('eventContainer').appendChild(el);
+    playNewsAlert();
+    setTimeout(() => el.remove(), 8000);
+}
+
+// ================================================
+// PORTFOLIO & TRADING
+// ================================================
+function getPortfolioValue() {
+    return Object.entries(portfolio).reduce((sum, [sym, pos]) => {
+        const s = getStockBySymbol(sym);
+        return sum + (s ? s.price * pos.shares : 0);
+    }, 0);
+}
+
+function getTotalWealth() { return cash + getPortfolioValue(); }
+
+function openBuyModal(symbol) {
+    const s = getStockBySymbol(symbol);
+    if (!s) return;
+    selectedStock = s;
+    initAudio();
+
+    document.getElementById('tradeModalTitle').textContent = `🛒 Buy ${s.symbol}`;
+    const pos = portfolio[symbol];
+    document.getElementById('tradeModalContent').innerHTML = `
+        <div style="background:#1e293b;padding:16px;border-radius:12px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <span>${s.name}</span>
+                <span class="${s.changePct >= 0 ? 'price-up':'price-down'}">${s.changePct >= 0?'+':''}${s.changePct.toFixed(2)}%</span>
+            </div>
+            <div style="font-size:2rem;font-weight:bold">$${s.price.toFixed(2)}</div>
+            ${pos ? `<div style="font-size:0.8rem;color:#94a3b8;margin-top:4px">You own: ${pos.shares} shares @ $${pos.avgCost.toFixed(2)}</div>` : ''}
+        </div>
+        <div style="margin-bottom:12px">
+            <label style="color:#94a3b8;font-size:0.85rem">Shares to buy:</label>
+            <input type="number" id="buyShares" min="1" value="1" style="width:100%;margin-top:6px" oninput="updateBuyTotal()" />
+        </div>
+        <div id="buyTotal" style="font-size:0.9rem;color:#94a3b8;margin-bottom:16px">Total: $${s.price.toFixed(2)}</div>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-success" style="flex:1" onclick="executeBuy()">✅ Buy</button>
+            <button class="btn btn-secondary" onclick="closeTradeModal()">Cancel</button>
+        </div>`;
+    document.getElementById('tradeModal').classList.add('active');
+}
+
+function updateBuyTotal() {
+    const shares = parseInt(document.getElementById('buyShares')?.value) || 0;
+    const total = shares * (selectedStock?.price || 0);
+    const el = document.getElementById('buyTotal');
+    if (el) el.textContent = `Total: $${total.toFixed(2)} | Cash after: $${(cash-total).toFixed(2)}`;
+}
+
+function executeBuy() {
+    const shares = parseInt(document.getElementById('buyShares')?.value) || 0;
+    if (shares <= 0 || !selectedStock) return;
+    const total = shares * selectedStock.price;
+    if (total > cash) { showToast('❌ Insufficient funds!', 'error'); return; }
+    cash -= total;
+    if (!portfolio[selectedStock.symbol]) portfolio[selectedStock.symbol] = { shares: 0, avgCost: 0, buyDay: dayCount };
+    const pos = portfolio[selectedStock.symbol];
+    pos.avgCost = (pos.avgCost * pos.shares + total) / (pos.shares + shares);
+    pos.shares += shares;
+    tradeHistory.unshift({ type:'BUY', symbol:selectedStock.symbol, shares, price:selectedStock.price, total, day:dayCount });
+    dayTrades++; totalWins++;
+    addTransaction(`BUY ${shares} ${selectedStock.symbol} @ $${selectedStock.price.toFixed(2)}`);
+    closeTradeModal();
+    playBuy();
+    showToast(`✅ Bought ${shares} ${selectedStock.symbol}`, 'success');
+    checkAchievements();
+    updateUI();
+}
+
+function openSellModal(symbol) {
+    const s = getStockBySymbol(symbol);
+    const pos = portfolio[symbol];
+    if (!s || !pos || pos.shares <= 0) return;
+    selectedStock = s;
+
+    document.getElementById('tradeModalTitle').textContent = `💰 Sell ${s.symbol}`;
+    const pnl = (s.price - pos.avgCost) * pos.shares;
+    document.getElementById('tradeModalContent').innerHTML = `
+        <div style="background:#1e293b;padding:16px;border-radius:12px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between">
+                <span>${s.name}</span>
+                <span class="${pnl>=0?'price-up':'price-down'}">${pnl>=0?'+':''}$${pnl.toFixed(2)} P&L</span>
+            </div>
+            <div style="font-size:2rem;font-weight:bold">$${s.price.toFixed(2)}</div>
+            <div style="font-size:0.8rem;color:#94a3b8">You own: ${pos.shares} shares | Avg cost: $${pos.avgCost.toFixed(2)}</div>
+        </div>
+        <div style="margin-bottom:12px">
+            <label style="color:#94a3b8;font-size:0.85rem">Shares to sell:</label>
+            <input type="number" id="sellShares" min="1" max="${pos.shares}" value="${pos.shares}" style="width:100%;margin-top:6px" />
+        </div>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-danger" style="flex:1" onclick="executeSell()">💰 Sell</button>
+            <button class="btn btn-secondary" onclick="closeTradeModal()">Cancel</button>
+        </div>`;
+    document.getElementById('tradeModal').classList.add('active');
+}
+
+function executeSell() {
+    const shares = parseInt(document.getElementById('sellShares')?.value) || 0;
+    if (shares <= 0 || !selectedStock) return;
+    const pos = portfolio[selectedStock.symbol];
+    if (!pos || shares > pos.shares) { showToast('❌ Not enough shares!', 'error'); return; }
+    const total = shares * selectedStock.price;
+    const profit = (selectedStock.price - pos.avgCost) * shares;
+    cash += total;
+    pos.shares -= shares;
+    if (pos.shares === 0) delete portfolio[selectedStock.symbol];
+    tradeHistory.unshift({ type:'SELL', symbol:selectedStock.symbol, shares, price:selectedStock.price, total, profit, day:dayCount });
+    dayTrades++;
+    if (profit > 0) totalWins++; else totalLosses++;
+    addTransaction(`SELL ${shares} ${selectedStock.symbol} @ $${selectedStock.price.toFixed(2)} | P&L: ${profit>=0?'+':''}$${profit.toFixed(2)}`);
+    closeTradeModal();
+    playSell();
+    showToast(`💰 Sold ${shares} ${selectedStock.symbol} | ${profit>=0?'+':''}$${profit.toFixed(2)}`, profit>=0?'success':'warning');
+    updateUI();
+}
+
+function closeTradeModal() {
+    document.getElementById('tradeModal').classList.remove('active');
+    document.getElementById('optionsModal').classList.remove('active');
+}
+
+function addToWatchlist(symbol) {
+    watchlist.add(symbol);
+    showToast(`⭐ Added ${symbol} to watchlist`, 'success');
+    updateUI();
+    checkAchievements();
+}
+
+function addToWatchlistPrompt() {
+    const sym = prompt('Enter stock symbol to watch:');
+    if (sym && getStockBySymbol(sym.toUpperCase())) addToWatchlist(sym.toUpperCase());
+    else if (sym) showToast('❌ Stock not found', 'error');
+}
+
+function buyIPO() {
+    if (!pendingIPO) return;
+    const cost = Math.floor(pendingIPO.price * 100);
+    if (cash < cost) { showToast('❌ Insufficient funds!', 'error'); return; }
+    cash -= cost;
+    // Add as new stock temporarily
+    showToast(`🚀 Bought 100 ${pendingIPO.symbol} @ $${pendingIPO.price.toFixed(2)}`, 'success');
+    playBuy();
+    document.getElementById('ipoBanner').classList.add('hidden');
+    pendingIPO = null;
+    unlockAchievement('ipoChaser');
+    updateUI();
+}
+
+function saveGameState() {
+    const data = { cash, portfolio, watchlist:[...watchlist], dayCount, tradeHistory:tradeHistory.slice(0,50), totalDividends };
+    localStorage.setItem('stockTycoonSave', JSON.stringify(data));
+    lastSaved = new Date();
+    const el = document.getElementById('lastSaved');
+    if (el) el.textContent = '· Saved';
+    setTimeout(() => { if(el) el.textContent = ''; }, 2000);
+}
+
+function loadGameState() {
+    const data = localStorage.getItem('stockTycoonSave');
+    if (!data) return;
+    try {
+        const d = JSON.parse(data);
+        cash = d.cash || 100000;
+        portfolio = d.portfolio || {};
+        watchlist = new Set(d.watchlist || []);
+        dayCount = d.dayCount || 1;
+        tradeHistory = d.tradeHistory || [];
+        totalDividends = d.totalDividends || 0;
+        updateUI();
+    } catch(e) {}
+}
+
+function resetGame() {
+    if (!confirm('Reset all progress?')) return;
+    cash = 100000; portfolio = {}; watchlist = new Set();
+    dayCount = 1; tradeHistory = []; totalDividends = 0;
+    dayTrades = 0; marginUsed = 0;
+    ACHIEVEMENTS.forEach(a => a.unlocked = false);
+    updateUI();
+    showToast('🔄 Game reset!', 'info');
+}
+
+function toggleAutoSave() {
+    autoSaveEnabled = !autoSaveEnabled;
+    const btn = document.getElementById('autoSaveBtn');
+    if (btn) btn.textContent = autoSaveEnabled ? '✅ Auto' : '❌ Auto';
+    showToast(autoSaveEnabled ? '✅ Auto-save on' : '❌ Auto-save off', 'info');
+}
+
+function addTransaction(text) {
+    const el = document.getElementById('tradeHistory');
+    if (!el) return;
+    const div = document.createElement('div');
+    div.className = 'news-item';
+    div.style.fontSize = '0.75rem';
+    div.innerHTML = `<span style="color:#94a3b8">Day ${dayCount}:</span> ${text}`;
+    el.prepend(div);
+    if (el.children.length > 20) el.lastChild.remove();
+}
+
+// ================================================
+// UI RENDERING
+// ================================================
+function updateUI() {
+    // Header stats
+    document.getElementById('cashDisplay').textContent = '$' + cash.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const portVal = getPortfolioValue();
+    document.getElementById('portfolioValue').textContent = '$' + portVal.toFixed(2);
+    const pnl = getTotalWealth() - 100000;
+    const pnlEl = document.getElementById('totalPnL');
+    pnlEl.textContent = (pnl>=0?'+':'') + '$' + pnl.toFixed(2);
+    pnlEl.className = pnl >= 0 ? 'text-xl font-bold text-green-400' : 'text-xl font-bold text-red-400';
+
+    document.getElementById('buyingPower').textContent = '$' + (cash + marginUsed/2).toFixed(2);
+    document.getElementById('marginUsed').textContent = '$' + marginUsed.toFixed(2);
+    document.getElementById('dayTrades').textContent = dayTrades+'/3';
+    document.getElementById('dividendsEarned').textContent = '$' + totalDividends.toFixed(2);
+
+    // Sentiment indicator
+    const sentEl = document.getElementById('sentimentIndicator');
+    if (sentEl) sentEl.style.left = marketSentiment + '%';
+    const sentLabel = document.getElementById('sentimentLabel');
+    if (sentLabel) sentLabel.textContent = marketSentiment > 65 ? 'Bullish' : marketSentiment < 35 ? 'Bearish' : 'Neutral';
+
+    // Market indicators
+    document.getElementById('fearGreedValue').textContent = Math.round(fearGreed) + ' - ' + (fearGreed>65?'Greed':fearGreed<35?'Fear':'Neutral');
+    document.getElementById('fearGreedBar').style.width = fearGreed + '%';
+    document.getElementById('vixValue').textContent = vix.toFixed(1);
+    document.getElementById('vixBar').style.width = Math.min(100, vix*2) + '%';
+    document.getElementById('interestRateValue').textContent = interestRate.toFixed(2) + '%';
+    document.getElementById('fedRate').textContent = interestRate.toFixed(2) + '%';
+    document.getElementById('inflationRate').textContent = inflationRate.toFixed(1) + '%';
+    document.getElementById('unemploymentRate').textContent = unemploymentRate.toFixed(1) + '%';
+
+    renderStockList();
+    renderPortfolio();
+    renderWatchlist();
+    renderNewsFeed();
+    renderHeatmap();
+    renderAchievements();
+    renderSectorPerformance();
+    updateOptionsSelect();
+}
+
+function renderStockList() {
+    const tbody = document.getElementById('stockList');
+    if (!tbody) return;
+    let stocks = [...STOCKS];
+    if (searchQuery) stocks = stocks.filter(s => s.symbol.includes(searchQuery.toUpperCase()) || s.name.toLowerCase().includes(searchQuery));
+    if (sectorFilter !== 'all') stocks = stocks.filter(s => s.sector === sectorFilter);
+    stocks.sort((a,b) => {
+        const av = a[sortField], bv = b[sortField];
+        return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+    tbody.innerHTML = stocks.map(s => {
+        const up = s.changePct >= 0;
+        const pos = portfolio[s.symbol];
+        const miniHistory = s.history.slice(-10);
+        const miniMin = Math.min(...miniHistory), miniMax = Math.max(...miniHistory);
+        const points = miniHistory.map((p,i) => `${i*10},${40-((p-miniMin)/(miniMax-miniMin||1))*35}`).join(' ');
+        return `<tr class="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+            <td class="py-3 font-mono font-bold ${up?'text-green-400':'text-red-400'}">${s.symbol}</td>
+            <td class="py-3 text-slate-400 text-sm hidden md:table-cell">${s.name}</td>
+            <td class="py-3 font-mono">$${s.price.toFixed(s.price>100?2:4)}</td>
+            <td class="py-3"><span class="${up?'price-up':'price-down'}">${up?'+':''}${s.changePct.toFixed(2)}%</span></td>
+            <td class="py-3 hidden md:table-cell">
+                <svg width="90" height="40" style="overflow:visible">
+                    <polyline points="${points}" fill="none" stroke="${up?'#22c55e':'#ef4444'}" stroke-width="1.5"/>
+                </svg>
+            </td>
+            <td class="py-3 text-right">
+                <div class="flex gap-1 justify-end">
+                    <button onclick="openBuyModal('${s.symbol}')" class="btn btn-success text-xs px-2 py-1">Buy</button>
+                    ${pos ? `<button onclick="openSellModal('${s.symbol}')" class="btn btn-danger text-xs px-2 py-1">Sell</button>` : ''}
+                    <button onclick="addToWatchlist('${s.symbol}')" class="btn btn-secondary text-xs px-2 py-1">⭐</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderPortfolio() {
+    const el = document.getElementById('holdingsList');
+    if (!el) return;
+    const entries = Object.entries(portfolio).filter(([,p]) => p.shares > 0);
+    if (entries.length === 0) {
+        el.innerHTML = '<div class="text-center text-slate-500 py-8"><p class="text-4xl mb-3">📭</p><p>No holdings yet. Start trading!</p></div>';
+        return;
+    }
+    el.innerHTML = entries.map(([sym, pos]) => {
+        const s = getStockBySymbol(sym);
+        if (!s) return '';
+        const val = s.price * pos.shares;
+        const pnl = (s.price - pos.avgCost) * pos.shares;
+        const pnlPct = ((s.price - pos.avgCost) / pos.avgCost * 100);
+        return `<div class="bg-slate-800/50 rounded-xl p-4 flex justify-between items-center hover:bg-slate-800 transition">
+            <div>
+                <p class="font-bold">${sym} <span class="text-slate-400 text-sm font-normal">${s.name}</span></p>
+                <p class="text-sm text-slate-400">${pos.shares} shares · Avg $${pos.avgCost.toFixed(2)}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-mono font-bold">$${val.toFixed(2)}</p>
+                <p class="text-sm ${pnl>=0?'price-up':'price-down'}">${pnl>=0?'+':''}$${pnl.toFixed(2)} (${pnlPct.toFixed(2)}%)</p>
+                <div class="flex gap-1 mt-1">
+                    <button onclick="openBuyModal('${sym}')" class="btn btn-success text-xs px-2 py-1">Buy</button>
+                    <button onclick="openSellModal('${sym}')" class="btn btn-danger text-xs px-2 py-1">Sell</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Performance metrics
+    const total = getPortfolioValue();
+    const totalPnl = total - Object.entries(portfolio).reduce((s,[,p])=>s+p.avgCost*p.shares,0);
+    document.getElementById('totalReturn').textContent = ((totalPnl / 100000)*100).toFixed(2) + '%';
+    document.getElementById('annualizedReturn').textContent = ((totalPnl / 100000 * 365 / dayCount)*100).toFixed(2) + '%';
+
+    const performers = entries.map(([sym,pos]) => {
+        const s = getStockBySymbol(sym);
+        return { sym, pnl: s ? (s.price-pos.avgCost)*pos.shares : 0 };
+    }).sort((a,b) => b.pnl-a.pnl);
+    if (performers.length > 0) {
+        document.getElementById('bestPerformer').textContent = performers[0].sym + ' +$' + performers[0].pnl.toFixed(0);
+        document.getElementById('worstPerformer').textContent = performers[performers.length-1].sym + ' $' + performers[performers.length-1].pnl.toFixed(0);
+    }
+    const winRate = totalWins + totalLosses > 0 ? (totalWins / (totalWins+totalLosses)*100).toFixed(0) : 0;
+    document.getElementById('statWinRate').textContent = winRate + '%';
+    document.getElementById('statTotalTrades').textContent = tradeHistory.length;
+    document.getElementById('statProfitableDays').textContent = profitableDays;
+}
+
+function renderWatchlist() {
+    const el = document.getElementById('watchlistContainer');
+    if (!el) return;
+    if (watchlist.size === 0) {
+        el.innerHTML = '<div class="text-center text-slate-500 py-8"><p class="text-4xl mb-3">⭐</p><p>Your watchlist is empty.</p></div>';
+        return;
+    }
+    el.innerHTML = [...watchlist].map(sym => {
+        const s = getStockBySymbol(sym);
+        if (!s) return '';
+        return `<div class="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl">
+            <div><p class="font-bold">${s.symbol}</p><p class="text-sm text-slate-400">${s.name}</p></div>
+            <div class="text-right">
+                <p class="font-mono">$${s.price.toFixed(2)}</p>
+                <p class="${s.changePct>=0?'price-up':'price-down'}">${s.changePct>=0?'+':''}${s.changePct.toFixed(2)}%</p>
+            </div>
+            <div class="flex gap-1">
+                <button onclick="openBuyModal('${sym}')" class="btn btn-success text-xs px-2 py-1">Buy</button>
+                <button onclick="watchlist.delete('${sym}');updateUI()" class="btn btn-secondary text-xs px-2 py-1">✕</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderNewsFeed() {
+    const el = document.getElementById('newsFeed');
+    if (!el) return;
+    if (newsHistory.length === 0) { el.innerHTML = '<p class="text-slate-500 text-center">No news yet</p>'; return; }
+    el.innerHTML = newsHistory.map(n => `
+        <div class="news-item" style="border-left-color:${n.type==='bullish'?'#22c55e':'#ef4444'}">
+            <p class="text-sm">${n.text}</p>
+            <p class="text-xs text-slate-500 mt-1">Day ${n.day} · <span class="${n.type==='bullish'?'text-green-400':'text-red-400'}">${n.impact>=0?'+':''}${(n.impact*100).toFixed(1)}%</span></p>
+        </div>`).join('');
+}
+
+function renderHeatmap() {
+    const el = document.getElementById('marketHeatmap');
+    if (!el) return;
+    el.innerHTML = STOCKS.map(s => {
+        const intensity = Math.min(100, Math.abs(s.changePct) * 10);
+        const bg = s.changePct >= 0 ? `rgba(34,197,94,${intensity/100})` : `rgba(239,68,68,${intensity/100})`;
+        return `<div class="heatmap-cell p-3 rounded-lg text-center" style="background:${bg};min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center"
+            onclick="openBuyModal('${s.symbol}')">
+            <div class="font-bold text-sm">${s.symbol}</div>
+            <div class="text-xs ${s.changePct>=0?'text-green-300':'text-red-300'}">${s.changePct>=0?'+':''}${s.changePct.toFixed(1)}%</div>
+        </div>`;
+    }).join('');
+}
+
+function renderAchievements() {
+    const el = document.getElementById('achievementsGrid');
+    if (!el) return;
+    el.innerHTML = ACHIEVEMENTS.map(a => `
+        <div class="flex flex-col items-center gap-2">
+            <div class="achievement-badge ${a.unlocked?'unlocked':'locked'}">
+                ${a.icon}
+                <div class="achievement-tooltip">${a.name}: ${a.desc}</div>
+            </div>
+            <p class="text-xs text-center ${a.unlocked?'text-white':'text-slate-500'}">${a.name}</p>
+        </div>`).join('');
+}
+
+function renderSectorPerformance() {
+    const el = document.getElementById('sectorPerformance');
+    if (!el) return;
+    const sectors = {};
+    STOCKS.forEach(s => {
+        if (!sectors[s.sector]) sectors[s.sector] = { total: 0, count: 0 };
+        sectors[s.sector].total += s.changePct;
+        sectors[s.sector].count++;
+    });
+    el.innerHTML = Object.entries(sectors).map(([name, d]) => {
+        const avg = d.total / d.count;
+        return `<div class="flex justify-between items-center">
+            <span class="text-slate-400 capitalize">${name}</span>
+            <span class="${avg>=0?'price-up':'price-down'}">${avg>=0?'+':''}${avg.toFixed(2)}%</span>
+        </div>`;
+    }).join('');
+}
+
+function updateOptionsSelect() {
+    const el = document.getElementById('optionsStockSelect');
+    if (!el || el.options.length > 1) return;
+    STOCKS.forEach(s => { const o = document.createElement('option'); o.value = s.symbol; o.textContent = s.symbol + ' - ' + s.name; el.add(o); });
+}
+
+function updateOptionsChain() {
+    const sym = document.getElementById('optionsStockSelect')?.value;
+    const s = sym ? getStockBySymbol(sym) : null;
+    const el = document.getElementById('optionsChain');
+    if (!el) return;
+    if (!s) { el.innerHTML = '<div class="text-center text-slate-500 py-8"><p>Select a stock to view options</p></div>'; return; }
+    const strikes = [-20,-10,-5,0,5,10,20].map(d => s.price + d);
+    el.innerHTML = `<div class="grid grid-cols-4 gap-2 text-xs text-slate-500 font-bold mb-2 px-2">
+        <span>Strike</span><span>Call</span><span>Put</span><span>Action</span></div>` +
+    strikes.map(strike => {
+        const callPremium = Math.max(0.5, (s.price - strike) * 0.1 + Math.random()*2).toFixed(2);
+        const putPremium = Math.max(0.5, (strike - s.price) * 0.1 + Math.random()*2).toFixed(2);
+        return `<div class="grid grid-cols-4 gap-2 items-center py-2 px-2 rounded hover:bg-slate-800/50">
+            <span class="font-mono">$${strike.toFixed(0)}</span>
+            <span class="price-up">$${callPremium}</span>
+            <span class="price-down">$${putPremium}</span>
+            <div class="flex gap-1">
+                <button onclick="showToast('📊 Options not yet implemented','info')" class="text-xs px-2 py-1 bg-green-600 rounded">Call</button>
+                <button onclick="showToast('📊 Options not yet implemented','info')" class="text-xs px-2 py-1 bg-red-600 rounded">Put</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function updateCalendar() {
+    const el = document.getElementById('calendarEvents');
+    if (!el) return;
+    el.innerHTML = CALENDAR_EVENTS.map(e => {
+        const daysAway = e.day - dayCount;
+        const past = daysAway < 0;
+        return `<div class="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 ${past?'opacity-50':''}">
+            <span class="text-2xl">${e.type==='fed'?'🏦':e.type==='earnings'?'📊':'📈'}</span>
+            <div>
+                <p class="font-bold text-sm">${e.name}</p>
+                <p class="text-xs text-slate-400">${past?'Past':'In '+daysAway+' days'} · <span class="badge badge-${e.impact==='HIGH'?'danger':'warning'}">${e.impact}</span></p>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ================================================
+// ACHIEVEMENT SYSTEM
+// ================================================
+function unlockAchievement(id) {
+    const a = ACHIEVEMENTS.find(a => a.id === id);
+    if (!a || a.unlocked) return;
+    a.unlocked = true;
+    showToast(`🏆 Achievement: ${a.name}`, 'success');
+    playBuy();
+}
+
+function checkAchievements() {
+    if (tradeHistory.length >= 1) unlockAchievement('firstTrade');
+    if (getTotalWealth() >= 1000000) unlockAchievement('millionaire');
+    if (dayTrades >= 3) unlockAchievement('dayTrader');
+    if (Object.keys(portfolio).length >= 5) unlockAchievement('diversified');
+    if (watchlist.size >= 5) unlockAchievement('watchlistPro');
+    if (tradeHistory.length > 0 && tradeHistory[0].type === 'BUY' && tradeHistory[0].total >= 50000) unlockAchievement('bigBuy');
+}
+
+// ================================================
+// TAB & SEARCH
+// ================================================
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick')?.includes(`'${tab}'`)));
+    document.querySelectorAll('[id$="Tab"]').forEach(el => el.classList.add('hidden'));
+    const el = document.getElementById(tab + 'Tab');
+    if (el) el.classList.remove('hidden');
+}
+
+function sortStocks(field) {
+    if (sortField === field) sortAsc = !sortAsc; else { sortField = field; sortAsc = true; }
+    renderStockList();
+}
+
+function searchStocks() {
+    searchQuery = document.getElementById('stockSearch')?.value?.toLowerCase() || '';
+    renderStockList();
+}
+
+function filterBySector() {
+    sectorFilter = document.getElementById('sectorFilter')?.value || 'all';
+    renderStockList();
+}
+
+function showToast(msg, type='info') {
+    const el = document.createElement('div');
+    el.className = `event-popup`;
+    el.style.borderLeftColor = type==='success'?'#22c55e':type==='error'?'#ef4444':'#3b82f6';
+    el.innerHTML = msg;
+    document.getElementById('eventContainer').appendChild(el);
+    if (type === 'success') playAlert(true); else if (type === 'error') playAlert(false);
+    setTimeout(() => el.remove(), 3000);
+}
+
+// ================================================
+// KEYBOARD SHORTCUTS
+// ================================================
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    const tabs = { m:'market', p:'portfolio', o:'options', w:'watchlist', n:'news', c:'calendar', x:'margin', h:'heatmap', a:'achievements' };
+    if (tabs[e.key.toLowerCase()]) switchTab(tabs[e.key.toLowerCase()]);
+    if (e.key.toLowerCase() === 'q') toggleMusic();
+    if (e.key.toLowerCase() === 's' && !e.ctrlKey) saveGameState();
+    if (e.key === 'Escape') closeTradeModal();
+    if (e.key === 'F5') { e.preventDefault(); startMarketDay(); }
+});
+
+// ================================================
+// NEWS TICKER ANIMATION
+// ================================================
+function animateTicker() {
+    const ticker = document.getElementById('newsTicker');
+    if (!ticker) return;
+    let pos = 0;
+    setInterval(() => {
+        pos -= 1;
+        if (pos < -ticker.scrollWidth) pos = window.innerWidth;
+        ticker.style.transform = `translateX(${pos}px)`;
+    }, 30);
+}
+
+// ================================================
+// INIT & GAME LOOP
+// ================================================
+window.addEventListener('load', () => {
+    loadGameState();
+    updateUI();
+    animateTicker();
+    updateCalendar();
+
+    // Market update every 3 seconds = 1 game day
+    setInterval(() => {
+        startMarketDay();
+        updateMarket();
+    }, 3000);
+
+    // Welcome message
+    setTimeout(() => showToast('📈 Market open! Press Q for music, M/P/N/H for tabs.', 'info'), 1000);
+});
+
+    </script>
+</body>
+</html>

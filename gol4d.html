@@ -616,6 +616,18 @@
         .pulsing {
             animation: pulse 2s ease-in-out infinite;
         }
+        @keyframes notifFade4d {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            75% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-5px); }
+        }
+        @keyframes musicPulse4d {
+            0%, 100% { box-shadow: 0 0 8px rgba(184,41,221,0.4); }
+            50% { box-shadow: 0 0 25px rgba(184,41,221,0.8), 0 0 50px rgba(184,41,221,0.2); }
+        }
+        .stat-box { transition: all 0.3s; }
+        .stat-box:hover { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0,245,255,0.2); }
     </style>
 </head>
 <body>
@@ -1254,6 +1266,22 @@
             scene.add(connectionGroup);
             scene.add(trailGroup);
             scene.add(particleGroup);
+
+            // Hyperdimensional star field — two layers for depth parallax
+            [3500, 800].forEach((count, layer) => {
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(count * 3);
+                for (let i = 0; i < count * 3; i++) pos[i] = (Math.random() - 0.5) * (layer === 0 ? 1500 : 600);
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const colors4d = [0xffffff, 0xb829dd, 0x00f5ff, 0xff00ff];
+                const col = colors4d[Math.floor(Math.random() * colors4d.length)];
+                const mat = new THREE.PointsMaterial({ color: layer === 0 ? 0xffffff : col, size: layer === 0 ? 0.4 : 0.8, transparent: true, opacity: layer === 0 ? 0.6 : 0.4, sizeAttenuation: true });
+                const stars = new THREE.Points(geo, mat);
+                scene.add(stars);
+                // Slow counter-rotation for parallax feel
+                let angle = layer * Math.PI;
+                setInterval(() => { stars.rotation.y = angle += 0.00008 * (layer === 0 ? 1 : -1.3); stars.rotation.x = Math.sin(angle * 0.3) * 0.05; }, 16);
+            });
             
             // Create boundary
             createBoundaryBox();
@@ -3730,8 +3758,21 @@
         }
         
         function showNotification(msg, type = 'info') {
-            // Simple notification - could be expanded
             console.log(`[${type}] ${msg}`);
+            const n = document.createElement('div');
+            const colors = { info: '#00f5ff', major: '#b829dd', catastrophe: '#ff3333', normal: '#00ff88' };
+            const col = colors[type] || '#00f5ff';
+            n.style.cssText = `
+                position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
+                background: rgba(5,5,8,0.95); border: 1px solid ${col}; border-radius: 8px;
+                padding: 10px 22px; font-family: 'Orbitron', monospace; font-size: 11px;
+                color: ${col}; z-index: 3000; pointer-events: none; white-space: nowrap;
+                box-shadow: 0 0 20px ${col}44;
+                animation: notifFade4d 2.5s ease forwards;
+            `;
+            n.textContent = msg;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 2600);
         }
         
         // Audio functions
