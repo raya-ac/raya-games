@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universe Simulator - Cosmic Exploration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .panel {
+            pointer-events: auto;
+            background: rgba(10, 10, 20, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        #top-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #title {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #a8c0ff, #3f2b96);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(100, 150, 255, 0.5);
+        }
+        
+        #stats {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            background: linear-gradient(135deg, rgba(50, 100, 200, 0.3), rgba(30, 60, 120, 0.3));
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+        
+        .control-btn:hover {
+            background: linear-gradient(135deg, rgba(50, 100, 200, 0.5), rgba(30, 60, 120, 0.5));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(100, 150, 255, 0.3);
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            width: 300px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+        
+        #info-panel h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #a8c0ff;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+            padding-bottom: 10px;
+        }
+        
+        .object-type {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .object-type:hover {
+            background: rgba(100, 150, 255, 0.1);
+        }
+        
+        .object-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        
+        .star-icon { background: radial-gradient(circle, #ffd700, #ff8c00); box-shadow: 0 0 10px #ff8c00; }
+        .planet-icon { background: radial-gradient(circle, #4a90d9, #1a5f9e); }
+        .blackhole-icon { background: radial-gradient(circle, #000, #330066); border: 1px solid #6600cc; }
+        .nebula-icon { background: linear-gradient(45deg, #ff0066, #6600ff); opacity: 0.7; }
+        .galaxy-icon { background: radial-gradient(ellipse, #fff, #888); }
+        
+        #tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            max-width: 250px;
+        }
+        
+        #speed-control {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        #speed-slider {
+            width: 150px;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(100, 150, 255, 0.3);
+            outline: none;
+        }
+        
+        #speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #a8c0ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(168, 192, 255, 0.5);
+        }
+        
+        .hidden { display: none !important; }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 150, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 1s ease;
+        }
+        
+        #loading-text {
+            font-size: 32px;
+            letter-spacing: 8px;
+            background: linear-gradient(135deg, #a8c0ff, #3f2b96);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div id="loading-text">GENERATING UNIVERSE</div>
+        <div style="margin-top: 20px; color: rgba(255,255,255,0.5); font-size: 14px;">Spawning galaxies...</div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui">
+        <div id="top-bar">
+            <div id="title">UNIVERSE SIMULATOR</div>
+            <div id="stats">
+                <div class="stat">
+                    <span class="stat-value" id="galaxy-count">0</span>
+                    <span>Galaxies</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="star-count">0</span>
+                    <span>Stars</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="time-scale">1x</span>
+                    <span>Time Scale</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <button class="control-btn" onclick="spawnGalaxy()">🌌 Spawn Galaxy</button>
+            <button class="control-btn" onclick="spawnBlackHole()">🕳️ Black Hole</button>
+            <button class="control-btn" onclick="spawnNebula()">🌫️ Nebula</button>
+            <button class="control-btn" onclick="clearUniverse()">🔄 Reset Universe</button>
+            <button class="control-btn" onclick="toggleAutoPilot()">✈️ Auto-Pilot</button>
+        </div>
+        
+        <div id="info-panel" class="panel">
+            <h3>Cosmic Objects</h3>
+            <div class="object-type" onclick="spawnObject('star')">
+                <div class="object-icon star-icon"></div>
+                <span>Star</span>
+            </div>
+            <div class="object-type" onclick="spawnObject('planet')">
+                <div class="object-icon planet-icon"></div>
+                <span>Planet</span>
+            </div>
+            <div class="object-type" onclick="spawnObject('blackhole')">
+                <div class="object-icon blackhole-icon"></div>
+                <span>Black Hole</span>
+            </div>
+            <div class="object-type" onclick="spawnObject('nebula')">
+                <div class="object-icon nebula-icon"></div>
+                <span>Nebula</span>
+            </div>
+            <div class="object-type" onclick="spawnObject('galaxy')">
+                <div class="object-icon galaxy-icon"></div>
+                <span>Galaxy</span>
+            </div>
+            
+            <h3 style="margin-top: 20px;">Controls</h3>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.6;">
+                • Click + Drag to rotate view<br>
+                • Scroll to zoom in/out<br>
+                • Double-click to focus<br>
+                • Right-click to pan<br>
+                • Hover for object info
+            </p>
+        </div>
+        
+        <div id="speed-control" class="panel">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.6);">Time</span>
+            <input type="range" id="speed-slider" min="0" max="10" step="0.1" value="1">
+        </div>
+    </div>
+    
+    <div id="tooltip"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('tooltip');
+        
+        let width, height;
+        let galaxies = [];
+        let stars = [];
+        let blackHoles = [];
+        let nebulae = [];
+        let particles = [];
+        let camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
+        let mouse = { x: 0, y: 0, down: false, rightDown: false };
+        let timeScale = 1;
+        let autoPilot = false;
+        let autoPilotTarget = null;
+        let frame = 0;
+        
+        // Resize handling
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+        
+        // Utility functions
+        function random(min, max) { return Math.random() * (max - min) + min; }
+        function dist(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
+        
+        // Star colors based on temperature
+        function getStarColor(temp) {
+            if (temp < 3000) return [255, 100, 50];      // Red dwarf
+            if (temp < 5000) return [255, 180, 100];     // Orange
+            if (temp < 7000) return [255, 255, 220];     // Yellow (Sun-like)
+            if (temp < 10000) return [220, 240, 255];    // White
+            return [150, 180, 255];                       // Blue giant
+        }
+        
+        class Galaxy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = random(100, 300);
+                this.rotation = 0;
+                this.rotationSpeed = random(-0.001, 0.001);
+                this.arms = Math.floor(random(2, 6));
+                this.armSpread = random(0.3, 0.7);
+                this.stars = [];
+                this.color = [random(150, 255), random(150, 220), random(200, 255)];
+                this.type = random(0, 1) > 0.5 ? 'spiral' : 'elliptical';
+                
+                // Generate stars in galaxy
+                const starCount = Math.floor(this.radius * 2);
+                for (let i = 0; i < starCount; i++) {
+                    const angle = random(0, Math.PI * 2);
+                    const r = Math.pow(random(0, 1), 0.5) * this.radius;
+                    
+                    if (this.type === 'spiral') {
+                        const armOffset = (angle * this.arms) % (Math.PI * 2);
+                        const armStrength = Math.exp(-r / this.radius) * this.armSpread;
+                        const finalAngle = angle + Math.sin(armOffset) * armStrength;
+                        
+                        this.stars.push({
+                            x: Math.cos(finalAngle) * r,
+                            y: Math.sin(finalAngle) * r,
+                            size: random(0.5, 2),
+                            brightness: random(0.3, 1),
+                            color: getStarColor(random(2000, 15000)),
+                            pulse: random(0, Math.PI * 2)
+                        });
+                    } else {
+                        this.stars.push({
+                            x: Math.cos(angle) * r,
+                            y: Math.sin(angle) * r * random(0.5, 0.9),
+                            size: random(0.5, 2),
+                            brightness: random(0.3, 1),
+                            color: getStarColor(random(2000, 15000)),
+                            pulse: random(0, Math.PI * 2)
+                        });
+                    }
+                }
+                
+                // Central supermassive black hole
+                this.blackHole = {
+                    mass: this.radius * 100,
+                    radius: this.radius * 0.05
+                };
+            }
+            
+            update() {
+                this.rotation += this.rotationSpeed * timeScale;
+            }
+            
+            draw(ctx, screenX, screenY) {
+                ctx.save();
+                ctx.translate(screenX, screenY);
+                ctx.rotate(this.rotation);
+                
+                // Draw stars
+                for (const star of this.stars) {
+                    const pulse = Math.sin(frame * 0.02 + star.pulse) * 0.2 + 0.8;
+                    const alpha = star.brightness * pulse;
+                    const [r, g, b] = star.color;
+                    
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                    ctx.fill();
+                    
+                    // Glow for bright stars
+                    if (star.brightness > 0.7) {
+                        ctx.beginPath();
+                        ctx.arc(star.x, star.y, star.size * 3, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.1})`;
+                        ctx.fill();
+                    }
+                }
+                
+                // Draw central black hole
+                const bhRadius = this.blackHole.radius;
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, bhRadius * 3);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+                gradient.addColorStop(0.3, 'rgba(20, 0, 40, 0.8)');
+                gradient.addColorStop(0.6, 'rgba(60, 0, 100, 0.3)');
+                gradient.addColorStop(1, 'rgba(100, 0, 150, 0)');
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, bhRadius * 3, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Event horizon
+                ctx.beginPath();
+                ctx.arc(0, 0, bhRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(100, 0, 200, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+        
+        class Star {
+            constructor(x, y, galaxy = null) {
+                this.x = x;
+                this.y = y;
+                this.galaxy = galaxy;
+                this.mass = random(0.5, 5);
+                this.radius = Math.pow(this.mass, 0.5) * 3;
+                this.temperature = random(2000, 15000);
+                this.color = getStarColor(this.temperature);
+                this.pulse = random(0, Math.PI * 2);
+                this.pulseSpeed = random(0.01, 0.05);
+                this.planets = [];
+                
+                // Generate planets
+                const planetCount = Math.floor(random(0, 8));
+                for (let i = 0; i < planetCount; i++) {
+                    this.planets.push({
+                        distance: random(30, 150),
+                        angle: random(0, Math.PI * 2),
+                        speed: random(0.001, 0.01),
+                        size: random(2, 8),
+                        color: [random(100, 255), random(100, 255), random(100, 255)]
+                    });
+                }
+            }
+            
+            update() {
+                this.pulse += this.pulseSpeed * timeScale;
+                
+                // Update planets
+                for (const planet of this.planets) {
+                    planet.angle += planet.speed * timeScale;
+                }
+            }
+            
+            draw(ctx, screenX, screenY) {
+                const pulse = Math.sin(this.pulse) * 0.1 + 1;
+                const [r, g, b] = this.color;
+                
+                // Glow
+                const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, this.radius * 5 * pulse);
+                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
+                gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.2)`);
+                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius * 5 * pulse, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Core
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius * pulse, 0, Math.PI * 2);
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.fill();
+                
+                // Draw planets
+                for (const planet of this.planets) {
+                    const px = screenX + Math.cos(planet.angle) * planet.distance * camera.zoom;
+                    const py = screenY + Math.sin(planet.angle) * planet.distance * camera.zoom;
+                    
+                    ctx.beginPath();
+                    ctx.arc(px, py, planet.size * camera.zoom, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgb(${planet.color[0]}, ${planet.color[1]}, ${planet.color[2]})`;
+                    ctx.fill();
+                    
+                    // Orbit line
+                    ctx.beginPath();
+                    ctx.ellipse(screenX, screenY, planet.distance * camera.zoom, planet.distance * camera.zoom, 0, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        class BlackHole {
+            constructor(x, y, mass = 1000) {
+                this.x = x;
+                this.y = y;
+                this.mass = mass;
+                this.radius = Math.pow(mass, 0.5) * 2;
+                this.rotation = 0;
+                this.accretionDisk = [];
+                
+                // Generate accretion disk particles
+                for (let i = 0; i < 200; i++) {
+                    this.accretionDisk.push({
+                        distance: random(this.radius * 2, this.radius * 10),
+                        angle: random(0, Math.PI * 2),
+                        speed: random(0.01, 0.05),
+                        size: random(1, 3),
+                        brightness: random(0.5, 1)
+                    });
+                }
+            }
+            
+            update() {
+                this.rotation += 0.02 * timeScale;
+                
+                for (const particle of this.accretionDisk) {
+                    particle.angle += particle.speed * (this.mass / 500) * timeScale;
+                    particle.distance *= 0.999; // Spiral inward
+                    if (particle.distance < this.radius) {
+                        particle.distance = random(this.radius * 2, this.radius * 10);
+                    }
+                }
+            }
+            
+            draw(ctx, screenX, screenY) {
+                // Accretion disk
+                for (const particle of this.accretionDisk) {
+                    const x = screenX + Math.cos(particle.angle + this.rotation) * particle.distance * camera.zoom;
+                    const y = screenY + Math.sin(particle.angle + this.rotation) * particle.distance * camera.zoom * 0.3; // Flattened
+                    
+                    const heat = 1 - (particle.distance / (this.radius * 10));
+                    const r = Math.floor(255 * heat + 100);
+                    const g = Math.floor(150 * heat);
+                    const b = Math.floor(255 * (1 - heat));
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, particle.size * camera.zoom, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${particle.brightness})`;
+                    ctx.fill();
+                }
+                
+                // Event horizon
+                const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, this.radius * camera.zoom * 2);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+                gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.9)');
+                gradient.addColorStop(0.8, 'rgba(50, 0, 100, 0.3)');
+                gradient.addColorStop(1, 'rgba(100, 0, 200, 0)');
+                
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius * camera.zoom * 2, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Singularity
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius * camera.zoom, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(150, 0, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Gravitational lensing effect (simplified)
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius * camera.zoom * 3, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(100, 0, 200, 0.1)';
+                ctx.lineWidth = 20;
+                ctx.stroke();
+            }
+        }
+        
+        class Nebula {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = random(200, 500);
+                this.color = [
+                    random(100, 255),
+                    random(50, 150),
+                    random(150, 255)
+                ];
+                this.particles = [];
+                
+                for (let i = 0; i < 100; i++) {
+                    this.particles.push({
+                        x: random(-this.radius, this.radius),
+                        y: random(-this.radius, this.radius),
+                        size: random(20, 80),
+                        alpha: random(0.05, 0.2)
+                    });
+                }
+            }
+            
+            draw(ctx, screenX, screenY) {
+                const [r, g, b] = this.color;
+                
+                for (const p of this.particles) {
+                    const gradient = ctx.createRadialGradient(
+                        screenX + p.x * camera.zoom, 
+                        screenY + p.y * camera.zoom, 
+                        0,
+                        screenX + p.x * camera.zoom, 
+                        screenY + p.y * camera.zoom, 
+                        p.size * camera.zoom
+                    );
+                    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p.alpha})`);
+                    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                    
+                    ctx.beginPath();
+                    ctx.arc(screenX + p.x * camera.zoom, screenY + p.y * camera.zoom, p.size * camera.zoom, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // Initialize universe
+        function initUniverse() {
+            galaxies = [];
+            stars = [];
+            blackHoles = [];
+            nebulae = [];
+            
+            // Spawn initial galaxies
+            for (let i = 0; i < 3; i++) {
+                spawnGalaxy();
+            }
+            
+            // Spawn some nebulae
+            for (let i = 0; i < 5; i++) {
+                nebulae.push(new Nebula(
+                    random(-2000, 2000),
+                    random(-2000, 2000)
+                ));
+            }
+            
+            // Spawn standalone stars
+            for (let i = 0; i < 50; i++) {
+                stars.push(new Star(
+                    random(-3000, 3000),
+                    random(-3000, 3000)
+                ));
+            }
+            
+            updateStats();
+        }
+        
+        function spawnGalaxy() {
+            const x = random(-2000, 2000);
+            const y = random(-2000, 2000);
+            galaxies.push(new Galaxy(x, y));
+            
+            // Add some standalone stars around galaxy
+            for (let i = 0; i < 10; i++) {
+                stars.push(new Star(
+                    x + random(-500, 500),
+                    y + random(-500, 500)
+                ));
+            }
+            
+            updateStats();
+        }
+        
+        function spawnBlackHole() {
+            blackHoles.push(new BlackHole(
+                camera.x + random(-500, 500),
+                camera.y + random(-500, 500),
+                random(500, 5000)
+            ));
+            updateStats();
+        }
+        
+        function spawnNebula() {
+            nebulae.push(new Nebula(
+                camera.x + random(-500, 500),
+                camera.y + random(-500, 500)
+            ));
+            updateStats();
+        }
+        
+        function spawnObject(type) {
+            const x = camera.x + random(-300, 300);
+            const y = camera.y + random(-300, 300);
+            
+            switch(type) {
+                case 'star':
+                    stars.push(new Star(x, y));
+                    break;
+                case 'planet':
+                    // Planets are attached to stars
+                    if (stars.length > 0) {
+                        const star = stars[Math.floor(random(0, stars.length))];
+                        star.planets.push({
+                            distance: random(30, 150),
+                            angle: random(0, Math.PI * 2),
+                            speed: random(0.001, 0.01),
+                            size: random(2, 8),
+                            color: [random(100, 255), random(100, 255), random(100, 255)]
+                        });
+                    }
+                    break;
+                case 'blackhole':
+                    blackHoles.push(new BlackHole(x, y, random(1000, 5000)));
+                    break;
+                case 'nebula':
+                    nebulae.push(new Nebula(x, y));
+                    break;
+                case 'galaxy':
+                    galaxies.push(new Galaxy(x, y));
+                    break;
+            }
+            updateStats();
+        }
+        
+        function clearUniverse() {
+            initUniverse();
+        }
+        
+        function toggleAutoPilot() {
+            autoPilot = !autoPilot;
+            if (autoPilot) {
+                pickAutoPilotTarget();
+            }
+        }
+        
+        function pickAutoPilotTarget() {
+            const allObjects = [...galaxies, ...blackHoles, ...stars];
+            if (allObjects.length > 0) {
+                autoPilotTarget = allObjects[Math.floor(random(0, allObjects.length))];
+            }
+        }
+        
+        function updateStats() {
+            document.getElementById('galaxy-count').textContent = galaxies.length;
+            document.getElementById('star-count').textContent = 
+                stars.length + galaxies.reduce((acc, g) => acc + g.stars.length, 0);
+        }
+        
+        // Input handling
+        canvas.addEventListener('mousedown', e => {
+            if (e.button === 0) {
+                mouse.down = true;
+                mouse.dragStartX = e.clientX;
+                mouse.dragStartY = e.clientY;
+            } else if (e.button === 2) {
+                mouse.rightDown = true;
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            mouse.down = false;
+            mouse.rightDown = false;
+        });
+        
+        canvas.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            
+            if (mouse.down) {
+                camera.x -= (e.clientX - mouse.dragStartX) / camera.zoom;
+                camera.y -= (e.clientY - mouse.dragStartY) / camera.zoom;
+                mouse.dragStartX = e.clientX;
+                mouse.dragStartY = e.clientY;
+                autoPilot = false;
+            }
+            
+            // Tooltip
+            let hovered = null;
+            const allObjects = [...galaxies, ...blackHoles, ...stars];
+            
+            for (const obj of allObjects) {
+                const screenX = (obj.x - camera.x) * camera.zoom + width / 2;
+                const screenY = (obj.y - camera.y) * camera.zoom + height / 2;
+                const d = dist(mouse.x, mouse.y, screenX, screenY);
+                
+                if (d < 30) {
+                    hovered = obj;
+                    break;
+                }
+            }
+            
+            if (hovered) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = (e.clientX + 10) + 'px';
+                tooltip.style.top = (e.clientY + 10) + 'px';
+                
+                let type = 'Star';
+                if (hovered instanceof Galaxy) type = 'Galaxy';
+                else if (hovered instanceof BlackHole) type = 'Black Hole';
+                
+                tooltip.innerHTML = `
+                    <strong>${type}</strong><br>
+                    Position: (${Math.floor(hovered.x)}, ${Math.floor(hovered.y)})<br>
+                    ${hovered instanceof Galaxy ? `Stars: ${hovered.stars.length}<br>Type: ${hovered.type}` : ''}
+                    ${hovered instanceof BlackHole ? `Mass: ${(hovered.mass / 1000).toFixed(1)}k solar masses` : ''}
+                    ${hovered instanceof Star ? `Temp: ${hovered.temperature.toFixed(0)}K<br>Planets: ${hovered.planets.length}` : ''}
+                `;
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+        
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomSpeed = 0.001;
+            camera.targetZoom *= 1 - e.deltaY * zoomSpeed;
+            camera.targetZoom = Math.max(0.1, Math.min(10, camera.targetZoom));
+        });
+        
+        canvas.addEventListener('dblclick', () => {
+            // Focus on object under mouse
+            const allObjects = [...galaxies, ...blackHoles, ...stars];
+            for (const obj of allObjects) {
+                const screenX = (obj.x - camera.x) * camera.zoom + width / 2;
+                const screenY = (obj.y - camera.y) * camera.zoom + height / 2;
+                const d = dist(mouse.x, mouse.y, screenX, screenY);
+                
+                if (d < 50) {
+                    autoPilotTarget = obj;
+                    autoPilot = true;
+                    break;
+                }
+            }
+        });
+        
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+        
+        document.getElementById('speed-slider').addEventListener('input', e => {
+            timeScale = parseFloat(e.target.value);
+            document.getElementById('time-scale').textContent = timeScale.toFixed(1) + 'x';
+        });
+        
+        // Background stars
+        const bgStars = [];
+        for (let i = 0; i < 1000; i++) {
+            bgStars.push({
+                x: random(-5000, 5000),
+                y: random(-5000, 5000),
+                size: random(0.5, 2),
+                brightness: random(0.1, 0.5)
+            });
+        }
+        
+        // Main loop
+        function loop() {
+            // Smooth zoom
+            camera.zoom += (camera.targetZoom - camera.zoom) * 0.1;
+            
+            // Auto-pilot
+            if (autoPilot && autoPilotTarget) {
+                const dx = autoPilotTarget.x - camera.x;
+                const dy = autoPilotTarget.y - camera.y;
+                const d = Math.hypot(dx, dy);
+                
+                if (d < 10) {
+                    pickAutoPilotTarget();
+                } else {
+                    camera.x += dx * 0.02;
+                    camera.y += dy * 0.02;
+                }
+            }
+            
+            // Clear
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw background gradient
+            const bgGradient = ctx.createRadialGradient(
+                width / 2, height / 2, 0,
+                width / 2, height / 2, Math.max(width, height)
+            );
+            bgGradient.addColorStop(0, '#0a0a1a');
+            bgGradient.addColorStop(0.5, '#050510');
+            bgGradient.addColorStop(1, '#000000');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw background stars
+            for (const star of bgStars) {
+                const screenX = (star.x - camera.x) * camera.zoom * 0.5 + width / 2;
+                const screenY = (star.y - camera.y) * camera.zoom * 0.5 + height / 2;
+                
+                if (screenX > -10 && screenX < width + 10 && screenY > -10 && screenY < height + 10) {
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, star.size * camera.zoom * 0.5, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+                    ctx.fill();
+                }
+            }
+            
+            // Draw nebulae (behind everything)
+            for (const nebula of nebulae) {
+                const screenX = (nebula.x - camera.x) * camera.zoom + width / 2;
+                const screenY = (nebula.y - camera.y) * camera.zoom + height / 2;
+                
+                if (screenX > -nebula.radius && screenX < width + nebula.radius &&
+                    screenY > -nebula.radius && screenY < height + nebula.radius) {
+                    nebula.draw(ctx, screenX, screenY);
+                }
+            }
+            
+            // Update and draw galaxies
+            for (const galaxy of galaxies) {
+                galaxy.update();
+                const screenX = (galaxy.x - camera.x) * camera.zoom + width / 2;
+                const screenY = (galaxy.y - camera.y) * camera.zoom + height / 2;
+                
+                if (screenX > -galaxy.radius && screenX < width + galaxy.radius &&
+                    screenY > -galaxy.radius && screenY < height + galaxy.radius) {
+                    galaxy.draw(ctx, screenX, screenY);
+                }
+            }
+            
+            // Update and draw black holes
+            for (const bh of blackHoles) {
+                bh.update();
+                const screenX = (bh.x - camera.x) * camera.zoom + width / 2;
+                const screenY = (bh.y - camera.y) * camera.zoom + height / 2;
+                
+                if (screenX > -bh.radius * 10 && screenX < width + bh.radius * 10 &&
+                    screenY > -bh.radius * 10 && screenY < height + bh.radius * 10) {
+                    bh.draw(ctx, screenX, screenY);
+                }
+            }
+            
+            // Update and draw stars
+            for (const star of stars) {
+                star.update();
+                const screenX = (star.x - camera.x) * camera.zoom + width / 2;
+                const screenY = (star.y - camera.y) * camera.zoom + height / 2;
+                
+                if (screenX > -100 && screenX < width + 100 && screenY > -100 && screenY < height + 100) {
+                    star.draw(ctx, screenX, screenY);
+                }
+            }
+            
+            frame++;
+            requestAnimationFrame(loop);
+        }
+        
+        // Start
+        initUniverse();
+        
+        // Hide loading screen
+        setTimeout(() => {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1000);
+        }, 1500);
+        
+        loop();
+    </script>
+</body>
+</html>
