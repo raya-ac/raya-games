@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess vs AI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; height: 100vh; }
+#hud { padding: 10px; display: flex; gap: 20px; align-items: center; }
+select { background: #2a2a4e; border: 1px solid #444; color: #fff; padding: 4px 8px; }
+button { background: #3a3a5e; border: none; color: #fff; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+button:hover { background: #4a4a6e; }
+canvas { border: 2px solid #444; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+#status { margin-top: 10px; font-size: 14px; color: #888; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #2a2a4e; border: 1px solid #66f; color: #66f; padding: 5px 10px; border-radius: 20px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <span>You play: <select id="colorSelect"><option value="w">White</option><option value="b">Black</option></select></span>
+  <span>AI Level: <select id="levelSelect"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></span>
+  <button id="btnNew">New Game</button>
+  <button id="btnUndo">Undo</button>
+</div>
+<canvas id="c"></canvas>
+<div id="status">Your turn</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const CELL = 60;
+canvas.width = CELL * 8; canvas.height = CELL * 8;
+
+const PIECES = { P: 1, N: 2, B: 3, R: 4, Q: 5, K: 6 };
+const VALUES = { 0: 0, 1: 100, 2: 320, 3: 330, 4: 500, 5: 900, 6: 20000 };
+const SYMBOLS = { 1: '♙', 2: '♘', 3: '♗', 4: '♖', 5: '♕', 6: '♔', -1: '♟', -2: '♞', -3: '♝', -4: '♜', -5: '♛', -6: '♚' };
+
+let board = [], history = [], playerColor = 'w', aiLevel = 1, selected = null, turn = 'w', gameOver = false;
+
+function initBoard() {
+  const setup = [4, 2, 3, 5, 6, 3, 2, 4];
+  board = [];
+  for (let r = 0; r < 8; r++) {
+    const row = [];
+    for (let c = 0; c < 8; c++) {
+      if (r === 0) row.push(-setup[c]);
+      else if (r === 1) row.push(-1);
+      else if (r === 6) row.push(1);
+      else if (r === 7) row.push(setup[c]);
+      else row.push(0);
+    }
+    board.push(row);
+  }
+  turn = 'w'; gameOver = false; selected = null; history = [];
+  document.getElementById('status').textContent = 'Your turn';
+}
+initBoard();
+
+function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+function isOwn(r, c, color) { const p = board[r][c]; return color === 'w' ? p > 0 : p < 0; }
+function isEnemy(r, c, color) { const p = board[r][c]; return color === 'w' ? p < 0 : p > 0; }
+
+function getMoves(r, c) {
+  const p = board[r][c]; if (p === 0) return [];
+  const color = p > 0 ? 'w' : 'b';
+  const moves = [];
+  const add = (dr, dc) => { if (inBounds(r + dr, c + dc) && !isOwn(r + dr, c + dc, color)) moves.push([r + dr, c + dc]); };
+  const slide = (dr, dc) => { for (let i = 1; i < 8; i++) { const nr = r + dr * i, nc = c + dc * i; if (!inBounds(nr, nc)) break; if (isOwn(nr, nc, color)) break; moves.push([nr, nc]); if (isEnemy(nr, nc, color)) break; } };
+  const absP = Math.abs(p);
+  if (absP === 1) {
+    const dir = color === 'w' ? -1 : 1;
+    if (inBounds(r + dir, c) && board[r + dir][c] === 0) { moves.push([r + dir, c]); if ((color === 'w' && r === 6) || (color === 'b' && r === 1)) if (board[r + dir * 2][c] === 0) moves.push([r + dir * 2, c]); }
+    [-1, 1].forEach(dc => { if (inBounds(r + dir, c + dc) && isEnemy(r + dir, c + dc, color)) moves.push([r + dir, c + dc]); });
+  } else if (absP === 2) {
+    [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr,dc])=>add(dr,dc));
+  } else if (absP === 3) {
+    [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>slide(dr,dc));
+  } else if (absP === 4) {
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>slide(dr,dc));
+  } else if (absP === 5) {
+    [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>slide(dr,dc));
+  } else if (absP === 6) {
+    [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dr,dc])=>add(dr,dc));
+  }
+  return moves;
+}
+
+function makeMove(from, to) {
+  history.push(board.map(r => [...r]));
+  const [fr, fc] = from, [tr, tc] = to;
+  board[tr][tc] = board[fr][fc]; board[fr][fc] = 0;
+  // Promotion
+  if (Math.abs(board[tr][tc]) === 1 && (tr === 0 || tr === 7)) board[tr][tc] = board[tr][tc] > 0 ? 5 : -5;
+}
+
+function undo() {
+  if (history.length >= 2) { board = history[history.length - 2]; history = history.slice(0, -2); turn = playerColor; }
+}
+
+function evaluate() {
+  let score = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) score += (board[r][c] > 0 ? VALUES[board[r][c]] : -VALUES[-board[r][c]]);
+  return turn === 'w' ? score : -score;
+}
+
+function minimax(depth, alpha, beta, maximizing) {
+  if (depth === 0) return evaluate();
+  const moves = [];
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const p = board[r][c];
+    if ((maximizing && p > 0) || (!maximizing && p < 0)) {
+      getMoves(r, c).forEach(m => moves.push({ from: [r, c], to: m }));
+    }
+  }
+  if (moves.length === 0) return maximizing ? -10000 : 10000;
+  if (maximizing) {
+    let maxEval = -Infinity;
+    for (const m of moves) {
+      const saved = board.map(r => [...r]);
+      makeMove(m.from, m.to);
+      const eval_ = minimax(depth - 1, alpha, beta, false);
+      board = saved; history.pop();
+      maxEval = Math.max(maxEval, eval_);
+      alpha = Math.max(alpha, eval_);
+      if (beta <= alpha) break;
+    }
+    return maxEval;
+  } else {
+    let minEval = Infinity;
+    for (const m of moves) {
+      const saved = board.map(r => [...r]);
+      makeMove(m.from, m.to);
+      const eval_ = minimax(depth - 1, alpha, beta, true);
+      board = saved; history.pop();
+      minEval = Math.min(minEval, eval_);
+      beta = Math.min(beta, eval_);
+      if (beta <= alpha) break;
+    }
+    return minEval;
+  }
+}
+
+function aiMove() {
+  const depth = parseInt(aiLevel) + 1;
+  const moves = [];
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    if ((turn === 'w' && board[r][c] > 0) || (turn === 'b' && board[r][c] < 0)) {
+      getMoves(r, c).forEach(m => moves.push({ from: [r, c], to: m, score: 0 }));
+    }
+  }
+  if (moves.length === 0) { gameOver = true; document.getElementById('status').textContent = 'Game Over'; return; }
+  // Simple eval for speed at depth 1
+  for (const m of moves) {
+    const saved = board.map(r => [...r]);
+    makeMove(m.from, m.to);
+    m.score = minimax(depth - 1, -Infinity, Infinity, turn === 'b');
+    board = saved; history.pop();
+  }
+  moves.sort((a, b) => turn === 'w' ? b.score - a.score : a.score - b.score);
+  const best = moves[0];
+  makeMove(best.from, best.to);
+  turn = turn === 'w' ? 'b' : 'w';
+  document.getElementById('status').textContent = 'Your turn';
+  checkWin();
+}
+
+function checkWin() {
+  let wKing = false, bKing = false;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) { if (board[r][c] === 6) wKing = true; if (board[r][c] === -6) bKing = true; }
+  if (!wKing || !bKing) { gameOver = true; document.getElementById('status').textContent = !wKing ? 'Black wins!' : 'White wins!'; }
+}
+
+canvas.addEventListener('click', e => {
+  if (gameOver || turn !== playerColor) return;
+  const rect = canvas.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / CELL);
+  const r = Math.floor((e.clientY - rect.top) / CELL);
+  if (selected) {
+    const moves = getMoves(selected[0], selected[1]);
+    if (moves.some(m => m[0] === r && m[1] === c)) {
+      makeMove(selected, [r, c]);
+      selected = null;
+      turn = turn === 'w' ? 'b' : 'w';
+      document.getElementById('status').textContent = 'AI thinking...';
+      checkWin();
+      if (!gameOver) setTimeout(aiMove, 100);
+    } else { selected = null; }
+  } else {
+    if ((playerColor === 'w' && board[r][c] > 0) || (playerColor === 'b' && board[r][c] < 0)) selected = [r, c];
+  }
+});
+
+function draw() {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      ctx.fillStyle = (r + c) % 2 === 0 ? '#d4a373' : '#a98467';
+      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      if (selected && selected[0] === r && selected[1] === c) {
+        ctx.strokeStyle = '#0f0'; ctx.lineWidth = 3; ctx.strokeRect(c * CELL + 2, r * CELL + 2, CELL - 4, CELL - 4);
+      }
+      const p = board[r][c];
+      if (p !== 0) {
+        ctx.fillStyle = p > 0 ? '#fff' : '#000';
+        ctx.font = '40px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(SYMBOLS[p], c * CELL + CELL / 2, r * CELL + CELL / 2 + 3);
+      }
+    }
+  }
+  // Highlight moves
+  if (selected) {
+    ctx.fillStyle = 'rgba(0,255,0,0.3)';
+    getMoves(selected[0], selected[1]).forEach(([mr, mc]) => {
+      ctx.beginPath(); ctx.arc(mc * CELL + CELL / 2, mr * CELL + CELL / 2, 8, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+}
+
+document.getElementById('btnNew').addEventListener('click', () => { playerColor = document.getElementById('colorSelect').value; aiLevel = document.getElementById('levelSelect').value; initBoard(); if (playerColor === 'b') setTimeout(aiMove, 100); });
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('colorSelect').addEventListener('change', () => { playerColor = document.getElementById('colorSelect').value; initBoard(); if (playerColor === 'b') setTimeout(aiMove, 100); });
+document.getElementById('levelSelect').addEventListener('change', () => aiLevel = document.getElementById('levelSelect').value);
+document.addEventListener('keydown', e => { if (e.key === 'm' || e.key === 'M') document.getElementById('musicBtn').click(); });
+
+// Audio
+let audioCtx = null, musicOn = false;
+function startMusic() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // Simple drone
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.value = 110; g.gain.value = 0.03;
+  o.connect(g); g.connect(audioCtx.destination); o.start();
+  document.getElementById('musicBtn').dataset.osc = o;
+}
+function stopMusic() { if (document.getElementById('musicBtn').dataset.osc) { try { document.getElementById('musicBtn').dataset.osc.stop(); } catch (e) { } } }
+document.getElementById('musicBtn').addEventListener('click', () => { musicOn = !musicOn; document.getElementById('musicBtn').textContent = musicOn ? '🎵 Music ON' : '🎵 Music'; if (musicOn) startMusic(); else stopMusic(); });
+
+function loop() { draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

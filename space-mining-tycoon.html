@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Mining Tycoon - Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        #game {
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            height: 100vh;
+        }
+        
+        /* Left Panel - Stats */
+        #stats-panel {
+            background: rgba(0, 0, 0, 0.9);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        #stats-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #00f5ff;
+        }
+        
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            margin-top: 5px;
+        }
+        
+        .resource {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .resource:last-child {
+            border-bottom: none;
+        }
+        
+        .resource-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .resource-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        /* Center - Canvas */
+        #canvas-container {
+            position: relative;
+        }
+        
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        #game-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        #selected-object {
+            font-size: 16px;
+            color: #00f5ff;
+            margin-bottom: 5px;
+        }
+        
+        #object-details {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* Right Panel - Actions */
+        #actions-panel {
+            background: rgba(0, 0, 0, 0.9);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        #actions-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #ff00a0;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #00f5ff;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        button.upgrade {
+            background: rgba(0, 245, 255, 0.1);
+            border-color: #00f5ff;
+        }
+        
+        button.upgrade:hover:not(:disabled) {
+            background: rgba(0, 245, 255, 0.2);
+        }
+        
+        .upgrade-cost {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        /* Notifications */
+        #notifications {
+            position: fixed;
+            bottom: 20px;
+            right: 270px;
+            width: 300px;
+            z-index: 1000;
+        }
+        
+        .notification {
+            background: rgba(0, 0, 0, 0.9);
+            border-left: 4px solid #00f5ff;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .notification.success {
+            border-left-color: #00ff88;
+        }
+        
+        .notification.error {
+            border-left-color: #ff3366;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <!-- Left Panel: Stats -->
+        <div id="stats-panel">
+            <h2>📊 Corporation</h2>
+            
+            <div class="stat-box">
+                <div class="stat-label">Credits</div>
+                <div class="stat-value" id="credits">1,000</div>
+            </div>
+            
+            <div class="stat-box">
+                <div class="stat-label">Total Mining Power</div>
+                <div class="stat-value" id="mining-power">10</div>
+            </div>
+            
+            <h2 style="margin-top: 20px;">💎 Resources</h2>
+            
+            <div id="resources-list">
+                <div class="resource">
+                    <div class="resource-name">
+                        <div class="resource-icon" style="background: #888;">⬜</div>
+                        Iron
+                    </div>
+                    <span id="res-iron">0</span>
+                </div>
+                <div class="resource">
+                    <div class="resource-name">
+                        <div class="resource-icon" style="background: #ffaa00;">🟨</div>
+                        Gold
+                    </div>
+                    <span id="res-gold">0</span>
+                </div>
+                <div class="resource">
+                    <div class="resource-name">
+                        <div class="resource-icon" style="background: #00f5ff;">💎</div>
+                        Crystals
+                    </div>
+                    <span id="res-crystals">0</span>
+                </div>
+                <div class="resource">
+                    <div class="resource-name">
+                        <div class="resource-icon" style="background: #ff00a0;">⚛️</div>
+                        Uranium
+                    </div>
+                    <span id="res-uranium">0</span>
+                </div>
+                <div class="resource">
+                    <div class="resource-name">
+                        <div class="resource-icon" style="background: #00ff88;">👽</div>
+                        Exotics
+                    </div>
+                    <span id="res-exotics">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Center: Game Canvas -->
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+            <div id="game-info">
+                <div id="selected-object">Select an asteroid to mine</div>
+                <div id="object-details">Click on colored asteroids to start mining operations</div>
+            </div>
+        </div>
+        
+        <!-- Right Panel: Actions -->
+        <div id="actions-panel">
+            <h2>🎮 Actions</h2>
+            
+            <button id="btn-mine" disabled>⛏️ Mine Selected</button>
+            <button id="btn-sell">💰 Sell All Resources</button>
+            
+            <h2 style="margin-top: 20px;">⬆️ Upgrades</h2>
+            
+            <button id="upgrade-mining" class="upgrade">
+                Mining Laser
+                <div class="upgrade-cost">Cost: 500 credits</div>
+            </button>
+            
+            <button id="upgrade-ship" class="upgrade">
+                Better Ships
+                <div class="upgrade-cost">Cost: 1000 credits</div>
+            </button>
+            
+            <button id="upgrade-scanner" class="upgrade">
+                Deep Scanner
+                <div class="upgrade-cost">Cost: 2000 credits</div>
+            </button>
+            
+            <button id="upgrade-refinery" class="upgrade">
+                Auto Refinery
+                <div class="upgrade-cost">Cost: 5000 credits</div>
+            </button>
+            
+            <h2 style="margin-top: 20px;">🚀 Automation</h2>
+            
+            <button id="buy-drone" class="upgrade">
+                Mining Drone
+                <div class="upgrade-cost">Cost: 2000 credits</div>
+            </button>
+        </div>
+    </div>
+    
+    <div id="notifications"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        
+        // Game state
+        let game = {
+            credits: 1000,
+            resources: {
+                iron: 0,
+                gold: 0,
+                crystals: 0,
+                uranium: 0,
+                exotics: 0
+            },
+            miningPower: 10,
+            upgrades: {
+                mining: 1,
+                ship: 1,
+                scanner: 1,
+                refinery: 0
+            },
+            drones: []
+        };
+        
+        // Resource types
+        const RESOURCE_TYPES = {
+            iron: { name: 'Iron', color: '#888', value: 10, icon: '⬜' },
+            gold: { name: 'Gold', color: '#ffaa00', value: 50, icon: '🟨' },
+            crystals: { name: 'Crystals', color: '#00f5ff', value: 100, icon: '💎' },
+            uranium: { name: 'Uranium', color: '#ff00a0', value: 200, icon: '⚛️' },
+            exotics: { name: 'Exotics', color: '#00ff88', value: 500, icon: '👽' }
+        };
+        
+        // Asteroids
+        let asteroids = [];
+        let selectedAsteroid = null;
+        
+        class Asteroid {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 15 + Math.random() * 25;
+                this.resourceType = this.generateResourceType();
+                this.amount = Math.floor(100 + Math.random() * 400);
+                this.maxAmount = this.amount;
+                this.mining = false;
+                this.miningProgress = 0;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.02;
+                this.vertices = this.generateVertices();
+            }
+            
+            generateResourceType() {
+                const rand = Math.random();
+                if (rand < 0.4) return 'iron';
+                if (rand < 0.7) return 'gold';
+                if (rand < 0.85) return 'crystals';
+                if (rand < 0.95) return 'uranium';
+                return 'exotics';
+            }
+            
+            generateVertices() {
+                const vertices = [];
+                const numVertices = 8 + Math.floor(Math.random() * 5);
+                for (let i = 0; i < numVertices; i++) {
+                    const angle = (i / numVertices) * Math.PI * 2;
+                    const r = this.radius * (0.8 + Math.random() * 0.4);
+                    vertices.push({
+                        x: Math.cos(angle) * r,
+                        y: Math.sin(angle) * r
+                    });
+                }
+                return vertices;
+            }
+            
+            update() {
+                this.rotation += this.rotationSpeed;
+                
+                // Mining
+                if (this.mining && this.amount > 0) {
+                    const mineAmount = game.miningPower * 0.1;
+                    const actualMine = Math.min(mineAmount, this.amount);
+                    this.amount -= actualMine;
+                    game.resources[this.resourceType] += actualMine;
+                    
+                    if (Math.random() < 0.1) {
+                        showNotification(`Mined ${Math.floor(actualMine)} ${RESOURCE_TYPES[this.resourceType].name}`, 'success');
+                    }
+                    
+                    if (this.amount <= 0) {
+                        this.mining = false;
+                        showNotification('Asteroid depleted!', 'error');
+                    }
+                }
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                // Draw asteroid body
+                ctx.beginPath();
+                ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+                for (let i = 1; i < this.vertices.length; i++) {
+                    ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
+                }
+                ctx.closePath();
+                
+                const type = RESOURCE_TYPES[this.resourceType];
+                ctx.fillStyle = type.color + '40';
+                ctx.fill();
+                ctx.strokeStyle = type.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw resource indicator
+                ctx.fillStyle = type.color;
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(type.icon, 0, 0);
+                
+                // Draw amount bar
+                const barWidth = this.radius * 1.5;
+                const barHeight = 4;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(-barWidth/2, this.radius + 10, barWidth, barHeight);
+                
+                ctx.fillStyle = type.color;
+                ctx.fillRect(-barWidth/2, this.radius + 10, barWidth * (this.amount / this.maxAmount), barHeight);
+                
+                // Selection indicator
+                if (this === selectedAsteroid) {
+                    ctx.strokeStyle = '#00f5ff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Mining indicator
+                if (this.mining) {
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Laser beam effect
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.radius - 20);
+                    ctx.lineTo(0, -this.radius - 50);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+            
+            contains(x, y) {
+                const dx = x - this.x;
+                const dy = y - this.y;
+                return Math.sqrt(dx * dx + dy * dy) < this.radius;
+            }
+        }
+        
+        // Initialize asteroids
+        function spawnAsteroids() {
+            asteroids = [];
+            for (let i = 0; i < 20; i++) {
+                asteroids.push(new Asteroid(
+                    100 + Math.random() * (canvas.width - 200),
+                    100 + Math.random() * (canvas.height - 200)
+                ));
+            }
+        }
+        
+        spawnAsteroids();
+        
+        // Mining Drone
+        class Drone {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.target = null;
+                this.speed = 2;
+            }
+            
+            update() {
+                // Find nearest unmined asteroid
+                if (!this.target || this.target.amount <= 0) {
+                    let nearest = null;
+                    let nearestDist = Infinity;
+                    
+                    asteroids.forEach(asteroid => {
+                        if (asteroid.amount > 0) {
+                            const dx = asteroid.x - this.x;
+                            const dy = asteroid.y - this.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < nearestDist) {
+                                nearestDist = dist;
+                                nearest = asteroid;
+                            }
+                        }
+                    });
+                    
+                    this.target = nearest;
+                }
+                
+                // Move to target
+                if (this.target) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > this.target.radius + 20) {
+                        this.x += (dx / dist) * this.speed;
+                        this.y += (dy / dist) * this.speed;
+                    } else {
+                        // Mine
+                        this.target.mining = true;
+                    }
+                }
+            }
+            
+            draw() {
+                ctx.fillStyle = '#00f5ff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#00f5ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notif = document.createElement('div');
+            notif.className = `notification ${type}`;
+            notif.textContent = message;
+            document.getElementById('notifications').appendChild(notif);
+            
+            setTimeout(() => {
+                notif.style.opacity = '0';
+                setTimeout(() => notif.remove(), 300);
+            }, 3000);
+        }
+        
+        // Update UI
+        function updateUI() {
+            document.getElementById('credits').textContent = Math.floor(game.credits).toLocaleString();
+            document.getElementById('mining-power').textContent = game.miningPower;
+            
+            Object.keys(game.resources).forEach(key => {
+                const el = document.getElementById(`res-${key}`);
+                if (el) el.textContent = Math.floor(game.resources[key]).toLocaleString();
+            });
+            
+            // Update button states
+            const btnMine = document.getElementById('btn-mine');
+            btnMine.disabled = !selectedAsteroid || selectedAsteroid.amount <= 0;
+            btnMine.textContent = selectedAsteroid?.mining ? '⏹ Stop Mining' : '⛏️ Mine Selected';
+        }
+        
+        // Click handler
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            let clicked = false;
+            asteroids.forEach(asteroid => {
+                if (asteroid.contains(x, y)) {
+                    selectedAsteroid = asteroid;
+                    clicked = true;
+                    
+                    const type = RESOURCE_TYPES[asteroid.resourceType];
+                    document.getElementById('selected-object').textContent = 
+                        `${type.name} Asteroid`;
+                    document.getElementById('object-details').textContent = 
+                        `Amount: ${Math.floor(asteroid.amount)}/${asteroid.maxAmount} | Value: ${type.value}/unit`;
+                }
+            });
+            
+            if (!clicked) {
+                selectedAsteroid = null;
+                document.getElementById('selected-object').textContent = 'Select an asteroid to mine';
+                document.getElementById('object-details').textContent = 'Click on colored asteroids to start mining operations';
+            }
+            
+            updateUI();
+        });
+        
+        // Button handlers
+        document.getElementById('btn-mine').addEventListener('click', () => {
+            if (selectedAsteroid) {
+                selectedAsteroid.mining = !selectedAsteroid.mining;
+                if (selectedAsteroid.mining) {
+                    showNotification(`Started mining ${RESOURCE_TYPES[selectedAsteroid.resourceType].name}`);
+                }
+                updateUI();
+            }
+        });
+        
+        document.getElementById('btn-sell').addEventListener('click', () => {
+            let total = 0;
+            Object.keys(game.resources).forEach(key => {
+                const amount = game.resources[key];
+                const value = RESOURCE_TYPES[key].value;
+                total += amount * value;
+                game.resources[key] = 0;
+            });
+            
+            game.credits += total;
+            showNotification(`Sold resources for ${total.toLocaleString()} credits!`, 'success');
+            updateUI();
+        });
+        
+        // Upgrade handlers
+        const upgrades = {
+            'upgrade-mining': { cost: 500, effect: () => { game.miningPower += 10; } },
+            'upgrade-ship': { cost: 1000, effect: () => { game.miningPower += 20; } },
+            'upgrade-scanner': { cost: 2000, effect: () => { spawnAsteroids(); } },
+            'upgrade-refinery': { cost: 5000, effect: () => { game.miningPower += 50; } },
+            'buy-drone': { cost: 2000, effect: () => { game.drones.push(new Drone()); } }
+        };
+        
+        Object.keys(upgrades).forEach(id => {
+            document.getElementById(id).addEventListener('click', () => {
+                const upgrade = upgrades[id];
+                if (game.credits >= upgrade.cost) {
+                    game.credits -= upgrade.cost;
+                    upgrade.effect();
+                    showNotification('Upgrade purchased!', 'success');
+                    updateUI();
+                } else {
+                    showNotification('Not enough credits!', 'error');
+                }
+            });
+        });
+        
+        // Game loop
+        function gameLoop() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 137.5) % canvas.width;
+                const y = (i * 71.3) % canvas.height;
+                const size = (i % 3) + 1;
+                ctx.globalAlpha = 0.3 + (i % 5) / 10;
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            
+            // Update and draw asteroids
+            asteroids = asteroids.filter(a => a.amount > 0 || a.mining);
+            asteroids.forEach(asteroid => {
+                asteroid.update();
+                asteroid.draw();
+            });
+            
+            // Spawn new asteroids occasionally
+            if (asteroids.length < 10 && Math.random() < 0.01) {
+                asteroids.push(new Asteroid(
+                    Math.random() < 0.5 ? -50 : canvas.width + 50,
+                    Math.random() * canvas.height
+                ));
+            }
+            
+            // Update and draw drones
+            game.drones.forEach(drone => {
+                drone.update();
+                drone.draw();
+            });
+            
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+        
+        showNotification('Welcome to Space Mining Tycoon! Click asteroids to start mining.');
+    </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physics Sandbox</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a15; color: #ddd; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; cursor: crosshair; }
+#ui { position: fixed; top: 10px; right: 10px; background: rgba(10,10,25,0.9); border: 1px solid #2a2a4a; padding: 12px; border-radius: 8px; width: 200px; font-size: 12px; }
+#ui h2 { color: #aaf; margin-bottom: 8px; font-size: 14px; }
+.tool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; margin: 5px 0; }
+button { background: #0f0f25; border: 1px solid #3a3a5a; color: #aac; padding: 4px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; }
+button:hover { border-color: #66f; }
+button.active { border-color: #66f; background: #1a1a40; color: #66f; }
+.row { margin: 4px 0; }
+.row label { display: flex; justify-content: space-between; font-size: 10px; color: #668; }
+.row input[type=range] { width: 100%; accent-color: #66f; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #0f0f25; border: 1px solid #66f; color: #66f; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h2>⚙️ Physics Sandbox</h2>
+  <div class="tool-grid">
+    <button class="tool active" data-t="circle">⭕ Circle</button>
+    <button class="tool" data-t="box">⬜ Box</button>
+    <button class="tool" data-t="spring">➰ Spring</button>
+    <button class="tool" data-t="chain">🔗 Chain</button>
+    <button class="tool" data-t="gravity">🌎 Gravity</button>
+    <button class="tool" data-t="erase">✖ Erase</button>
+  </div>
+  <div class="row"><label><span>Gravity</span><span id="gVal">0.5</span></label><input type="range" id="grav" min="0" max="2" step="0.1" value="0.5"></div>
+  <div class="row"><label><span>Friction</span><span id="fVal">0.98</span></label><input type="range" id="fric" min="0.8" max="1" step="0.01" value="0.98"></div>
+  <div class="row"><label><span>Bounciness</span><span id="bVal">0.7</span></label><input type="range" id="bounce" min="0" max="1.2" step="0.1" value="0.7"></div>
+  <div style="display:flex;gap:4px;"><button id="btnClear">Clear</button><button id="btnPause">Pause</button></div>
+  <div style="font-size:9px;color:#445;margin-top:4px;">Click to spawn · Drag to throw</div>
+</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+
+let bodies = [], springs = [], tool = 'circle', gravity = 0.5, friction = 0.98, restitution = 0.7, paused = false;
+let dragStart = null, mousePos = { x: 0, y: 0 };
+
+class Body {
+  constructor(x, y, type, size) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+    this.type = type; this.size = size || 15 + Math.random() * 15;
+    this.mass = this.size * this.size * (type === 'box' ? 0.8 : 1);
+    this.angle = 0; this.va = 0;
+    this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+  }
+  update() {
+    this.vy += gravity;
+    this.vx *= friction; this.vy *= friction;
+    this.x += this.vx; this.y += this.vy;
+    this.angle += this.va; this.va *= 0.98;
+    // Walls
+    if (this.x - this.size < 0) { this.x = this.size; this.vx *= -restitution; }
+    if (this.x + this.size > W) { this.x = W - this.size; this.vx *= -restitution; }
+    if (this.y - this.size < 0) { this.y = this.size; this.vy *= -restitution; }
+    if (this.y + this.size > H) { this.y = H - this.size; this.vy *= -restitution; this.va *= 0.8; }
+  }
+  draw() {
+    ctx.fillStyle = this.color;
+    ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+    if (this.type === 'circle') {
+      ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff5'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(this.size, 0); ctx.stroke();
+    } else {
+      ctx.fillRect(-this.size, -this.size, this.size * 2, this.size * 2);
+    }
+    ctx.restore();
+  }
+}
+
+class Spring {
+  constructor(b1, b2, len) {
+    this.b1 = b1; this.b2 = b2; this.len = len || Math.hypot(b2.x - b1.x, b2.y - b1.y);
+    this.k = 0.05;
+  }
+  update() {
+    const dx = this.b2.x - this.b1.x, dy = this.b2.y - this.b1.y;
+    const dist = Math.hypot(dx, dy) + 0.01;
+    const force = (dist - this.len) * this.k;
+    const fx = (dx / dist) * force, fy = (dy / dist) * force;
+    this.b1.vx += fx / this.b1.mass; this.b1.vy += fy / this.b1.mass;
+    this.b2.vx -= fx / this.b2.mass; this.b2.vy -= fy / this.b2.mass;
+  }
+  draw() {
+    ctx.strokeStyle = '#ff8'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(this.b1.x, this.b1.y); ctx.lineTo(this.b2.x, this.b2.y); ctx.stroke();
+  }
+}
+
+function collide(b1, b2) {
+  const dx = b2.x - b1.x, dy = b2.y - b1.y;
+  const dist = Math.hypot(dx, dy);
+  const minDist = b1.size + b2.size;
+  if (dist < minDist) {
+    const nx = dx / dist, ny = dy / dist;
+    const overlap = minDist - dist;
+    b1.x -= nx * overlap * 0.5; b1.y -= ny * overlap * 0.5;
+    b2.x += nx * overlap * 0.5; b2.y += ny * overlap * 0.5;
+    // Velocity response
+    const dvx = b2.vx - b1.vx, dvy = b2.vy - b1.vy;
+    const velAlongNormal = dvx * nx + dvy * ny;
+    if (velAlongNormal > 0) return;
+    const j = -(1 + restitution) * velAlongNormal / (1 / b1.mass + 1 / b2.mass);
+    b1.vx -= j * nx / b1.mass; b1.vy -= j * ny / b1.mass;
+    b2.vx += j * nx / b2.mass; b2.vy += j * ny / b2.mass;
+  }
+}
+
+let springStart = null;
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  dragStart = { x, y };
+  if (tool === 'spring' || tool === 'chain') {
+    const clicked = bodies.find(b => Math.hypot(b.x - x, b.y - y) < b.size);
+    if (clicked) springStart = clicked;
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+});
+canvas.addEventListener('mouseup', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  if (tool === 'erase') {
+    bodies = bodies.filter(b => Math.hypot(b.x - x, b.y - y) > b.size);
+    springs = springs.filter(s => bodies.includes(s.b1) && bodies.includes(s.b2));
+    return;
+  }
+  if (tool === 'spring' || tool === 'chain') {
+    const clicked = bodies.find(b => Math.hypot(b.x - x, b.y - y) < b.size);
+    if (springStart && clicked && springStart !== clicked) {
+      springs.push(new Spring(springStart, clicked));
+      if (tool === 'chain') {
+        const b3 = new Body((springStart.x + clicked.x) / 2, (springStart.y + clicked.y) / 2, 'circle', 10);
+        bodies.push(b3);
+        springs.push(new Spring(springStart, b3, 30));
+        springs.push(new Spring(b3, clicked, 30));
+      }
+    }
+    springStart = null; return;
+  }
+  const vx = (dragStart.x - x) * 0.1, vy = (dragStart.y - y) * 0.1;
+  const b = new Body(x, y, tool === 'gravity' ? 'circle' : tool);
+  b.vx = vx; b.vy = vy;
+  if (tool === 'gravity') { b.size = 30; b.mass = 500; b.color = '#ff8'; }
+  bodies.push(b);
+});
+
+document.querySelectorAll('.tool').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tool').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tool = btn.dataset.t;
+  });
+});
+document.getElementById('grav').addEventListener('input', e => { gravity = parseFloat(e.target.value); document.getElementById('gVal').textContent = gravity; });
+document.getElementById('fric').addEventListener('input', e => { friction = parseFloat(e.target.value); document.getElementById('fVal').textContent = friction; });
+document.getElementById('bounce').addEventListener('input', e => { restitution = parseFloat(e.target.value); document.getElementById('bVal').textContent = restitution; });
+document.getElementById('btnClear').addEventListener('click', () => { bodies = []; springs = []; });
+document.getElementById('btnPause').addEventListener('click', () => { paused = !paused; document.getElementById('btnPause').classList.toggle('active', paused); });
+document.addEventListener('keydown', e => { if (e.key === ' ') paused = !paused; if (e.key === 'm' || e.key === 'M') document.getElementById('musicBtn').click(); });
+
+// Audio
+let audioCtx = null, musicOn = false, musicNodes = [];
+function initA() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function startMusic() {
+  initA(); stopMusic();
+  const m = audioCtx.createGain(); m.gain.value = 0.15; m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  [[55, 0.08], [82.5, 0.04], [110, 0.03]].forEach(([f, v]) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain(), f2 = audioCtx.createBiquadFilter();
+    o.type = 'sine'; o.frequency.value = f; f2.type = 'lowpass'; f2.frequency.value = 300; g.gain.value = v;
+    const lfo = audioCtx.createOscillator(), lg = audioCtx.createGain();
+    lfo.frequency.value = 0.05; lg.gain.value = v * 0.4;
+    lfo.connect(lg); lg.connect(g.gain); lfo.start();
+    o.connect(f2); f2.connect(g); g.connect(m); o.start();
+    musicNodes.push(o, g, f2, lfo, lg);
+  });
+}
+function stopMusic() { musicNodes.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch (e) { } }); musicNodes = []; }
+document.getElementById('musicBtn').addEventListener('click', () => { musicOn = !musicOn; document.getElementById('musicBtn').textContent = musicOn ? '🎵 Music ON' : '🎵 Music'; if (musicOn) startMusic(); else stopMusic(); });
+
+window.addEventListener('resize', () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
+
+function loop() {
+  ctx.fillStyle = 'rgba(10,10,25,0.3)'; ctx.fillRect(0, 0, W, H);
+  springs.forEach(s => { if (!paused) s.update(); s.draw(); });
+  bodies.forEach((b, i) => {
+    if (!paused) {
+      b.update();
+      for (let j = i + 1; j < bodies.length; j++) collide(b, bodies[j]);
+    }
+    b.draw();
+  });
+  // Drag preview
+  if (dragStart && tool !== 'spring' && tool !== 'chain' && tool !== 'erase') {
+    ctx.strokeStyle = '#fff3'; ctx.beginPath(); ctx.moveTo(dragStart.x, dragStart.y); ctx.lineTo(mousePos.x, mousePos.y); ctx.stroke();
+  }
+  // Spring preview
+  if (springStart) {
+    ctx.strokeStyle = '#ff88'; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(springStart.x, springStart.y); ctx.lineTo(mousePos.x, mousePos.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

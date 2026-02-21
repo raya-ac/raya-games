@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fractal Explorer — Mandelbrot &amp; Julia</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; cursor: crosshair; }
+#ui {
+  position: fixed; top: 10px; right: 10px;
+  background: rgba(0,0,0,0.88); border: 1px solid #2a2a4a;
+  padding: 12px; border-radius: 8px; width: 200px; font-size: 12px;
+}
+#ui h2 { color: #aaf; margin-bottom: 8px; font-size: 14px; }
+.section { margin-bottom: 10px; border-bottom: 1px solid #111; padding-bottom: 8px; }
+.section h3 { color: #88f; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+button { background: #0a0a20; border: 1px solid #2a2a5a; color: #aac; padding: 4px 7px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 2px; }
+button:hover { border-color: #66f; color: #ccf; }
+button.active { border-color: #66f; color: #66f; background: #0a0a30; }
+.row { margin: 4px 0; }
+.row label { display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+.row input[type=range] { width: 100%; accent-color: #66f; }
+select { background: #0a0a20; border: 1px solid #2a2a5a; color: #ccc; padding: 3px; font-size: 11px; width: 100%; border-radius: 3px; }
+#coords { position: fixed; bottom: 10px; left: 10px; font-size: 11px; color: #556; line-height: 1.8; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #0a0a20; border: 1px solid #66f; color: #88f; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+#progress { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #66f; font-size: 14px; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h2>🔮 Fractal Explorer</h2>
+  <div class="section">
+    <h3>Mode</h3>
+    <button class="mode active" data-m="mandelbrot">Mandelbrot</button>
+    <button class="mode" data-m="julia">Julia Set</button>
+    <button class="mode" data-m="burning">Burning Ship</button>
+    <button class="mode" data-m="tricorn">Tricorn</button>
+  </div>
+  <div class="section">
+    <h3>Color Palette</h3>
+    <select id="palette">
+      <option value="classic">Classic Blue</option>
+      <option value="fire">Fire</option>
+      <option value="psychedelic">Psychedelic</option>
+      <option value="gold">Gold</option>
+      <option value="ice">Ice</option>
+      <option value="neon">Neon</option>
+      <option value="grayscale">Grayscale</option>
+    </select>
+  </div>
+  <div class="section">
+    <h3>Parameters</h3>
+    <div class="row">
+      <label><span>Max Iter</span><span id="iterVal">200</span></label>
+      <input type="range" id="iterSlider" min="50" max="2000" value="200">
+    </div>
+    <div id="juliaControls">
+      <div class="row">
+        <label><span>Julia Re</span><span id="jreVal">-0.70</span></label>
+        <input type="range" id="jre" min="-2" max="2" step="0.01" value="-0.70">
+      </div>
+      <div class="row">
+        <label><span>Julia Im</span><span id="jimVal">0.27</span></label>
+        <input type="range" id="jim" min="-2" max="2" step="0.01" value="0.27">
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <h3>Navigation</h3>
+    <button id="btnReset">⟳ Reset View</button>
+    <button id="btnRender">↻ Re-render</button>
+    <div style="font-size:9px;color:#446;margin-top:4px;">
+      Click=zoom in · Right-click=zoom out<br>
+      Scroll=zoom · Drag=pan<br>
+      +/- iterations · M=music
+    </div>
+  </div>
+  <div class="section">
+    <h3>Presets</h3>
+    <button class="preset" data-x="-0.743643887" data-y="0.131825904" data-z="0.0002">Spiral</button>
+    <button class="preset" data-x="-0.1592" data-y="1.0317" data-z="0.005">Seahorse</button>
+    <button class="preset" data-x="-1.25" data-y="0" data-z="0.01">Bulb Edge</button>
+    <button class="preset" data-x="-0.5" data-y="0.56" data-z="0.05">Mini-brot</button>
+  </div>
+</div>
+<div id="coords"></div>
+<div id="progress">Rendering...</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+
+let centerX = -0.5, centerY = 0, zoom = 0.003;
+let maxIter = 200;
+let mode = 'mandelbrot';
+let juliaRe = -0.70, juliaIm = 0.27;
+let palette = 'classic';
+let rendering = false;
+let renderDirty = true;
+
+// Color palettes
+const PALETTES = {
+  classic: (t) => {
+    if (t >= 1) return [0,0,0];
+    const i = t * 6;
+    const s = Math.floor(i), f = i - s;
+    const v = [[0,0,128],[0,0,255],[0,128,255],[0,255,255],[255,255,0],[255,128,0]][s%6];
+    const n = [[0,0,255],[0,128,255],[0,255,255],[255,255,0],[255,128,0],[255,0,0]][s%6];
+    return [v[0]+(n[0]-v[0])*f|0, v[1]+(n[1]-v[1])*f|0, v[2]+(n[2]-v[2])*f|0];
+  },
+  fire: (t) => {
+    if (t >= 1) return [0,0,0];
+    const r = Math.min(255, t*3*255)|0;
+    const g = Math.min(255, Math.max(0, (t*3-1)*255))|0;
+    const b = Math.min(255, Math.max(0, (t*3-2)*255))|0;
+    return [r,g,b];
+  },
+  psychedelic: (t) => {
+    if (t >= 1) return [0,0,0];
+    return [Math.sin(t*12)*127+128|0, Math.sin(t*8+2)*127+128|0, Math.sin(t*15+4)*127+128|0];
+  },
+  gold: (t) => {
+    if (t >= 1) return [0,0,0];
+    return [Math.min(255,t*400)|0, Math.min(255,t*300)|0, Math.min(255,t*100)|0];
+  },
+  ice: (t) => {
+    if (t >= 1) return [0,0,0];
+    return [Math.min(255,t*150)|0, Math.min(255,t*200)|0, Math.min(255,t*255+50)|0];
+  },
+  neon: (t) => {
+    if (t >= 1) return [0,0,0];
+    const h = (t * 360) % 360;
+    const [r,g,b] = hslToRgb(h/360, 1, 0.5);
+    return [r*255|0, g*255|0, b*255|0];
+  },
+  grayscale: (t) => {
+    if (t >= 1) return [0,0,0];
+    const v = Math.sin(t*Math.PI*6)*127+128|0;
+    return [v,v,v];
+  }
+};
+
+function hslToRgb(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const q=l<0.5?l*(1+s):l+s-l*s;const p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}return[r,g,b];}
+function hue2rgb(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+
+function iterate(cx, cy) {
+  let zx = 0, zy = 0;
+  if (mode === 'julia') { zx = cx; zy = cy; cx = juliaRe; cy = juliaIm; }
+  for (let i = 0; i < maxIter; i++) {
+    let zx2 = zx*zx, zy2 = zy*zy;
+    if (zx2 + zy2 > 4) {
+      // Smooth coloring
+      return i + 1 - Math.log(Math.log(Math.sqrt(zx2+zy2))/Math.log(2))/Math.log(2);
+    }
+    let nzx, nzy;
+    if (mode === 'burning') {
+      nzx = zx2 - zy2 + cx;
+      nzy = Math.abs(2*zx*zy) + cy; // Note: abs on imaginary part
+      // Actually burning ship: abs on both
+      nzx = zx2 - zy2 + cx;
+      nzy = 2*Math.abs(zx)*Math.abs(zy) + cy;
+    } else if (mode === 'tricorn') {
+      nzx = zx2 - zy2 + cx;
+      nzy = -2*zx*zy + cy;
+    } else {
+      nzx = zx2 - zy2 + cx;
+      nzy = 2*zx*zy + cy;
+    }
+    zx = nzx; zy = nzy;
+  }
+  return maxIter;
+}
+
+function render() {
+  if (rendering) return;
+  rendering = true;
+  renderDirty = false;
+  document.getElementById('progress').style.display = 'block';
+  const imgData = ctx.createImageData(W, H);
+  const data = imgData.data;
+  const pal = PALETTES[palette];
+  const chunkH = 40;
+  let row = 0;
+  function renderChunk() {
+    const end = Math.min(row + chunkH, H);
+    for (let y = row; y < end; y++) {
+      for (let x = 0; x < W; x++) {
+        const cx = (x - W/2) * zoom + centerX;
+        const cy = (y - H/2) * zoom + centerY;
+        const val = iterate(cx, cy);
+        const t = val / maxIter;
+        const [r,g,b] = pal(Math.min(0.999, t));
+        const i = (y*W+x)*4;
+        data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=255;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0, 0, row, W, end-row);
+    row = end;
+    if (row < H) {
+      requestAnimationFrame(renderChunk);
+    } else {
+      rendering = false;
+      document.getElementById('progress').style.display = 'none';
+      if (renderDirty) render();
+    }
+  }
+  renderChunk();
+}
+
+// Interaction
+let dragging = false, dragStartX, dragStartY, dragStartCX, dragStartCY;
+canvas.addEventListener('mousedown', e => {
+  dragging = false;
+  dragStartX = e.clientX; dragStartY = e.clientY;
+  dragStartCX = centerX; dragStartCY = centerY;
+});
+canvas.addEventListener('mousemove', e => {
+  const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+  if (Math.hypot(dx,dy) > 5) {
+    dragging = true;
+    centerX = dragStartCX - dx * zoom;
+    centerY = dragStartCY - dy * zoom;
+    renderDirty = true;
+    if (!rendering) render();
+  }
+  // Update coords display
+  const mx = (e.clientX - W/2)*zoom + centerX;
+  const my = (e.clientY - H/2)*zoom + centerY;
+  document.getElementById('coords').innerHTML = `Re: ${mx.toFixed(8)}<br>Im: ${my.toFixed(8)}<br>Zoom: ${(1/zoom).toFixed(0)}x`;
+});
+canvas.addEventListener('mouseup', e => {
+  if (!dragging) {
+    const factor = e.button === 2 ? 2 : 0.4;
+    centerX += (e.clientX - W/2) * zoom * (1 - factor);
+    centerY += (e.clientY - H/2) * zoom * (1 - factor);
+    zoom *= factor;
+    render();
+  }
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 1.5 : 0.67;
+  centerX += (e.clientX - W/2) * zoom * (1 - factor);
+  centerY += (e.clientY - H/2) * zoom * (1 - factor);
+  zoom *= factor;
+  renderDirty = true;
+  if (!rendering) render();
+}, {passive:false});
+
+// Controls
+document.querySelectorAll('.mode').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.m;
+    document.getElementById('juliaControls').style.display = mode==='julia'?'block':'none';
+    render();
+  });
+});
+document.getElementById('juliaControls').style.display = 'none';
+document.getElementById('palette').addEventListener('change', e => { palette = e.target.value; render(); });
+document.getElementById('iterSlider').addEventListener('input', e => {
+  maxIter = parseInt(e.target.value);
+  document.getElementById('iterVal').textContent = maxIter;
+  renderDirty = true;
+  if (!rendering) render();
+});
+document.getElementById('jre').addEventListener('input', e => {
+  juliaRe = parseFloat(e.target.value);
+  document.getElementById('jreVal').textContent = juliaRe.toFixed(2);
+  if (mode==='julia') { renderDirty=true; if(!rendering) render(); }
+});
+document.getElementById('jim').addEventListener('input', e => {
+  juliaIm = parseFloat(e.target.value);
+  document.getElementById('jimVal').textContent = juliaIm.toFixed(2);
+  if (mode==='julia') { renderDirty=true; if(!rendering) render(); }
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  centerX=-0.5;centerY=0;zoom=0.003;render();
+});
+document.getElementById('btnRender').addEventListener('click', render);
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    centerX=parseFloat(btn.dataset.x);
+    centerY=parseFloat(btn.dataset.y);
+    zoom=parseFloat(btn.dataset.z);
+    render();
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='+' || e.key==='=') { maxIter=Math.min(2000,maxIter+50); document.getElementById('iterSlider').value=maxIter; document.getElementById('iterVal').textContent=maxIter; render(); }
+  if (e.key==='-' || e.key==='_') { maxIter=Math.max(50,maxIter-50); document.getElementById('iterSlider').value=maxIter; document.getElementById('iterVal').textContent=maxIter; render(); }
+  if (e.key==='r'||e.key==='R') { centerX=-0.5;centerY=0;zoom=0.003;render(); }
+  if (e.key==='m'||e.key==='M') document.getElementById('musicBtn').click();
+});
+window.addEventListener('resize', () => { W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; render(); });
+
+// Audio
+let audioCtx=null,musicOn=false,musicNodes=[];
+function initA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function startMusic(){
+  initA();stopMusic();
+  const m=audioCtx.createGain();m.gain.value=0.18;m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  // Deep space ambient
+  [[40,0.06],[60,0.04],[80,0.03],[120,0.02],[160,0.01]].forEach(([f,v])=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain(),filt=audioCtx.createBiquadFilter();
+    o.type='sine';o.frequency.value=f;filt.type='lowpass';filt.frequency.value=300;g.gain.value=v;
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=0.02+f*0.001;lg.gain.value=v*0.5;
+    lfo.connect(lg);lg.connect(g.gain);lfo.start();
+    o.connect(filt);filt.connect(g);g.connect(m);o.start();
+    musicNodes.push(o,g,filt,lfo,lg);
+  });
+  // Shimmer
+  const shimmer=()=>{
+    if(!musicOn)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=440+Math.random()*880;
+    g.gain.value=0;
+    g.gain.linearRampToValueAtTime(0.02,audioCtx.currentTime+1);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+4);
+    o.connect(g);g.connect(m);o.start();o.stop(audioCtx.currentTime+4);
+    setTimeout(shimmer,2000+Math.random()*4000);
+  };
+  shimmer();
+}
+function stopMusic(){musicNodes.forEach(n=>{try{n.stop?.();n.disconnect?.();}catch(e){}});musicNodes=[];}
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicBtn').textContent=musicOn?'🎵 Music ON':'🎵 Music';
+  if(musicOn)startMusic();else stopMusic();
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starfield Explorer - Space Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        #ui h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00f5ff, #ff00a0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .stat-label {
+            color: #888;
+        }
+        
+        .stat-value {
+            color: #00f5ff;
+            font-family: monospace;
+            font-size: 18px;
+        }
+        
+        #speed-bar {
+            width: 200px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        #speed-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00f5ff, #ff00a0);
+            transition: width 0.1s;
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+        
+        .key {
+            display: inline-block;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin: 0 3px;
+            font-family: monospace;
+        }
+        
+        #warp-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 72px;
+            font-weight: bold;
+            color: #ff00a0;
+            text-shadow: 0 0 50px #ff00a0;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui">
+        <h1>🚀 Starfield Explorer</h1>
+        <div class="stat">
+            <div class="stat-label">Speed</div>
+            <div class="stat-value" id="speed">0</div>
+            <div id="speed-bar"><div id="speed-fill"></div></div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Distance Traveled</div>
+            <div class="stat-value" id="distance">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Stars Passed</div>
+            <div class="stat-value" id="stars-passed">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Sector</div>
+            <div class="stat-value" id="sector">Alpha-1</div>
+        </div>
+    </div>
+    
+    <div id="warp-indicator">WARP SPEED</div>
+    
+    <div id="instructions">
+        <span class="key">W</span> <span class="key">↑</span> Accelerate · 
+        <span class="key">S</span> <span class="key">↓</span> Brake · 
+        <span class="key">A</span> <span class="key">←</span> 
+        <span class="key">D</span> <span class="key">→</span> Steer · 
+        <span class="key">SPACE</span> Warp Drive
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Game state
+        let speed = 0;
+        let maxSpeed = 50;
+        let acceleration = 0.5;
+        let distance = 0;
+        let starsPassed = 0;
+        let warpActive = false;
+        let warpSpeed = 0;
+        
+        // Ship
+        const ship = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            angle: 0,
+            vx: 0,
+            vy: 0
+        };
+        
+        // Stars
+        const stars = [];
+        const numStars = 2000;
+        
+        class Star {
+            constructor() {
+                this.reset();
+            }
+            
+            reset() {
+                this.x = (Math.random() - 0.5) * canvas.width * 4;
+                this.y = (Math.random() - 0.5) * canvas.height * 4;
+                this.z = Math.random() * 2000 + 100;
+                this.size = Math.random() * 2 + 0.5;
+                this.color = this.generateColor();
+            }
+            
+            generateColor() {
+                const colors = [
+                    '#ffffff', // White
+                    '#ffffcc', // Yellow-white
+                    '#ffcccc', // Red-white
+                    '#ccccff', // Blue-white
+                    '#00f5ff', // Cyan
+                    '#ff00a0'  // Pink
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            
+            update() {
+                // Move star closer
+                let moveSpeed = speed + warpSpeed;
+                if (warpActive) moveSpeed *= 10;
+                
+                this.z -= moveSpeed;
+                
+                // Apply steering influence
+                this.x -= ship.vx * 0.5;
+                this.y -= ship.vy * 0.5;
+                
+                // Reset if passed camera
+                if (this.z <= 0) {
+                    this.reset();
+                    this.z = 2000;
+                    starsPassed++;
+                    document.getElementById('stars-passed').textContent = starsPassed.toLocaleString();
+                }
+            }
+            
+            draw() {
+                // Project 3D to 2D
+                const scale = 500 / this.z;
+                const x2d = this.x * scale + canvas.width / 2;
+                const y2d = this.y * scale + canvas.height / 2;
+                
+                // Check if on screen
+                if (x2d < 0 || x2d > canvas.width || y2d < 0 || y2d > canvas.height) return;
+                
+                const size = this.size * scale;
+                const brightness = Math.min(1, 500 / this.z);
+                
+                if (speed > 20 || warpActive) {
+                    // Draw streak
+                    const streakLength = Math.min(100, (speed + warpSpeed) * 2 / this.z * 100);
+                    const angle = Math.atan2(y2d - canvas.height/2, x2d - canvas.width/2);
+                    
+                    const gradient = ctx.createLinearGradient(
+                        x2d, y2d,
+                        x2d - Math.cos(angle) * streakLength,
+                        y2d - Math.sin(angle) * streakLength
+                    );
+                    gradient.addColorStop(0, this.color + 'ff');
+                    gradient.addColorStop(1, this.color + '00');
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = size;
+                    ctx.beginPath();
+                    ctx.moveTo(x2d, y2d);
+                    ctx.lineTo(
+                        x2d - Math.cos(angle) * streakLength,
+                        y2d - Math.sin(angle) * streakLength
+                    );
+                    ctx.stroke();
+                } else {
+                    // Draw normal star
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = brightness;
+                    ctx.beginPath();
+                    ctx.arc(x2d, y2d, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    
+                    // Glow for close stars
+                    if (this.z < 500) {
+                        ctx.fillStyle = this.color + '40';
+                        ctx.beginPath();
+                        ctx.arc(x2d, y2d, size * 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+        
+        // Initialize stars
+        for (let i = 0; i < numStars; i++) {
+            stars.push(new Star());
+        }
+        
+        // Nebulae
+        const nebulae = [];
+        for (let i = 0; i < 5; i++) {
+            nebulae.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: 100 + Math.random() * 200,
+                color: ['#ff00a020', '#00f5ff20', '#ffaa0020'][Math.floor(Math.random() * 3)],
+                offset: Math.random() * 1000
+            });
+        }
+        
+        // Input handling
+        const keys = {};
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.code === 'Space') {
+                warpActive = true;
+                document.getElementById('warp-indicator').style.opacity = '1';
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+            if (e.code === 'Space') {
+                warpActive = false;
+                document.getElementById('warp-indicator').style.opacity = '0';
+            }
+        });
+        
+        // Update
+        function update() {
+            // Speed control
+            if (keys['w'] || keys['arrowup']) {
+                speed += acceleration;
+            }
+            if (keys['s'] || keys['arrowdown']) {
+                speed -= acceleration * 2;
+            }
+            
+            // Clamp speed
+            speed = Math.max(0, Math.min(maxSpeed, speed));
+            
+            // Natural deceleration
+            if (!keys['w'] && !keys['arrowup']) {
+                speed *= 0.98;
+            }
+            
+            // Warp speed buildup
+            if (warpActive) {
+                warpSpeed += 5;
+                warpSpeed = Math.min(warpSpeed, 200);
+            } else {
+                warpSpeed *= 0.95;
+            }
+            
+            // Steering
+            const turnSpeed = 0.5;
+            if (keys['a'] || keys['arrowleft']) {
+                ship.vx -= turnSpeed;
+                ship.angle -= 0.05;
+            }
+            if (keys['d'] || keys['arrowright']) {
+                ship.vx += turnSpeed;
+                ship.angle += 0.05;
+            }
+            
+            // Damping
+            ship.vx *= 0.95;
+            ship.vy *= 0.95;
+            
+            // Keep ship on screen
+            ship.x = Math.max(50, Math.min(canvas.width - 50, ship.x + ship.vx));
+            ship.y = Math.max(50, Math.min(canvas.height - 50, ship.y + ship.vy));
+            
+            // Update distance
+            distance += (speed + warpSpeed) * 0.1;
+            
+            // Update stars
+            stars.forEach(star => star.update());
+            
+            // Update UI
+            document.getElementById('speed').textContent = Math.floor(speed + warpSpeed);
+            document.getElementById('speed-fill').style.width = (speed / maxSpeed * 100) + '%';
+            document.getElementById('distance').textContent = Math.floor(distance).toLocaleString() + ' ly';
+            
+            // Update sector based on distance
+            const sectors = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta'];
+            const sectorIndex = Math.floor(distance / 5000) % sectors.length;
+            const subSector = Math.floor((distance % 5000) / 1000) + 1;
+            document.getElementById('sector').textContent = `${sectors[sectorIndex]}-${subSector}`;
+        }
+        
+        // Draw ship
+        function drawShip() {
+            ctx.save();
+            ctx.translate(ship.x, ship.y);
+            ctx.rotate(ship.angle);
+            
+            // Engine glow
+            if (speed > 0) {
+                const glowSize = speed * 2;
+                const gradient = ctx.createRadialGradient(-20, 0, 0, -20, 0, glowSize);
+                gradient.addColorStop(0, '#00f5ffff');
+                gradient.addColorStop(0.5, '#00f5ff80');
+                gradient.addColorStop(1, '#00f5ff00');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(-20, 0, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Ship body
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(20, 0);
+            ctx.lineTo(-15, 12);
+            ctx.lineTo(-10, 0);
+            ctx.lineTo(-15, -12);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Cockpit
+            ctx.fillStyle = '#00f5ff';
+            ctx.beginPath();
+            ctx.moveTo(5, 0);
+            ctx.lineTo(-5, 5);
+            ctx.lineTo(-5, -5);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Warp effect ring
+            if (warpSpeed > 10) {
+                ctx.strokeStyle = '#ff00a0';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 40 + Math.sin(Date.now() * 0.01) * 10, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+        }
+        
+        // Draw nebulae
+        function drawNebulae() {
+            nebulae.forEach(nebula => {
+                const x = nebula.x + Math.sin(Date.now() * 0.0001 + nebula.offset) * 50;
+                const y = nebula.y + Math.cos(Date.now() * 0.0001 + nebula.offset) * 30;
+                
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, nebula.size);
+                gradient.addColorStop(0, nebula.color);
+                gradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, nebula.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        // Main loop
+        function draw() {
+            // Clear
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw nebulae
+            drawNebulae();
+            
+            // Update
+            update();
+            
+            // Draw stars
+            stars.forEach(star => star.draw());
+            
+            // Draw ship
+            drawShip();
+            
+            // Warp effect overlay
+            if (warpActive && warpSpeed > 50) {
+                const gradient = ctx.createRadialGradient(
+                    canvas.width/2, canvas.height/2, 0,
+                    canvas.width/2, canvas.height/2, canvas.width
+                );
+                gradient.addColorStop(0, 'transparent');
+                gradient.addColorStop(0.5, '#ff00a010');
+                gradient.addColorStop(1, '#ff00a005');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            requestAnimationFrame(draw);
+        }
+        
+        // Start
+        draw();
+        
+        // Resize handler
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ship.x = canvas.width / 2;
+            ship.y = canvas.height / 2;
+        });
+    </script>
+</body>
+</html>

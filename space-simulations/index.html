@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Simulations - Raya Games</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a0a2e 50%, #0a0a0f 100%);
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Animated stars background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        /* Content */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 40px 0;
+        }
+        
+        h1 {
+            font-size: 56px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #00f5ff, #ff00a0, #ffaa00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            text-shadow: 0 0 60px rgba(0, 245, 255, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #888;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .game-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-10px);
+            border-color: #00f5ff;
+            box-shadow: 0 20px 60px rgba(0, 245, 255, 0.2);
+        }
+        
+        .game-preview {
+            height: 200px;
+            background: linear-gradient(135deg, rgba(0, 245, 255, 0.1), rgba(255, 0, 160, 0.1));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-preview::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 100%);
+        }
+        
+        .game-icon {
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+        }
+        
+        .game-info {
+            padding: 25px;
+        }
+        
+        .game-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        
+        .game-description {
+            font-size: 14px;
+            color: #888;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .game-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .tag {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #00f5ff;
+        }
+        
+        .play-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #00f5ff, #00a0ff);
+            color: #000;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .play-button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(0, 245, 255, 0.4);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 40px;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: #888;
+            text-decoration: none;
+            margin-bottom: 30px;
+            transition: color 0.3s;
+        }
+        
+        .back-link:hover {
+            color: #00f5ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="container">
+        <a href="../games.html" class="back-link">← Back to All Games</a>
+        
+        <header>
+            <h1>🚀 Space Simulations</h1>
+            <p class="subtitle">Explore the Cosmos</p>
+        </header>
+        
+        <div class="games-grid">
+            <!-- Gravity Sandbox -->
+            <div class="game-card">
+                <div class="game-preview">
+                    <span class="game-icon">🌌</span>
+                </div>
+                <div class="game-info">
+                    <h3 class="game-title">Gravity Sandbox</h3>
+                    <p class="game-description">Create your own solar systems! Spawn stars, planets, and black holes. Watch orbital mechanics unfold in real-time with realistic gravity simulation.</p>
+                    <div class="game-tags">
+                        <span class="tag">Physics</span>
+                        <span class="tag">Sandbox</span>
+                        <span class="tag">Educational</span>
+                    </div>
+                    
+                    <a href="gravity-sandbox.html" class="play-button">▶ Play Now</a>
+                </div>
+            </div>
+            
+            <!-- Starfield Explorer -->
+            <div class="game-card">
+                <div class="game-preview">
+                    <span class="game-icon">✨</span>
+                </div>
+                <div class="game-info">
+                    <h3 class="game-title">Starfield Explorer</h3>
+                    <p class="game-description">Pilot your ship through an infinite procedural starfield. Engage warp drive, explore nebulae, and travel light-years in seconds.</p>
+                    <div class="game-tags">
+                        <span class="tag">Exploration</span>
+                        <span class="tag">3D</span>
+                        <span class="tag">Relaxing</span>
+                    </div>
+                    
+                    <a href="starfield-explorer.html" class="play-button">▶ Play Now</a>
+                </div>
+            </div>
+            
+            <!-- Space Mining Tycoon -->
+            <div class="game-card">
+                <div class="game-preview">
+                    <span class="game-icon">⛏️</span>
+                </div>
+                <div class="game-info">
+                    <h3 class="game-title">Space Mining Tycoon</h3>
+                    <p class="game-description">Build your mining empire! Extract resources from asteroids, upgrade your fleet, automate with drones, and become the richest corporation in the galaxy.</p>
+                    <div class="game-tags">
+                        <span class="tag">Tycoon</span>
+                        <span class="tag">Idle</span>
+                        <span class="tag">Strategy</span>
+                    </div>
+                    
+                    <a href="space-mining-tycoon.html" class="play-button">▶ Play Now</a>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>🚀 Built by Eva & Ava for Raya Games</p>
+            <p style="margin-top: 10px; font-size: 12px;">Powered by HTML5 Canvas & JavaScript</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Generate random stars
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.width = Math.random() * 3 + 'px';
+            star.style.height = star.style.width;
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+    </script>
+</body>
+</html>

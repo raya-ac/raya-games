@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; height: 100vh; padding: 10px; }
+#hud { display: flex; gap: 20px; margin-bottom: 10px; font-size: 18px; }
+#hud span { color: #fa0; }
+#controls { margin-bottom: 10px; }
+select, button { background: #2a2a4e; border: 1px solid #444; color: #fff; padding: 6px 12px; margin: 2px; cursor: pointer; }
+button:hover { background: #3a3a5e; }
+canvas { border: 2px solid #444; cursor: pointer; }
+#status { margin-top: 10px; color: #888; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #2a2a4e; border: 1px solid #66f; color: #66f; padding: 5px 10px; border-radius: 20px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="hud">⏱️ <span id="time">0</span> 💣 <span id="mines">0</span> 🚩 <span id="flags">0</span></div>
+<div id="controls">
+  <select id="diff"><option value="e">Easy 9×9</option><option value="m" selected>Medium 16×16</option><option value="h">Hard 30×16</option></select>
+  <button id="btnNew">New Game</button>
+  <button id="btnAuto">Auto-Solve Step</button>
+</div>
+<canvas id="c"></canvas>
+<div id="status">Left-click reveal · Right-click flag</div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H, MINES, CELL = 25;
+let board = [], revealed = [], flagged = [], gameOver = false, firstClick = true, timer = 0, interval;
+
+const DIFFS = { e: [9, 9, 10], m: [16, 16, 40], h: [30, 16, 99] };
+
+function init(diff) {
+  [W, H, MINES] = DIFFS[diff];
+  canvas.width = W * CELL; canvas.height = H * CELL;
+  board = []; revealed = []; flagged = [];
+  for (let y = 0; y < H; y++) {
+    board[y] = []; revealed[y] = []; flagged[y] = [];
+    for (let x = 0; x < W; x++) { board[y][x] = 0; revealed[y][x] = false; flagged[y][x] = false; }
+  }
+  gameOver = false; firstClick = true; timer = 0;
+  clearInterval(interval); document.getElementById('time').textContent = 0;
+  document.getElementById('mines').textContent = MINES;
+  updateFlags();
+}
+
+function placeMines(sx, sy) {
+  let placed = 0;
+  while (placed < MINES) {
+    const x = Math.floor(Math.random() * W), y = Math.floor(Math.random() * H);
+    if (board[y][x] === -1) continue;
+    if (Math.abs(x - sx) <= 1 && Math.abs(y - sy) <= 1) continue;
+    board[y][x] = -1; placed++;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && nx < W && ny >= 0 && ny < H && board[ny][nx] !== -1) board[ny][nx]++;
+    }
+  }
+}
+
+function reveal(x, y) {
+  if (x < 0 || x >= W || y < 0 || y >= H || revealed[y][x] || flagged[y][x]) return;
+  revealed[y][x] = true;
+  if (board[y][x] === 0) {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) reveal(x + dx, y + dy);
+  }
+}
+
+function checkWin() {
+  let unrevealed = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!revealed[y][x]) unrevealed++;
+  if (unrevealed === MINES) {
+    gameOver = true; clearInterval(interval); document.getElementById('status').textContent = 'You win! 🎉';
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (board[y][x] === -1) flagged[y][x] = true;
+    updateFlags();
+  }
+}
+
+function autoSolveStep() {
+  // Simple single-point constraint: if a revealed cell's number equals flagged neighbors, reveal rest
+  // If number equals unrevealed neighbors, flag them all
+  let changed = false;
+  for (let y = 0; y < H && !changed; y++) {
+    for (let x = 0; x < W && !changed; x++) {
+      if (!revealed[y][x] || board[y][x] === 0) continue;
+      let flags = 0, hidden = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+          if (flagged[ny][nx]) flags++;
+          else if (!revealed[ny][nx]) hidden.push([nx, ny]);
+        }
+      }
+      if (hidden.length > 0) {
+        if (board[y][x] === flags) { hidden.forEach(([hx, hy]) => reveal(hx, hy)); changed = true; }
+        else if (board[y][x] === flags + hidden.length) { hidden.forEach(([hx, hy]) => flagged[hy][hx] = true); changed = true; }
+      }
+    }
+  }
+  updateFlags(); checkWin(); draw();
+}
+
+function updateFlags() { let f = 0; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (flagged[y][x]) f++; document.getElementById('flags').textContent = f; }
+
+const COLORS = ['#444', '#00f', '#0a0', '#f00', '#008', '#800', '#088', '#000', '#888'];
+
+function draw() {
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const rx = x * CELL, ry = y * CELL;
+      if (revealed[y][x]) {
+        ctx.fillStyle = '#2a2a3e'; ctx.fillRect(rx, ry, CELL, CELL);
+        if (board[y][x] > 0) { ctx.fillStyle = COLORS[board[y][x]]; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center'; ctx.fillText(board[y][x], rx + CELL / 2, ry + CELL / 2 + 5); }
+        else if (board[y][x] === -1) { ctx.fillStyle = '#f00'; ctx.fillRect(rx + 2, ry + 2, CELL - 4, CELL - 4); }
+      } else {
+        ctx.fillStyle = flagged[y][x] ? '#4a4a6e' : '#3a3a5e'; ctx.fillRect(rx + 1, ry + 1, CELL - 2, CELL - 2);
+        if (flagged[y][x]) { ctx.fillStyle = '#f00'; ctx.font = '14px monospace'; ctx.textAlign = 'center'; ctx.fillText('🚩', rx + CELL / 2, ry + CELL / 2 + 5); }
+      }
+      ctx.strokeStyle = '#1a1a2e'; ctx.strokeRect(rx, ry, CELL, CELL);
+    }
+  }
+}
+
+function handleClick(e, right) {
+  if (gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / CELL);
+  const y = Math.floor((e.clientY - rect.top) / CELL);
+  if (x < 0 || x >= W || y < 0 || y >= H) return;
+  if (right) {
+    if (!revealed[y][x]) { flagged[y][x] = !flagged[y][x]; updateFlags(); }
+  } else {
+    if (firstClick) { placeMines(x, y); firstClick = false; interval = setInterval(() => { timer++; document.getElementById('time').textContent = timer; }, 1000); }
+    if (flagged[y][x]) return;
+    reveal(x, y);
+    if (board[y][x] === -1) { gameOver = true; clearInterval(interval); document.getElementById('status').textContent = 'Game Over! 💥'; for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) if (board[yy][xx] === -1) revealed[yy][xx] = true; }
+    else checkWin();
+  }
+  draw();
+}
+
+canvas.addEventListener('click', e => handleClick(e, false));
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); handleClick(e, true); });
+document.getElementById('btnNew').addEventListener('click', () => { init(document.getElementById('diff').value); draw(); });
+document.getElementById('btnAuto').addEventListener('click', autoSolveStep);
+document.getElementById('diff').addEventListener('change', () => { init(document.getElementById('diff').value); draw(); });
+document.addEventListener('keydown', e => { if (e.key === 'm' || e.key === 'M') document.getElementById('musicBtn').click(); });
+
+// Audio
+let audioCtx = null, musicOn = false;
+function startMusic() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'sine'; o.frequency.value = 220; g.gain.value = 0.03; o.connect(g); g.connect(audioCtx.destination); o.start(); document.getElementById('musicBtn').dataset.osc = o; }
+function stopMusic() { if (document.getElementById('musicBtn').dataset.osc) { try { document.getElementById('musicBtn').dataset.osc.stop(); } catch (e) { } } }
+document.getElementById('musicBtn').addEventListener('click', () => { musicOn = !musicOn; document.getElementById('musicBtn').textContent = musicOn ? '🎵 Music ON' : '🎵 Music'; if (musicOn) startMusic(); else stopMusic(); });
+
+init('m'); draw();
+</script>
+</body>
+</html>

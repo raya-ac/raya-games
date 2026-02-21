@@ -29,13 +29,14 @@
   },
   "homepage": "https://raya.li/games",
   "games": {
-    "featured": ["life-simulator"],
+    "featured": ["life-simulator", "gravity-sandbox"],
     "cellular": ["life2d", "gol3d", "gol4d"],
-    "simulation": ["ecosystem", "fluid-sim", "boids", "particles", "ant-sim", "falling-sand"],
+    "simulation": ["ecosystem", "fluid-sim", "boids", "particles", "ant-sim", "falling-sand", "gravity-sandbox", "starfield-explorer"],
     "algorithms": ["neural-net", "maze", "snake-ai"],
-    "tycoon": ["prison-tycoon", "stock-tycoon", "city-builder", "space-colony"],
+    "tycoon": ["prison-tycoon", "stock-tycoon", "city-builder", "space-colony", "space-mining-tycoon"],
     "strategy": ["medieval-wars", "battleroyale", "disease-sim", "zombie-sim"],
     "ai": ["neural-net", "ai-office"],
-    "utility": ["traffic"]
+    "utility": ["traffic"],
+    "space": ["gravity-sandbox", "starfield-explorer", "space-mining-tycoon", "space-colony", "orbit"]
   }
 }

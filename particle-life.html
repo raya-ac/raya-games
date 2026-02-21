@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Life — Emergent Behaviors</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #050508; color: #ddd; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; }
+#ui { position: fixed; top: 10px; right: 10px; background: rgba(5,5,16,0.9); border: 1px solid #2a2a4a; padding: 12px; border-radius: 8px; width: 220px; font-size: 12px; max-height: calc(100vh - 20px); overflow-y: auto; }
+#ui h2 { color: #f84; margin-bottom: 8px; font-size: 14px; }
+.section { margin-bottom: 10px; border-bottom: 1px solid #1a1a2a; padding-bottom: 8px; }
+.section h3 { color: #fa0; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+.color-row { display: flex; gap: 4px; margin: 3px 0; font-size: 10px; }
+.color-box { width: 14px; height: 14px; border-radius: 3px; }
+.matrix { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: 4px 0; }
+.matrix input { width: 100%; font-size: 9px; padding: 2px; background: #0a0a1a; border: 1px solid #2a2a4a; color: #ccc; text-align: center; }
+button { background: #0a0a1a; border: 1px solid #3a3a5a; color: #aac; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 2px; }
+button:hover { border-color: #f84; color: #f84; }
+button.active { border-color: #f84; color: #f84; background: #1a0a1a; }
+.row { margin: 4px 0; }
+.row label { display: flex; justify-content: space-between; font-size: 10px; color: #668; }
+.row input[type=range] { width: 100%; accent-color: #f84; }
+#stats { position: fixed; bottom: 10px; left: 10px; font-size: 11px; color: #446; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #0a0a1a; border: 1px solid #f84; color: #f84; padding: 5px 10px; border-radius: 20px; cursor: pointer; font-size: 11px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h2>🧬 Particle Life</h2>
+  <div class="section">
+    <h3>Species</h3>
+    <div class="color-row"><div class="color-box" style="background:#f44"></div><span>Red</span></div>
+    <div class="color-row"><div class="color-box" style="background:#4f4"></div><span>Green</span></div>
+    <div class="color-row"><div class="color-box" style="background:#44f"></div><span>Blue</span></div>
+    <div class="color-row"><div class="color-box" style="background:#ff0"></div><span>Yellow</span></div>
+  </div>
+  <div class="section">
+    <h3>Attraction Matrix</h3>
+    <div class="matrix" id="attrMatrix"></div>
+  </div>
+  <div class="section">
+    <h3>Presets</h3>
+    <button class="preset" data-p="0">Solar System</button>
+    <button class="preset" data-p="1">Galaxy</button>
+    <button class="preset" data-p="2">Predator-Prey</button>
+    <button class="preset" data-p="3">Cells</button>
+    <button class="preset" data-p="4">Chaos</button>
+    <button class="preset" data-p="5">Chain</button>
+  </div>
+  <div class="section">
+    <h3>Parameters</h3>
+    <div class="row"><label><span>Particle Count</span><span id="countVal">600</span></label><input type="range" id="pCount" min="100" max="1500" value="600"></div>
+    <div class="row"><label><span>Repel Radius</span><span id="repelVal">8</span></label><input type="range" id="repelR" min="3" max="20" value="8"></div>
+    <div class="row"><label><span>Interact Radius</span><span id="interVal">80</span></label><input type="range" id="interR" min="30" max="200" value="80"></div>
+    <div class="row"><label><span>Friction</span><span id="fricVal">0.85</span></label><input type="range" id="fric" min="0.5" max="0.99" step="0.01" value="0.85"></div>
+    <div class="row"><label><span>G</span><span id="gVal">0.5</span></label><input type="range" id="gForce" min="0.1" max="2" step="0.1" value="0.5"></div>
+  </div>
+  <div class="section">
+    <button id="btnReset">Reset</button>
+    <button id="btnPause">Pause</button>
+  </div>
+  <div style="font-size:9px;color:#335;margin-top:4px;">Particles attract/repel based on rules<br>Watch emergent patterns emerge</div>
+</div>
+<div id="stats"></div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+
+const SPECIES = ['#f44','#4f4','#44f','#ff0'];
+const NAMES = ['Red','Green','Blue','Yellow'];
+let particles = [];
+let paused = false;
+let pCount = 600, repelR = 8, interR = 80, friction = 0.85, G = 0.5;
+
+// 4x4 attraction matrix (row attracts to col)
+let matrix = [
+  [0.5, -0.2, 0.3, -0.1],
+  [-0.2, 0.5, -0.1, 0.3],
+  [0.3, -0.1, 0.5, -0.2],
+  [-0.1, 0.3, -0.2, 0.5]
+];
+
+class Particle {
+  constructor(x,y,species) {
+    this.x=x||Math.random()*W; this.y=y||Math.random()*H;
+    this.vx=(Math.random()-0.5)*2; this.vy=(Math.random()-0.5)*2;
+    this.species=species!==undefined?species:Math.floor(Math.random()*4);
+    this.r=3;
+  }
+  update() {
+    particles.forEach(other=>{
+      if(other===this)return;
+      const dx=other.x-this.x,dy=other.y-this.y;
+      const d2=dx*dx+dy*dy;
+      const d=Math.sqrt(d2)+0.1;
+      if(d<repelR){
+        const f=-2/repelR*(repelR-d);
+        this.vx-=dx/d*f;this.vy-=dy/d*f;
+      }else if(d<interR){
+        const att=matrix[this.species][other.species];
+        const f=att/interR;
+        this.vx+=dx/d*f*G;this.vy+=dy/d*f*G;
+      }
+    });
+    this.vx*=friction;this.vy*=friction;
+    this.x=(this.x+this.vx+W)%W;this.y=(this.y+this.vy+H)%H;
+  }
+  draw() {
+    ctx.fillStyle=SPECIES[this.species];
+    ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();
+  }
+}
+
+function init() {
+  particles=[];
+  for(let i=0;i<pCount;i++) particles.push(new Particle());
+}
+
+function buildMatrixUI() {
+  const el=document.getElementById('attrMatrix');
+  el.innerHTML='';
+  for(let i=0;i<4;i++){
+    for(let j=0;j<4;j++){
+      const inp=document.createElement('input');
+      inp.value=matrix[i][j].toFixed(2);
+      inp.dataset.row=i;inp.dataset.col=j;
+      inp.addEventListener('change',e=>{
+        matrix[parseInt(e.target.dataset.row)][parseInt(e.target.dataset.col)]=parseFloat(e.target.value)||0;
+      });
+      el.appendChild(inp);
+    }
+  }
+}
+
+const PRESETS=[
+  {name:'Solar',m:[[0.5,-0.3,0.2,-0.1],[-0.3,0.5,-0.2,0.1],[0.2,-0.2,0.5,-0.3],[-0.1,0.1,-0.3,0.5]]},
+  {name:'Galaxy',m:[[0.8,0.2,0.1,0],[0.1,0.8,0.2,0.1],[0,0.1,0.8,0.2],[0.2,0,0.1,0.8]]},
+  {name:'Predator',m:[[0.5,-0.5,0,0],[-0.2,0.5,-0.3,0.1],[0.1,-0.1,0.5,-0.2],[0,0.1,-0.3,0.5]]},
+  {name:'Cells',m:[[0.5,-0.4,-0.4,-0.4],[-0.4,0.5,-0.4,-0.4],[-0.4,-0.4,0.5,-0.4],[-0.4,-0.4,-0.4,0.5]]},
+  {name:'Chaos',m:[[0,0.8,-0.3,0.2],[-0.5,0,0.4,-0.6],[0.3,-0.7,0,0.5],[-0.2,0.6,-0.4,0]]},
+  {name:'Chain',m:[[0.5,0.3,0,0],[0,0.5,0.3,0],[0,0,0.5,0.3],[0.3,0,0,0.5]]}
+];
+
+document.querySelectorAll('.preset').forEach((btn,i)=>{
+  btn.addEventListener('click',()=>{
+    matrix=PRESETS[i].m.map(r=>[...r]);
+    buildMatrixUI();
+    init();
+  });
+});
+
+document.getElementById('pCount').addEventListener('input',e=>{pCount=parseInt(e.target.value);document.getElementById('countVal').textContent=pCount;init();});
+document.getElementById('repelR').addEventListener('input',e=>{repelR=parseInt(e.target.value);document.getElementById('repelVal').textContent=repelR;});
+document.getElementById('interR').addEventListener('input',e=>{interR=parseInt(e.target.value);document.getElementById('interVal').textContent=interR;});
+document.getElementById('fric').addEventListener('input',e=>{friction=parseFloat(e.target.value);document.getElementById('fricVal').textContent=friction;});
+document.getElementById('gForce').addEventListener('input',e=>{G=parseFloat(e.target.value);document.getElementById('gVal').textContent=G;});
+document.getElementById('btnReset').addEventListener('click',init);
+document.getElementById('btnPause').addEventListener('click',()=>{paused=!paused;document.getElementById('btnPause').classList.toggle('active',paused);});
+
+document.addEventListener('keydown',e=>{
+  if(e.key===' ') paused=!paused;
+  if(e.key==='r'||e.key==='R') init();
+  if(e.key==='m'||e.key==='M') document.getElementById('musicBtn').click();
+});
+
+// Audio
+let audioCtx=null,musicOn=false,musicNodes=[];
+function initA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function startMusic(){
+  initA();stopMusic();
+  const m=audioCtx.createGain();m.gain.value=0.12;m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  [[55,0.05],[82.5,0.03],[110,0.02]].forEach(([f,v])=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain(),filt=audioCtx.createBiquadFilter();
+    o.type='sine';o.frequency.value=f;filt.type='lowpass';filt.frequency.value=300;g.gain.value=v;
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=0.05+f*0.001;lg.gain.value=v*0.4;
+    lfo.connect(lg);lg.connect(g.gain);lfo.start();
+    o.connect(filt);filt.connect(g);g.connect(m);o.start();
+    musicNodes.push(o,g,filt,lfo,lg);
+  });
+}
+function stopMusic(){musicNodes.forEach(n=>{try{n.stop?.();n.disconnect?.();}catch(e){}});musicNodes=[];}
+document.getElementById('musicBtn').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  document.getElementById('musicBtn').textContent=musicOn?'🎵 Music ON':'🎵 Music';
+  if(musicOn)startMusic();else stopMusic();
+});
+
+window.addEventListener('resize',()=>{W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;});
+
+buildMatrixUI();init();
+function loop(){
+  ctx.fillStyle='rgba(5,5,8,0.3)';
+  ctx.fillRect(0,0,W,H);
+  if(!paused)particles.forEach(p=>p.update());
+  particles.forEach(p=>p.draw());
+  document.getElementById('stats').textContent=`Particles: ${particles.length} | Species: 4`;
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

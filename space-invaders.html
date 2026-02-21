@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Invaders</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+#hud { display: flex; gap: 40px; padding: 10px; font-size: 14px; letter-spacing: 2px; }
+#hud span { color: #fa0; }
+canvas { border: 2px solid #0f0; box-shadow: 0 0 20px #0f0; }
+#msg { position: absolute; text-align: center; }
+#msg h1 { font-size: 36px; color: #0f0; text-shadow: 0 0 20px #0f0; }
+#msg p { color: #888; margin-top: 10px; }
+#musicBtn { position: fixed; bottom: 10px; right: 10px; background: #001000; border: 1px solid #0f0; color: #0f0; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="hud">SCORE: <span id="scoreEl">0</span> LIVES: <span id="livesEl">3</span> WAVE: <span id="waveEl">1</span></div>
+<canvas id="c"></canvas>
+<div id="msg"></div>
+<button id="musicBtn">🎵 Music</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 480; canvas.height = 600;
+
+let score = 0, lives = 3, wave = 1, state = 'start';
+let player, bullets, invaders, particles, bunkers;
+let keys = {}, lastShot = 0;
+
+function reset() {
+  player = { x: 220, y: 560, w: 40, h: 20 };
+  bullets = [];
+  invaders = [];
+  particles = [];
+  bunkers = [{ x: 60, y: 500 }, { x: 180, y: 500 }, { x: 300, y: 500 }, { x: 420, y: 500 }];
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 10; c++) {
+      invaders.push({
+        x: 40 + c * 40, y: 40 + r * 35,
+        w: 28, h: 22,
+        row: r, alive: true
+      });
+    }
+  }
+}
+reset();
+
+function update() {
+  if (state !== 'playing') return;
+  // Player
+  if (keys['ArrowLeft'] || keys['a']) player.x = Math.max(0, player.x - 5);
+  if (keys['ArrowRight'] || keys['d']) player.x = Math.min(440, player.x + 5);
+  // Shoot
+  if (keys[' ']) {
+    if (Date.now() - lastShot > 300) {
+      bullets.push({ x: player.x + 17, y: player.y, vy: -8, player: true });
+      lastShot = Date.now();
+      playShoot();
+    }
+  }
+  // Bullets
+  bullets.forEach(b => {
+    b.y += b.vy;
+    if (b.player) {
+      invaders.forEach(inv => {
+        if (inv.alive && b.x > inv.x && b.x < inv.x + inv.w && b.y > inv.y && b.y < inv.y + inv.h) {
+          inv.alive = false; b.dead = true;
+          score += [30, 20, 20, 10, 10][inv.row];
+          document.getElementById('scoreEl').textContent = score;
+          burst(inv.x + inv.w / 2, inv.y + inv.h / 2, '#0f0');
+          playExplode();
+        }
+      });
+    } else {
+      // Enemy bullet
+      if (b.x > player.x && b.x < player.x + player.w && b.y > player.y && b.y < player.y + player.h) {
+        b.dead = true; lives--; document.getElementById('livesEl').textContent = lives;
+        burst(player.x + player.w / 2, player.y, '#f00');
+        playExplode();
+        if (lives <= 0) state = 'gameover';
+      }
+    }
+    if (b.y < 0 || b.y > 600) b.dead = true;
+  });
+  bullets = bullets.filter(b => !b.dead);
+  // Invader movement
+  const alive = invaders.filter(i => i.alive);
+  const dir = Math.sin(Date.now() / 1000 * (1 + wave * 0.2)) > 0 ? 1 : -1;
+  alive.forEach(i => i.x += dir * (0.5 + wave * 0.1));
+  // Random enemy shoot
+  if (Math.random() < 0.02 + wave * 0.005) {
+    const shooter = alive[Math.floor(Math.random() * alive.length)];
+    if (shooter) bullets.push({ x: shooter.x + shooter.w / 2, y: shooter.y + shooter.h, vy: 3, player: false });
+  }
+  // Win condition
+  if (alive.length === 0) {
+    wave++; document.getElementById('waveEl').textContent = wave;
+    reset();
+  }
+  // Particles
+  particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.05; });
+  particles = particles.filter(p => p.life > 0);
+}
+
+function burst(x, y, color) {
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    particles.push({ x, y, vx: Math.cos(a) * 2, vy: Math.sin(a) * 2, life: 1, color });
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 480, 600);
+  // Bunkers
+  ctx.fillStyle = '#0f0';
+  bunkers.forEach(b => ctx.fillRect(b.x, b.y, 50, 30));
+  // Player
+  ctx.fillStyle = '#0f0';
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  ctx.fillRect(player.x + 15, player.y - 10, 10, 10);
+  // Invaders
+  invaders.forEach(i => {
+    if (!i.alive) return;
+    ctx.fillStyle = ['#f00', '#f80', '#ff0', '#0f0', '#00f'][i.row];
+    ctx.fillRect(i.x, i.y, i.w, i.h);
+  });
+  // Bullets
+  bullets.forEach(b => {
+    ctx.fillStyle = b.player ? '#fff' : '#f00';
+    ctx.fillRect(b.x - 2, b.y, 4, 8);
+  });
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  });
+  ctx.globalAlpha = 1;
+  // Messages
+  if (state === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, 480, 600);
+    document.getElementById('msg').innerHTML = '<h1>SPACE INVADERS</h1><p>Arrows to move · Space to shoot</p><p>Press any key</p>';
+    document.getElementById('msg').style.display = 'block';
+  } else if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, 480, 600);
+    document.getElementById('msg').innerHTML = `<h1>GAME OVER</h1><p>Score: ${score}</p><p>Press R to restart</p>`;
+    document.getElementById('msg').style.display = 'block';
+  } else {
+    document.getElementById('msg').style.display = 'none';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (state === 'start') { state = 'playing'; }
+  if (state === 'gameover' && (e.key === 'r' || e.key === 'R')) {
+    score = 0; lives = 3; wave = 1; reset(); state = 'playing';
+    document.getElementById('scoreEl').textContent = 0;
+    document.getElementById('livesEl').textContent = 3;
+    document.getElementById('waveEl').textContent = 1;
+  }
+  if (e.key === 'm' || e.key === 'M') document.getElementById('musicBtn').click();
+});
+document.addEventListener('keyup', e => keys[e.key] = false);
+
+// Audio
+let audioCtx = null, musicOn = false, musicNodes = [];
+function initA() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playShoot() {
+  initA();
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'square'; o.frequency.value = 440;
+  o.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+  g.gain.value = 0.1; g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.1);
+}
+function playExplode() {
+  initA();
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * 5);
+  const s = audioCtx.createBufferSource(), g = audioCtx.createGain();
+  g.gain.value = 0.2; s.buffer = buf; s.connect(g); g.connect(audioCtx.destination); s.start();
+}
+function startMusic() {
+  initA(); stopMusic();
+  const m = audioCtx.createGain(); m.gain.value = 0.15; m.connect(audioCtx.destination);
+  musicNodes.push(m);
+  // Bass arpeggio
+  const pattern = [110, 110, 82.5, 110, 110, 73.4, 82.5, 110];
+  let beat = 0;
+  const sched = () => {
+    if (!musicOn) return;
+    const t = audioCtx.currentTime;
+    for (let i = 0; i < 8; i++) {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = pattern[i];
+      g.gain.setValueAtTime(0, t + i * 0.15); g.gain.linearRampToValueAtTime(0.08, t + i * 0.15 + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.15 + 0.14);
+      o.connect(g); g.connect(m); o.start(t + i * 0.15); o.stop(t + i * 0.15 + 0.15);
+    }
+    setTimeout(sched, 1200);
+  };
+  sched();
+}
+function stopMusic() { musicNodes.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch (e) { } }); musicNodes = []; }
+document.getElementById('musicBtn').addEventListener('click', () => {
+  musicOn = !musicOn;
+  document.getElementById('musicBtn').textContent = musicOn ? '🎵 Music ON' : '🎵 Music';
+  if (musicOn) startMusic(); else stopMusic();
+});
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>
