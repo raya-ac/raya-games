@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-21
+
+### Added
+- **Gravity Sandbox** - Interactive N-body gravity simulation. Spawn stars, planets, black holes and watch orbital mechanics unfold in real-time. Features collision detection, trail visualization, and presets (Solar System, Binary Stars, Chaos).
+- **Starfield Explorer** - 3D infinite procedural starfield exploration. Pilot your ship through space, engage warp drive with spacebar, explore nebulae, and track light-years traveled.
+- **Space Mining Tycoon** - Idle/tycoon game where you build a mining empire. Extract iron, gold, crystals, uranium and exotics from asteroids. Upgrade equipment, buy automated drones, and become the richest corporation in the galaxy.
+
+### Fixed
+- build.js: Fixed typo `child_sync` -> `child_process`
+
+### Changed
+- Total games: 44
+- Updated package.json with new "space" category
+
 ## [1.2.1] - 2026-02-18
 
 ### Enhanced
