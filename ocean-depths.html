@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Depths Explorer - Deep Sea Discovery</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000510;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .panel {
+            pointer-events: auto;
+            background: rgba(0, 10, 30, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 200, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        #top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; }
+        #title { font-size: 24px; font-weight: 300; letter-spacing: 4px; background: linear-gradient(135deg, #00d4ff, #0066aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        #depth-meter { position: absolute; right: 30px; top: 100px; height: 60vh; width: 60px; background: linear-gradient(to bottom, #00aaff 0%, #004488 30%, #001133 60%, #000000 100%); border-radius: 30px; overflow: hidden; }
+        #depth-indicator { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #fff; box-shadow: 0 0 20px #00d4ff; transition: top 0.3s; }
+        #depth-text { position: absolute; right: 100px; top: 50%; transform: translateY(-50%); text-align: right; }
+        #controls { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; flex-wrap: wrap; max-width: 600px; }
+        .control-btn {
+            background: linear-gradient(135deg, rgba(0, 150, 200, 0.3), rgba(0, 80, 120, 0.3));
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+        .control-btn:hover { background: linear-gradient(135deg, rgba(0, 150, 200, 0.5), rgba(0, 80, 120, 0.5)); transform: translateY(-2px); }
+        #creature-panel { position: absolute; top: 100px; left: 20px; width: 280px; max-height: 50vh; overflow-y: auto; }
+        .creature-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .creature-item:hover { background: rgba(0, 200, 255, 0.1); }
+        .creature-icon { width: 30px; height: 30px; border-radius: 50%; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000510; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 1s; }
+        #loading-text { font-size: 28px; letter-spacing: 6px; color: #00d4ff; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        .zone-label { position: absolute; right: 110px; font-size: 11px; color: rgba(255,255,255,0.6); }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div id="loading-text">DIVING DEEP</div>
+        <div style="margin-top: 20px; color: rgba(0,212,255,0.5); font-size: 14px;">Initializing pressure systems...</div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui">
+        <div id="top-bar">
+            <div id="title">OCEAN DEPTHS EXPLORER</div>
+        </div>
+
+        <div id="depth-meter">
+            <div id="depth-indicator"></div>
+        </div>
+        <div class="zone-label" style="top: 100px;">Sunlight Zone (0m)</div>
+        <div class="zone-label" style="top: 28%;">Twilight Zone (200m)</div>
+        <div class="zone-label" style="top: 52%;">Midnight Zone (1000m)</div>
+        <div class="zone-label" style="top: 76%;">Abyssal Zone (4000m)</div>
+        <div class="zone-label" style="bottom: 100px;">Hadal Zone (11000m)</div>
+
+        <div id="depth-text">
+            <div style="font-size: 48px; font-weight: 200; color: #00d4ff;" id="depth-value">0m</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.6);" id="zone-name">Sunlight Zone</div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 5px;" id="pressure-value">1 atm</div>
+        </div>
+
+        <div id="creature-panel" class="panel">
+            <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">Discovered Species</h3>
+            <div id="creature-list"></div>
+        </div>
+
+        <div id="controls">
+            <button class="control-btn" onclick="spawnCreature('jellyfish')">🎐 Jellyfish</button>
+            <button class="control-btn" onclick="spawnCreature('anglerfish')">🎣 Anglerfish</button>
+            <button class="control-btn" onclick="spawnCreature('whale')">🐋 Whale</button>
+            <button class="control-btn" onclick="spawnCreature('squid')">🦑 Giant Squid</button>
+            <button class="control-btn" onclick="spawnCreature('coral')">🪸 Coral Reef</button>
+            <button class="control-btn" onclick="spawnCreature('submarine')">🤿 Submarine</button>
+            <button class="control-btn" onclick="toggleAutoDive()">🔄 Auto-Dive</button>
+            <button class="control-btn" onclick="resetDepth()">⬆️ Surface</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, depth = 0, maxDepth = 11000, autoDive = false;
+        let creatures = [], particles = [], bubbles = [], terrain = [];
+        let discovered = new Set();
+        let camera = { x: 0, y: 0 };
+        
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const zones = [
+            { name: "Sunlight Zone", depth: 0, color: [0, 170, 255], light: 1.0 },
+            { name: "Twilight Zone", depth: 200, color: [0, 80, 150], light: 0.3 },
+            { name: "Midnight Zone", depth: 1000, color: [0, 30, 80], light: 0.05 },
+            { name: "Abyssal Zone", depth: 4000, color: [5, 10, 40], light: 0.01 },
+            { name: "Hadal Zone", depth: 6000, color: [2, 5, 20], light: 0.005 }
+        ];
+
+        function getZone(d) {
+            for (let i = zones.length - 1; i >= 0; i--) {
+                if (d >= zones[i].depth) return zones[i];
+            }
+            return zones[0];
+        }
+
+        class Creature {
+            constructor(type, x, y) {
+                this.type = type;
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = 20 + Math.random() * 30;
+                this.phase = Math.random() * Math.PI * 2;
+                this.bioluminescent = false;
+                
+                switch(type) {
+                    case 'jellyfish':
+                        this.color = [200, 100, 255];
+                        this.size = 30 + Math.random() * 40;
+                        this.bioluminescent = true;
+                        this.glowColor = [255, 150, 200];
+                        break;
+                    case 'anglerfish':
+                        this.color = [80, 40, 20];
+                        this.size = 25;
+                        this.bioluminescent = true;
+                        this.glowColor = [100, 255, 100];
+                        break;
+                    case 'whale':
+                        this.color = [40, 60, 80];
+                        this.size = 150 + Math.random() * 100;
+                        this.vx *= 0.3;
+                        break;
+                    case 'squid':
+                        this.color = [150, 80, 120];
+                        this.size = 80 + Math.random() * 60;
+                        this.bioluminescent = true;
+                        this.glowColor = [200, 100, 150];
+                        break;
+                    case 'coral':
+                        this.color = [255, 100, 150];
+                        this.vx = 0;
+                        this.vy = 0;
+                        break;
+                    case 'submarine':
+                        this.color = [200, 200, 200];
+                        this.size = 60;
+                        this.vx = 1 + Math.random();
+                        this.lightRadius = 200;
+                        break;
+                }
+                
+                discovered.add(type);
+                updateCreatureList();
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy + Math.sin(Date.now() * 0.001 + this.phase) * 0.3;
+                this.phase += 0.02;
+                
+                if (this.type !== 'coral') {
+                    if (this.x < -100) this.x = width + 100;
+                    if (this.x > width + 100) this.x = -100;
+                }
+            }
+            
+            draw(ctx, lightLevel) {
+                const screenY = this.y - depth * 0.1;
+                if (screenY < -200 || screenY > height + 200) return;
+                
+                ctx.save();
+                ctx.translate(this.x, screenY);
+                
+                if (this.bioluminescent && lightLevel < 0.3) {
+                    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 3);
+                    const [r, g, b] = this.glowColor || this.color;
+                    glow.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.8)`);
+                    glow.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.3)`);
+                    glow.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size * 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                if (this.type === 'submarine' && this.lightRadius) {
+                    const beam = ctx.createRadialGradient(0, 0, 0, 0, 0, this.lightRadius);
+                    beam.addColorStop(0, 'rgba(255, 255, 200, 0.3)');
+                    beam.addColorStop(1, 'rgba(255, 255, 200, 0)');
+                    ctx.fillStyle = beam;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.lightRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                const [r, g, b] = this.color;
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.beginPath();
+                
+                if (this.type === 'jellyfish') {
+                    ctx.arc(0, -this.size * 0.3, this.size * 0.6, Math.PI, 0);
+                    ctx.bezierCurveTo(this.size * 0.6, this.size * 0.5, -this.size * 0.6, this.size * 0.5, -this.size * 0.6, -this.size * 0.3);
+                    for (let i = 0; i < 4; i++) {
+                        ctx.moveTo(-this.size * 0.4 + i * this.size * 0.27, this.size * 0.2);
+                        ctx.lineTo(-this.size * 0.4 + i * this.size * 0.27 + Math.sin(this.phase + i) * 5, this.size * 0.9);
+                    }
+                } else if (this.type === 'anglerfish') {
+                    ctx.ellipse(0, 0, this.size, this.size * 0.6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.size * 0.5);
+                    ctx.lineTo(this.size * 0.8, -this.size);
+                    ctx.lineTo(this.size * 0.9, -this.size * 0.9);
+                    ctx.strokeStyle = '#444';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.9, -this.size * 0.9, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#8f8';
+                    ctx.fill();
+                } else {
+                    ctx.ellipse(0, 0, this.size, this.size * 0.4, 0, 0, Math.PI * 2);
+                }
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+
+        function spawnCreature(type) {
+            const x = Math.random() * width;
+            const y = depth * 0.1 + Math.random() * height * 0.8;
+            creatures.push(new Creature(type, x, y));
+        }
+
+        function updateCreatureList() {
+            const list = document.getElementById('creature-list');
+            list.innerHTML = '';
+            discovered.forEach(type => {
+                const emoji = {jellyfish:'🎐', anglerfish:'🎣', whale:'🐋', squid:'🦑', coral:'🪸', submarine:'🤿'}[type];
+                const div = document.createElement('div');
+                div.className = 'creature-item';
+                div.innerHTML = `<span style="font-size: 20px;">${emoji}</span><span style="text-transform: capitalize;">${type}</span>`;
+                list.appendChild(div);
+            });
+        }
+
+        function updateUI() {
+            const zone = getZone(depth);
+            document.getElementById('depth-value').textContent = Math.floor(depth) + 'm';
+            document.getElementById('zone-name').textContent = zone.name;
+            document.getElementById('pressure-value').textContent = Math.floor(1 + depth / 10) + ' atm';
+            
+            const indicatorPos = (depth / maxDepth) * 100;
+            document.getElementById('depth-indicator').style.top = indicatorPos + '%';
+        }
+
+        function toggleAutoDive() { autoDive = !autoDive; }
+        function resetDepth() { depth = 0; }
+
+        // Input
+        window.addEventListener('wheel', e => {
+            depth += e.deltaY * 2;
+            depth = Math.max(0, Math.min(maxDepth, depth));
+        });
+
+        // Background particles
+        for (let i = 0; i < 200; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * maxDepth,
+                size: Math.random() * 2,
+                speed: Math.random() * 0.5 + 0.1
+            });
+        }
+
+        // Terrain generation
+        for (let x = 0; x < width + 200; x += 20) {
+            terrain.push({
+                x: x,
+                height: 100 + Math.sin(x * 0.01) * 50 + Math.sin(x * 0.003) * 100
+            });
+        }
+
+        function loop() {
+            if (autoDive) {
+                depth += 2;
+                if (depth > maxDepth) depth = 0;
+            }
+            
+            updateUI();
+            const zone = getZone(depth);
+            
+            // Background gradient based on depth
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            const [r, g, b] = zone.color;
+            gradient.addColorStop(0, `rgb(${r}, ${g}, ${b})`);
+            gradient.addColorStop(1, `rgb(${Math.max(0, r-20)}, ${Math.max(0, g-20)}, ${Math.max(0, b-20)})`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw particles (marine snow)
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * zone.light})`;
+            particles.forEach(p => {
+                const screenY = p.y - depth * 0.1;
+                if (screenY > 0 && screenY < height) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, screenY, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                p.y += p.speed;
+                if (p.y > maxDepth) p.y = 0;
+            });
+            
+            // Draw terrain (ocean floor)
+            ctx.fillStyle = `rgb(${Math.max(0, r-30)}, ${Math.max(0, g-30)}, ${Math.max(0, b-30)})`;
+            ctx.beginPath();
+            ctx.moveTo(0, height);
+            terrain.forEach(t => {
+                const screenY = height - 50 - t.height + depth * 0.05;
+                ctx.lineTo(t.x, screenY);
+            });
+            ctx.lineTo(width, height);
+            ctx.fill();
+            
+            // Draw creatures
+            creatures.forEach(c => {
+                c.update();
+                c.draw(ctx, zone.light);
+            });
+            
+            // Light rays from surface
+            if (depth < 500) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'overlay';
+                for (let i = 0; i < 5; i++) {
+                    const rayGradient = ctx.createLinearGradient(i * width / 5, 0, i * width / 5 + 100, height);
+                    rayGradient.addColorStop(0, `rgba(200, 240, 255, ${0.1 * (1 - depth / 500)})`);
+                    rayGradient.addColorStop(1, 'rgba(200, 240, 255, 0)');
+                    ctx.fillStyle = rayGradient;
+                    ctx.fillRect(i * width / 5, 0, 100, height);
+                }
+                ctx.restore();
+            }
+            
+            requestAnimationFrame(loop);
+        }
+
+        // Initial spawn
+        for (let i = 0; i < 5; i++) spawnCreature('jellyfish');
+        for (let i = 0; i < 3; i++) spawnCreature('coral');
+
+        setTimeout(() => {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+        }, 2000);
+
+        loop();
+    </script>
+</body>
+</html>

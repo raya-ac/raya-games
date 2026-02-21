@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather System Visualizer - Atmospheric Dynamics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .panel {
+            pointer-events: auto;
+            background: rgba(10, 10, 20, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        #top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; }
+        #title { font-size: 24px; font-weight: 300; letter-spacing: 4px; background: linear-gradient(135deg, #a8c0ff, #3f2b96); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        #controls { position: absolute; bottom: 20px; left: 20px; right: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .control-btn {
+            background: linear-gradient(135deg, rgba(100, 150, 255, 0.3), rgba(50, 100, 200, 0.3));
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+        .control-btn:hover { background: linear-gradient(135deg, rgba(100, 150, 255, 0.5), rgba(50, 100, 200, 0.5)); transform: translateY(-2px); }
+        #weather-panel { position: absolute; top: 100px; right: 20px; width: 300px; }
+        .weather-stat { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .weather-stat:last-child { border-bottom: none; }
+        .stat-label { color: rgba(255,255,255,0.6); font-size: 13px; }
+        .stat-value { color: #a8c0ff; font-weight: 600; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0f; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 1s; }
+        #loading-text { font-size: 32px; letter-spacing: 8px; background: linear-gradient(135deg, #a8c0ff, #3f2b96); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        #legend { position: absolute; top: 100px; left: 20px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+        .legend-color { width: 20px; height: 20px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div id="loading-text">INITIALIZING ATMOSPHERE</div>
+        <div style="margin-top: 20px; color: rgba(255,255,255,0.5); font-size: 14px;">Modeling pressure cells...</div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui">
+        <div id="top-bar">
+            <div id="title">WEATHER SYSTEM VISUALIZER</div>
+            <div style="display: flex; gap: 30px;">
+                <div style="text-align: center;"><div style="font-size: 28px; color: #a8c0ff;" id="wind-speed">0</div><div style="font-size: 11px; color: rgba(255,255,255,0.6);">km/h</div></div>
+                <div style="text-align: center;"><div style="font-size: 28px; color: #ff6b6b;" id="temp-display">25°</div><div style="font-size: 11px; color: rgba(255,255,255,0.6);">°C</div></div>
+            </div>
+        </div>
+
+        <div id="legend" class="panel">
+            <h3 style="font-size: 14px; color: #a8c0ff; margin-bottom: 15px;">Visualization</h3>
+            <div class="legend-item"><div class="legend-color" style="background: linear-gradient(45deg, #ff0000, #ff8800);"></div><span style="font-size: 12px;">High Pressure (Warm)</span></div>
+            <div class="legend-item"><div class="legend-color" style="background: linear-gradient(45deg, #0088ff, #0000ff);"></div><span style="font-size: 12px;">Low Pressure (Cold)</span></div>
+            <div class="legend-item"><div class="legend-color" style="background: #ffff00;"></div><span style="font-size: 12px;">Jet Stream</span></div>
+            <div class="legend-item"><div class="legend-color" style="background: #ffffff;"></div><span style="font-size: 12px;">Storm Systems</span></div>
+        </div>
+
+        <div id="weather-panel" class="panel">
+            <h3 style="font-size: 14px; color: #a8c0ff; margin-bottom: 15px;">Atmospheric Data</h3>
+            <div class="weather-stat"><span class="stat-label">Pressure</span><span class="stat-value" id="pressure-stat">1013 hPa</span></div>
+            <div class="weather-stat"><span class="stat-label">Humidity</span><span class="stat-value" id="humidity-stat">65%</span></div>
+            <div class="weather-stat"><span class="stat-label">Precipitation</span><span class="stat-value" id="precip-stat">0 mm</span></div>
+            <div class="weather-stat"><span class="stat-label">Systems Active</span><span class="stat-value" id="systems-stat">3</span></div>
+        </div>
+
+        <div id="controls">
+            <button class="control-btn" onclick="spawnHurricane()">🌀 Hurricane</button>
+            <button class="control-btn" onclick="spawnStorm()">⛈️ Thunderstorm</button>
+            <button class="control-btn" onclick="toggleJetStream()">💨 Jet Stream</button>
+            <button class="control-btn" onclick="addPressureCell()">🌡️ Pressure Cell</button>
+            <button class="control-btn" onclick="clearSystems()">🔄 Clear All</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [], pressureCells = [], storms = [], jetStreams = [];
+        let frame = 0;
+        
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class PressureCell {
+            constructor(x, y, strength) {
+                this.x = x;
+                this.y = y;
+                this.strength = strength;
+                this.radius = 50 + Math.random() * 100;
+                this.phase = Math.random() * Math.PI * 2;
+            }
+            
+            draw(ctx) {
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                if (this.strength > 0) {
+                    gradient.addColorStop(0, 'rgba(255, 100, 50, 0.3)');
+                    gradient.addColorStop(0.5, 'rgba(255, 150, 50, 0.1)');
+                    gradient.addColorStop(1, 'rgba(255, 100, 50, 0)');
+                } else {
+                    gradient.addColorStop(0, 'rgba(50, 100, 255, 0.3)');
+                    gradient.addColorStop(0.5, 'rgba(50, 150, 255, 0.1)');
+                    gradient.addColorStop(1, 'rgba(50, 100, 255, 0)');
+                }
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Draw H or L
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.strength > 0 ? 'H' : 'L', this.x, this.y + 8);
+            }
+        }
+
+        class Storm {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.radius = type === 'hurricane' ? 150 : 50;
+                this.rotation = 0;
+                this.intensity = Math.random() * 0.5 + 0.5;
+                this.eyeRadius = type === 'hurricane' ? 30 : 0;
+            }
+            
+            update() {
+                this.rotation += 0.02 * this.intensity;
+                this.x += (Math.random() - 0.5) * 2;
+                this.y += (Math.random() - 0.5) * 2;
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                if (this.type === 'hurricane') {
+                    // Spiral bands
+                    for (let i = 0; i < 6; i++) {
+                        ctx.save();
+                        ctx.rotate((Math.PI * 2 / 6) * i);
+                        ctx.beginPath();
+                        ctx.moveTo(this.eyeRadius, 0);
+                        for (let r = this.eyeRadius; r < this.radius; r += 5) {
+                            const angle = (r - this.eyeRadius) * 0.1;
+                            ctx.lineTo(r * Math.cos(angle), r * Math.sin(angle));
+                        }
+                        ctx.strokeStyle = `rgba(200, 220, 255, ${0.3 * this.intensity})`;
+                        ctx.lineWidth = 8;
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                    
+                    // Eye
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.eyeRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(100, 150, 200, 0.5)';
+                    ctx.fill();
+                } else {
+                    // Thunderstorm
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius);
+                    gradient.addColorStop(0, 'rgba(100, 100, 120, 0.5)');
+                    gradient.addColorStop(1, 'rgba(80, 80, 100, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Lightning
+                    if (Math.random() < 0.05) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        let lx = 0, ly = 0;
+                        for (let i = 0; i < 5; i++) {
+                            lx += (Math.random() - 0.5) * 40;
+                            ly += (Math.random() - 0.5) * 40;
+                            ctx.lineTo(lx, ly);
+                        }
+                        ctx.strokeStyle = '#ffffaa';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        class JetStream {
+            constructor() {
+                this.points = [];
+                this.y = height / 2;
+                for (let x = 0; x <= width; x += 50) {
+                    this.points.push({ x, y: this.y + Math.sin(x * 0.01) * 100 });
+                }
+            }
+            
+            update() {
+                this.points.forEach((p, i) => {
+                    p.y += Math.sin(Date.now() * 0.001 + i * 0.5) * 0.5;
+                });
+            }
+            
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.moveTo(this.points[0].x, this.points[0].y);
+                for (let i = 1; i < this.points.length; i++) {
+                    ctx.lineTo(this.points[i].x, this.points[i].y);
+                }
+                ctx.strokeStyle = 'rgba(255, 255, 100, 0.6)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                
+                // Arrows
+                for (let i = 5; i < this.points.length; i += 10) {
+                    const p = this.points[i];
+                    const angle = Math.atan2(this.points[i].y - this.points[i-1].y, this.points[i].x - this.points[i-1].x);
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(angle);
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -5);
+                    ctx.lineTo(0, 0);
+                    ctx.lineTo(-10, 5);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.temperature = Math.random() * 40 - 10;
+                this.pressure = 1000 + Math.random() * 50;
+            }
+            
+            update() {
+                // Affected by pressure cells
+                pressureCells.forEach(cell => {
+                    const dx = this.x - cell.x;
+                    const dy = this.y - cell.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < cell.radius * 2) {
+                        const force = cell.strength * 0.01 * (1 - dist / (cell.radius * 2));
+                        this.vx += (dx / dist) * force;
+                        this.vy += (dy / dist) * force;
+                    }
+                });
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Friction
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+            
+            draw(ctx) {
+                const color = this.temperature > 20 ? [255, 100, 50] : (this.temperature < 0 ? [50, 100, 255] : [200, 200, 100]);
+                ctx.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.3)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Trail
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - this.vx * 5, this.y - this.vy * 5);
+                ctx.strokeStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.1)`;
+                ctx.stroke();
+            }
+        }
+
+        // Initialize
+        for (let i = 0; i < 500; i++) particles.push(new Particle());
+        
+        // Add initial pressure cells
+        pressureCells.push(new PressureCell(width * 0.3, height * 0.4, 1));
+        pressureCells.push(new PressureCell(width * 0.7, height * 0.6, -1));
+        
+        function spawnHurricane() {
+            storms.push(new Storm(Math.random() * width, Math.random() * height, 'hurricane'));
+            updateStats();
+        }
+        
+        function spawnStorm() {
+            storms.push(new Storm(Math.random() * width, Math.random() * height, 'thunderstorm'));
+            updateStats();
+        }
+        
+        let showJetStream = false;
+        function toggleJetStream() {
+            showJetStream = !showJetStream;
+            if (showJetStream && jetStreams.length === 0) {
+                jetStreams.push(new JetStream());
+            }
+        }
+        
+        function addPressureCell() {
+            pressureCells.push(new PressureCell(
+                Math.random() * width,
+                Math.random() * height,
+                Math.random() > 0.5 ? 1 : -1
+            ));
+        }
+        
+        function clearSystems() {
+            storms = [];
+            pressureCells = [
+                new PressureCell(width * 0.3, height * 0.4, 1),
+                new PressureCell(width * 0.7, height * 0.6, -1)
+            ];
+            updateStats();
+        }
+        
+        function updateStats() {
+            document.getElementById('systems-stat').textContent = storms.length;
+            document.getElementById('wind-speed').textContent = Math.floor(20 + storms.length * 15);
+        }
+        
+        function loop() {
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw pressure cells
+            pressureCells.forEach(cell => cell.draw(ctx));
+            
+            // Draw particles
+            particles.forEach(p => {
+                p.update();
+                p.draw(ctx);
+            });
+            
+            // Draw jet stream
+            if (showJetStream) {
+                jetStreams.forEach(js => {
+                    js.update();
+                    js.draw(ctx);
+                });
+            }
+            
+            // Draw storms
+            storms.forEach(storm => {
+                storm.update();
+                storm.draw(ctx);
+            });
+            
+            frame++;
+            requestAnimationFrame(loop);
+        }
+
+        setTimeout(() => {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+        }, 2000);
+
+        loop();
+    </script>
+</body>
+</html>

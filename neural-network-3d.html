@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network 3D - Deep Learning Visualizer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .panel {
+            pointer-events: auto;
+            background: rgba(10, 10, 20, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        #top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; }
+        #title { font-size: 24px; font-weight: 300; letter-spacing: 4px; background: linear-gradient(135deg, #00d4ff, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        #controls { position: absolute; bottom: 20px; left: 20px; right: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .control-btn {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(124, 58, 237, 0.3));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+        .control-btn:hover { background: linear-gradient(135deg, rgba(0, 212, 255, 0.5), rgba(124, 58, 237, 0.5)); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3); }
+        #network-panel { position: absolute; top: 100px; right: 20px; width: 280px; }
+        .layer-info { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        #training-panel { position: absolute; top: 100px; left: 20px; width: 250px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0f; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 1s; }
+        #loading-text { font-size: 32px; letter-spacing: 8px; background: linear-gradient(135deg, #00d4ff, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        #prediction-display { position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%); text-align: center; }
+        .digit { display: inline-block; font-size: 48px; margin: 0 10px; padding: 10px 20px; background: rgba(0,212,255,0.1); border-radius: 8px; border: 1px solid rgba(0,212,255,0.3); }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div id="loading-text">INITIALIZING NETWORK</div>
+        <div style="margin-top: 20px; color: rgba(0,212,255,0.5); font-size: 14px;">Building layers...</div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui">
+        <div id="top-bar">
+            <div id="title">NEURAL NETWORK 3D</div>
+            <div style="display: flex; gap: 30px;">
+                <div style="text-align: center;"><div style="font-size: 28px; color: #00d4ff;" id="epoch-count">0</div><div style="font-size: 11px; color: rgba(255,255,255,0.6);">Epochs</div></div>
+                <div style="text-align: center;"><div style="font-size: 28px; color: #7c3aed;" id="accuracy">0%</div><div style="font-size: 11px; color: rgba(255,255,255,0.6);">Accuracy</div></div>
+            </div>
+        </div>
+
+        <div id="training-panel" class="panel">
+            <h3 style="font-size: 14px; color: #00d4ff; margin-bottom: 15px;">Training Stats</h3>
+            <div class="stat-row"><span style="font-size: 12px; color: rgba(255,255,255,0.6);">Loss</span><span id="loss-value">2.304</span></div>
+            <div class="stat-row"><span style="font-size: 12px; color: rgba(255,255,255,0.6);">Learning Rate</span><span id="lr-value">0.001</span></div>
+            <div class="stat-row"><span style="font-size: 12px; color: rgba(255,255,255,0.6);">Batch Size</span><span id="batch-value">32</span></div>
+            <div class="stat-row"><span style="font-size: 12px; color: rgba(255,255,255,0.6);">Active Neurons</span><span id="neuron-count">0</span></div>
+        </div>
+
+        <div id="network-panel" class="panel">
+            <h3 style="font-size: 14px; color: #00d4ff; margin-bottom: 15px;">Architecture</h3>
+            <div class="layer-info"><span style="font-size: 12px;">Input (784)</span><span style="color: #00d4ff;">→</span></div>
+            <div class="layer-info"><span style="font-size: 12px;">Hidden 1 (256)</span><span style="color: #7c3aed;">ReLU</span></div>
+            <div class="layer-info"><span style="font-size: 12px;">Hidden 2 (128)</span><span style="color: #7c3aed;">ReLU</span></div>
+            <div class="layer-info"><span style="font-size: 12px;">Output (10)</span><span style="color: #f59e0b;">Softmax</span></div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 11px; color: rgba(255,255,255,0.5);">Total Parameters: 235,146</div>
+            </div>
+        </div>
+
+        <div id="prediction-display">
+            <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 10px;">LATEST PREDICTIONS</div>
+            <div id="digits-container">
+                <div class="digit" id="pred-0">0</div>
+                <div class="digit" id="pred-1">1</div>
+                <div class="digit" id="pred-2">2</div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <button class="control-btn" onclick="startTraining()">▶ Train</button>
+            <button class="control-btn" onclick="pauseTraining()">⏸ Pause</button>
+            <button class="control-btn" onclick="addLayer()">➕ Add Layer</button>
+            <button class="control-btn" onclick="dropout()">💧 Dropout</button>
+            <button class="control-btn" onclick="resetNetwork()">🔄 Reset</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, neurons = [], connections = [], signals = [], particles = [];
+        let training = false, epoch = 0, accuracy = 0, loss = 2.3;
+        let rotationX = 0.3, rotationY = 0;
+        
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 3D projection
+        function project(x, y, z) {
+            const cx = Math.cos(rotationY), sx = Math.sin(rotationY);
+            const cy = Math.cos(rotationX), sy = Math.sin(rotationX);
+            
+            // Rotate around Y
+            let x1 = x * cx - z * sx;
+            let z1 = x * sx + z * cx;
+            
+            // Rotate around X
+            let y1 = y * cy - z1 * sy;
+            let z2 = y * sy + z1 * cy;
+            
+            // Perspective
+            const fov = 800;
+            const scale = fov / (fov + z2 + 500);
+            
+            return {
+                x: width / 2 + x1 * scale,
+                y: height / 2 + y1 * scale,
+                scale: scale,
+                z: z2
+            };
+        }
+
+        class Neuron {
+            constructor(x, y, z, layer) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.layer = layer;
+                this.activation = Math.random();
+                this.targetActivation = Math.random();
+            }
+            
+            update() {
+                this.activation += (this.targetActivation - this.activation) * 0.1;
+                this.targetActivation += (Math.random() - 0.5) * 0.1;
+                this.targetActivation = Math.max(0, Math.min(1, this.targetActivation));
+            }
+            
+            draw(ctx) {
+                const p = project(this.x, this.y, this.z);
+                const size = (8 + this.activation * 12) * p.scale;
+                
+                // Glow based on activation
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 2);
+                const hue = 180 + this.activation * 60;
+                gradient.addColorStop(0, `hsla(${hue}, 100%, 50%, ${0.5 + this.activation * 0.5})`);
+                gradient.addColorStop(0.5, `hsla(${hue}, 100%, 50%, ${this.activation * 0.3})`);
+                gradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, size * 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Core
+                ctx.fillStyle = `hsla(${hue}, 100%, 70%, 1)`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Connection {
+            constructor(n1, n2) {
+                this.n1 = n1;
+                this.n2 = n2;
+                this.weight = Math.random() * 2 - 1;
+                this.signal = 0;
+            }
+            
+            draw(ctx) {
+                const p1 = project(this.n1.x, this.n1.y, this.n1.z);
+                const p2 = project(this.n2.x, this.n2.y, this.n2.z);
+                
+                // Only draw if both points are in front
+                if (p1.z > -500 && p2.z > -500) {
+                    const strength = (this.n1.activation + this.n2.activation) / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.strokeStyle = `rgba(100, 150, 255, ${0.1 + strength * 0.3})`;
+                    ctx.lineWidth = (0.5 + Math.abs(this.weight) * 0.5) * ((p1.scale + p2.scale) / 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        class Signal {
+            constructor(n1, n2) {
+                this.n1 = n1;
+                this.n2 = n2;
+                this.progress = 0;
+                this.speed = 0.05 + Math.random() * 0.05;
+            }
+            
+            update() {
+                this.progress += this.speed;
+            }
+            
+            draw(ctx) {
+                const p1 = project(this.n1.x, this.n1.y, this.n1.z);
+                const p2 = project(this.n2.x, this.n2.y, this.n2.z);
+                
+                const x = p1.x + (p2.x - p1.x) * this.progress;
+                const y = p1.y + (p2.y - p1.y) * this.progress;
+                const scale = p1.scale + (p2.scale - p1.scale) * this.progress;
+                
+                ctx.fillStyle = '#00d4ff';
+                ctx.beginPath();
+                ctx.arc(x, y, 3 * scale, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'rgba(0, 212, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(x, y, 6 * scale, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function buildNetwork() {
+            neurons = [];
+            connections = [];
+            
+            const layers = [8, 12, 10, 8, 6];
+            const layerSpacing = 200;
+            
+            // Create neurons
+            for (let l = 0; l < layers.length; l++) {
+                const count = layers[l];
+                const layerX = (l - layers.length / 2) * layerSpacing;
+                const radius = 150;
+                
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    const x = layerX;
+                    const y = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+                    neurons.push(new Neuron(x, y, z, l));
+                }
+            }
+            
+            // Create connections
+            for (let i = 0; i < neurons.length; i++) {
+                for (let j = i + 1; j < neurons.length; j++) {
+                    if (neurons[j].layer === neurons[i].layer + 1) {
+                        connections.push(new Connection(neurons[i], neurons[j]));
+                    }
+                }
+            }
+            
+            document.getElementById('neuron-count').textContent = neurons.length;
+        }
+
+        function startTraining() {
+            training = true;
+        }
+
+        function pauseTraining() {
+            training = false;
+        }
+
+        function addLayer() {
+            // Simplified - just rebuild with one more layer
+            buildNetwork();
+        }
+
+        function dropout() {
+            neurons.forEach(n => {
+                if (Math.random() < 0.3) {
+                    n.activation = 0;
+                    n.targetActivation = 0;
+                }
+            });
+        }
+
+        function resetNetwork() {
+            epoch = 0;
+            accuracy = 0;
+            loss = 2.3;
+            training = false;
+            document.getElementById('epoch-count').textContent = '0';
+            document.getElementById('accuracy').textContent = '0%';
+            document.getElementById('loss-value').textContent = '2.304';
+            buildNetwork();
+        }
+
+        // Mouse rotation
+        let mouseDown = false, lastMouseX = 0, lastMouseY = 0;
+        canvas.addEventListener('mousedown', e => { mouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+        canvas.addEventListener('mouseup', () => mouseDown = false);
+        canvas.addEventListener('mousemove', e => {
+            if (mouseDown) {
+                rotationY += (e.clientX - lastMouseX) * 0.01;
+                rotationX += (e.clientY - lastMouseY) * 0.01;
+                rotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationX));
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+            }
+        });
+
+        function updateDigits() {
+            for (let i = 0; i < 3; i++) {
+                const digit = Math.floor(Math.random() * 10);
+                const confidence = Math.floor(Math.random() * 30 + 70);
+                const el = document.getElementById(`pred-${i}`);
+                el.textContent = digit;
+                el.style.background = `rgba(0, 212, 255, ${confidence / 200})`;
+            }
+        }
+
+        function loop() {
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Auto-rotation
+            if (!mouseDown) {
+                rotationY += 0.003;
+            }
+            
+            // Training updates
+            if (training && Math.random() < 0.1) {
+                neurons.forEach(n => n.update());
+                
+                // Spawn signals
+                if (Math.random() < 0.3) {
+                    const validConnections = connections.filter(c => c.n1.activation > 0.5);
+                    if (validConnections.length > 0) {
+                        const c = validConnections[Math.floor(Math.random() * validConnections.length)];
+                        signals.push(new Signal(c.n1, c.n2));
+                    }
+                }
+                
+                // Update stats occasionally
+                if (Math.random() < 0.05) {
+                    epoch++;
+                    accuracy = Math.min(99, accuracy + Math.random() * 0.5);
+                    loss = Math.max(0.01, loss * 0.999);
+                    document.getElementById('epoch-count').textContent = epoch;
+                    document.getElementById('accuracy').textContent = accuracy.toFixed(1) + '%';
+                    document.getElementById('loss-value').textContent = loss.toFixed(3);
+                    
+                    if (epoch % 10 === 0) updateDigits();
+                }
+            }
+            
+            // Sort by Z for proper depth
+            const sortedNeurons = [...neurons].sort((a, b) => {
+                const pa = project(a.x, a.y, a.z);
+                const pb = project(b.x, b.y, b.z);
+                return pb.z - pa.z;
+            });
+            
+            // Draw connections
+            connections.forEach(c => c.draw(ctx));
+            
+            // Draw neurons
+            sortedNeurons.forEach(n => n.draw(ctx));
+            
+            // Update and draw signals
+            signals = signals.filter(s => {
+                s.update();
+                s.draw(ctx);
+                return s.progress < 1;
+            });
+            
+            requestAnimationFrame(loop);
+        }
+
+        buildNetwork();
+
+        setTimeout(() => {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+        }, 2000);
+
+        loop();
+    </script>
+</body>
+</html>
